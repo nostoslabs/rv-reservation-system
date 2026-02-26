@@ -1,247 +1,276 @@
-# RV Reservation Demo Plan
+# Offline-First Desktop Migration Plan (Tauri + SQLite)
 
-## Scope
-Build a demoable browser-only RV reservation system as a SvelteKit app with LocalStorage persistence, spreadsheet-like grid UX (sticky top rows + sticky first column), reservation CRUD modal, validation, autosave indicator, and parking location management.
+## Objective
+Evolve the current SvelteKit RV reservation demo into an offline-first desktop application using Tauri + SQLite, while preserving an architecture that can later support a web SaaS deployment (e.g. Firebase) via swappable infrastructure adapters.
 
-## Assumptions
-- Single-user demo app; no backend or multi-user sync.
-- Dates are handled as local calendar days using deterministic `YYYY-MM-DD` storage and UTC-safe day math.
-- SvelteKit app can run in SPA mode for demo purposes.
+## Execution Rules
+- Follow `AGENTS.md` (Clean Architecture, storage abstraction, TDD, atomic commits).
+- Execute issues in order unless an explicit blocker forces reprioritization.
+- For behavior changes, add/update tests first.
+- At the end of each epic, generate updated screenshots in `screenshots/` using Playwright automation.
 
-## Epic 1: Project Foundation & App Shell
+## Epic 1: Clean Architecture Refactor (Foundational)
 
-### Issue 1.1 - Scaffold SvelteKit/TypeScript project files
-- Goal: Create a runnable SvelteKit project skeleton with TypeScript and baseline config.
-- User-visible behavior: `npm run dev` starts a SvelteKit app and renders a page.
+### Issue 1.1 - Introduce layer folders and storage/application ports (no behavior change)
+- Goal: Create the initial Clean Architecture structure and define storage interfaces/ports used by the app.
 - Acceptance criteria:
-  - `package.json` includes SvelteKit scripts (`dev`, `build`, `preview`, `check`).
-  - Required config files exist (`svelte.config.js`, `vite.config.ts`, `tsconfig.json`).
-  - Root route renders without runtime errors.
-- Key files touched/created:
+  - Layer directories/modules exist for `domain`, `application`, `interface-adapters`, and `infrastructure`.
+  - Reservation/app-data/admin-settings persistence interfaces are defined in application layer.
+  - Existing UI still builds with no behavior change.
+- Key files:
+  - `src/lib/application/ports/*`
+  - `src/lib/domain/*` (initial shared types re-export or migrated types)
+  - `src/lib/infrastructure/*` (scaffold only)
+  - `src/lib/types.ts` (bridge or migration shim if needed)
+- Test additions:
+  - Add/adjust compile-level import tests or minimal unit tests for port contracts (if harness exists).
+  - Validate no regression via `npm run check` and `npm run build`.
+
+### Issue 1.2 - Move reservation validation/business rules into domain layer
+- Goal: Relocate overlap/date/normalization logic into pure domain modules without UI coupling.
+- Acceptance criteria:
+  - Domain reservation validation and occupancy logic are pure and framework-independent.
+  - Existing UI behavior unchanged.
+  - Legacy imports replaced or shimmed cleanly.
+- Key files:
+  - `src/lib/domain/reservations/*`
+  - `src/lib/reservations.ts` (compat shim or removed)
+  - `src/lib/date.ts` / `src/lib/domain/date/*` (if migrated)
+- Test additions:
+  - Add domain tests for overlap rules and normalization.
+  - Include adjacent-boundary non-overlap coverage.
+
+### Issue 1.3 - Introduce application use-cases for reservation and parking location mutations
+- Goal: Move write operations from Svelte stores into application services/use-cases using repository ports.
+- Acceptance criteria:
+  - CRUD and parking location mutations are orchestrated by application use-cases.
+  - Use-cases depend on ports, not LocalStorage.
+  - UI/store delegates to adapters/use-cases and preserves behavior.
+- Key files:
+  - `src/lib/application/use-cases/*`
+  - `src/lib/interface-adapters/*`
+  - `src/lib/state.ts`
+- Test additions:
+  - Add use-case tests (save/edit/delete reservation, location rename/delete constraints).
+
+### Issue 1.4 - Introduce app composition root for choosing storage provider (LocalStorage default)
+- Goal: Centralize dependency wiring and make storage provider selection explicit.
+- Acceptance criteria:
+  - A composition root wires application ports to a LocalStorage implementation by default.
+  - UI/store imports composition root/facade instead of concrete storage helpers.
+  - Swapping provider can be done in one place.
+- Key files:
+  - `src/lib/app/composition.ts` (or equivalent)
+  - `src/lib/infrastructure/storage/localstorage/*`
+  - `src/lib/state.ts`
+  - `src/lib/site-settings.ts`
+- Test additions:
+  - Add adapter tests with an in-memory fake/localStorage stub.
+
+## Epic 2: Playwright TDD Harness + CI
+
+### Issue 2.1 - Add Playwright test config, scripts, and deterministic local app launch
+- Goal: Establish a repeatable Playwright test harness for local and CI runs.
+- Acceptance criteria:
+  - `playwright.config.*` exists and runs against local app.
+  - `npm test` (or `npm run test:e2e`) executes Playwright tests.
+  - Test output and screenshots/artifacts are stored in standard directories.
+- Key files:
+  - `playwright.config.ts`
   - `package.json`
-  - `svelte.config.js`
-  - `vite.config.ts`
-  - `tsconfig.json`
-  - `src/app.html`
-  - `src/routes/+layout.svelte`
-  - `src/routes/+page.svelte`
-  - `src/app.d.ts`
-- Notes:
-  - Keep dependencies minimal and compatible with local-only demo.
-  - Prefer static adapter / SPA-friendly configuration.
+  - `tests/e2e/*` (initial scaffold)
+- Test additions:
+  - Add smoke test that loads `/` and `/admin`.
 
-### Issue 1.2 - Base styles and layout shell
-- Goal: Establish simple, clean styling and app layout primitives used by the grid and modals.
-- User-visible behavior: Page has a polished frame, readable typography, and responsive layout.
+### Issue 2.2 - Add core user-flow Playwright tests (CRUD, overlap, TODAY, admin)
+- Goal: Capture current expected behavior in end-to-end tests before larger platform changes.
 - Acceptance criteria:
-  - Global CSS variables and base styles applied.
-  - Main page layout supports full-width scrollable content area.
-  - Styles remain usable on mobile and desktop.
-- Key files touched/created:
-  - `src/app.css`
-  - `src/routes/+layout.svelte`
-  - `src/routes/+page.svelte`
-- Notes:
-  - Keep styling simple, avoid framework dependency.
+  - Playwright coverage exists for create/edit/delete reservation flow.
+  - Overlap rejection flow is covered.
+  - `TODAY` alignment behavior is verified.
+  - `/admin` siteName + passcode flow is verified.
+- Key files:
+  - `tests/e2e/reservations.spec.ts`
+  - `tests/e2e/admin.spec.ts`
+  - `scripts/screenshot.mjs` (optional updates for reuse/helpers)
+- Test additions:
+  - The Playwright tests themselves (core required coverage).
 
-## Epic 2: Domain Model, Date Utilities, and Persistence
-
-### Issue 2.1 - Implement deterministic date utility module
-- Goal: Provide safe date parsing/formatting/day arithmetic with no timezone drift.
-- User-visible behavior: Dates display consistently and grid alignment is stable across reloads.
+### Issue 2.3 - Add CI workflow for check/build/test
+- Goal: Run typecheck/build/Playwright on CI for regression control.
 - Acceptance criteria:
-  - Utilities support `YYYY-MM-DD` parsing/formatting for storage.
-  - Utilities support `dd/mm/yyyy` display formatting for grid header.
-  - Utilities support `addDays`, `diffDays`, and “today” as local date string.
-- Key files touched/created:
-  - `src/lib/date.ts`
-- Notes:
-  - Use UTC-normalized noon or explicit UTC day math; avoid JS implicit timezone parsing pitfalls.
+  - CI workflow runs `npm ci`, `npm run check`, `npm run build`, and Playwright tests.
+  - CI stores Playwright artifacts on failure.
+- Key files:
+  - `.github/workflows/ci.yml`
+- Test additions:
+  - CI executes existing tests; no new functional tests required.
 
-### Issue 2.2 - Define reservation/parking types and validation logic
-- Goal: Centralize reservation schema, color set, and business validation including overlap rules.
-- User-visible behavior: Invalid entries show clear errors; overlapping reservations are blocked.
+## Epic 3: Tauri Scaffolding
+
+### Issue 3.1 - Add Tauri project scaffold and desktop dev scripts
+- Goal: Introduce Tauri workspace/config without breaking web build.
 - Acceptance criteria:
-  - Reservation type includes all required fields (`index`, `firstCellId`, `name`, `startDate`, `endDate`, `parkingLocation`, `color`).
-  - Allowed colors constrained to required list.
-  - Validation enforces non-empty name, end after start, valid location, and no overlap except adjacent end/start.
-- Key files touched/created:
-  - `src/lib/types.ts`
-  - `src/lib/reservations.ts`
-- Notes:
-  - Keep logic independent of UI so it is testable.
+  - `src-tauri/` scaffold exists with minimal app config.
+  - `package.json` includes desktop dev/build scripts.
+  - Existing web app still runs/builds.
+- Key files:
+  - `src-tauri/Cargo.toml`
+  - `src-tauri/src/main.rs`
+  - `src-tauri/tauri.conf.json`
+  - `package.json`
+- Test additions:
+  - Add a basic smoke validation step/documented command for Tauri config (or CI TODO if platform blocked).
 
-### Issue 2.3 - LocalStorage persistence store with migrations/defaults
-- Goal: Persist reservations, parking locations, view state, and autosave metadata in browser LocalStorage.
-- User-visible behavior: Data survives refresh/reopen; default data appears on first load.
+### Issue 3.2 - Add infrastructure boundary for desktop capabilities (feature-flagged/no-op web fallback)
+- Goal: Prepare a stable interface for desktop-only operations used later by SQLite adapter.
 - Acceptance criteria:
-  - Initial load seeds ~10 parking locations if none exist.
-  - Reservation indices auto-increment and remain stable after reload.
-  - Persist happens immediately on state changes.
-  - Corrupt/partial LocalStorage data fails gracefully to defaults.
-- Key files touched/created:
-  - `src/lib/storage.ts`
-  - `src/lib/state.svelte.ts` (or equivalent app store module)
-- Notes:
-  - Persisted shape should include version for future compatibility.
+  - Desktop capability interface is defined and injected through composition root.
+  - Web fallback implementation exists and does not break current app.
+- Key files:
+  - `src/lib/application/ports/desktop.ts` (or equivalent)
+  - `src/lib/infrastructure/desktop/*`
+  - `src/lib/app/composition.ts`
+- Test additions:
+  - Add adapter tests for no-op web implementation behavior.
 
-## Epic 3: Spreadsheet Grid Rendering
+## Epic 4: SQLite Schema + Migrations
 
-### Issue 3.1 - Render working sheet grid with sticky rows/column
-- Goal: Build scrollable spreadsheet-like grid where rows are parking locations and columns are dates.
-- User-visible behavior: User can scroll horizontally/vertically while top 2 rows and first column stay visible.
+### Issue 4.1 - Define SQLite schema for reservations, parking locations, admin settings, metadata
+- Goal: Create normalized schema supporting current features and future migration/sync hooks.
 - Acceptance criteria:
-  - Row 1 reserved for function buttons.
-  - Row 2 shows perpetual calendar dates in `dd/mm/yyyy` format.
-  - Column 1 shows parking locations; top-left cell shows current date.
-  - Grid is scrollable and sticky behavior works in modern browsers.
-- Key files touched/created:
-  - `src/routes/+page.svelte`
-  - `src/lib/components/Grid.svelte` (optional split)
-- Notes:
-  - Virtualization not required; fixed horizon is acceptable for demo.
+  - SQL schema includes tables for reservations, parking_locations, admin_settings, and schema metadata.
+  - Constraints enforce key invariants where practical.
+  - Date storage format is documented (ISO local calendar date strings).
+- Key files:
+  - `src/lib/infrastructure/storage/sqlite/schema.sql` (or migration files)
+  - `docs/PLAN.md` (schema notes if needed)
+- Test additions:
+  - Add migration/schema tests (parse/apply SQL in test environment if possible, otherwise verify statements via integration harness later).
 
-### Issue 3.2 - Initial alignment and TODAY button behavior
-- Goal: Ensure grid opens aligned to today and supports quick realignment via button in row1/col4.
-- User-visible behavior: On open, today’s column is visible; clicking `TODAY` realigns so row2 col2 is today.
+### Issue 4.2 - Add migration runner abstraction and initial migration set
+- Goal: Version database schema and enable future upgrades safely.
 - Acceptance criteria:
-  - On initial mount, horizontal scroll positions grid so date at row2/col2 equals current date.
-  - `TODAY` button is placed in row1/col4 and performs same alignment.
-  - Re-alignment is deterministic after resizing or edits.
-- Key files touched/created:
-  - `src/routes/+page.svelte`
-  - `src/lib/components/Grid.svelte` (if used)
-- Notes:
-  - May require measuring cell width / querying target header cell.
+  - Migration runner tracks applied versions.
+  - Initial migration creates current schema.
+  - Re-running migrations is idempotent/safe.
+- Key files:
+  - `src/lib/infrastructure/storage/sqlite/migrations/*`
+  - `src/lib/infrastructure/storage/sqlite/migrator.*`
+- Test additions:
+  - Add migration runner tests for fresh DB and already-migrated DB.
 
-### Issue 3.3 - Reservation cell painting and label display
-- Goal: Display reservations across date ranges with color fill and name text in covered cells.
-- User-visible behavior: Reservations appear as colored spans across the correct cells, excluding end date cell.
+## Epic 5: SQLite Storage Provider + Adapter Wiring
+
+### Issue 5.1 - Implement SQLite repositories for app data (reservations + parking locations)
+- Goal: Provide concrete SQLite repository implementations behind application ports.
 - Acceptance criteria:
-  - Cells from `startDate` inclusive to `endDate` exclusive are filled.
-  - Cell background matches reservation color.
-  - Reservation name appears in occupied cells (at least on first cell; optionally repeated for readability).
-  - Adjacent reservations on boundary dates render without overlap.
-- Key files touched/created:
-  - `src/routes/+page.svelte`
-  - `src/lib/reservations.ts`
-- Notes:
-  - Keep lookup efficient enough for demo (index by location/date map if needed).
+  - Reservation and parking location reads/writes work through SQLite adapter.
+  - Data shape matches current application expectations.
+  - No UI layer imports SQLite directly.
+- Key files:
+  - `src/lib/infrastructure/storage/sqlite/*repository*`
+  - `src/lib/application/ports/*`
+- Test additions:
+  - Add repository integration tests against a test SQLite database.
 
-## Epic 4: Reservation CRUD Modal and Interactions
-
-### Issue 4.1 - Double-click cell interaction and modal open states
-- Goal: Open modal on double-click for empty/new or existing/edit reservation flows.
-- User-visible behavior: Double-clicking a grid cell opens a modal with relevant fields prefilled.
+### Issue 5.2 - Wire provider selection to choose SQLite in Tauri and LocalStorage in web/dev
+- Goal: Swap storage implementation by runtime platform/composition without changing use-cases.
 - Acceptance criteria:
-  - Double-click empty cell opens “new reservation” modal with start date + parking location prefilled.
-  - Double-click occupied cell opens “edit reservation” modal with reservation values pre-populated.
-  - Modal can be dismissed with cancel/overlay/escape (at minimum cancel).
-- Key files touched/created:
-  - `src/routes/+page.svelte`
-  - `src/lib/components/ReservationModal.svelte`
-- Notes:
-  - Track selected cell context and selected reservation separately.
+  - Tauri desktop path selects SQLite provider.
+  - Web/dev path selects LocalStorage provider.
+  - Existing user flows remain green in Playwright tests.
+- Key files:
+  - `src/lib/app/composition.ts`
+  - `src/lib/infrastructure/storage/localstorage/*`
+  - `src/lib/infrastructure/storage/sqlite/*`
+- Test additions:
+  - Add composition tests for provider selection.
+  - Re-run and keep Playwright core flows passing.
 
-### Issue 4.2 - Save/Cancel/Delete actions wired to persistent state
-- Goal: Complete CRUD workflows from modal controls.
-- User-visible behavior: Users can add, edit, cancel, and delete reservations and see grid update immediately.
+## Epic 6: Admin Settings Stored in DB
+
+### Issue 6.1 - Add admin settings repository port/use-cases and move settings logic out of route store
+- Goal: Bring admin settings into the same Clean Architecture stack used by reservations.
 - Acceptance criteria:
-  - Save creates a new reservation row with auto-incremented index when new.
-  - Save updates existing reservation when editing.
-  - Delete removes reservation and clears all associated grid cells.
-  - Cancel closes modal without changing stored data.
-- Key files touched/created:
-  - `src/lib/state.svelte.ts` (or store module)
-  - `src/lib/components/ReservationModal.svelte`
-  - `src/routes/+page.svelte`
-- Notes:
-  - `firstCellId` should be generated deterministically from first occupied cell context.
+  - `siteName` and `adminPasscode` flow through application ports/use-cases.
+  - `/admin` route uses adapters/facade, not direct storage helpers.
+  - Web/local behavior unchanged.
+- Key files:
+  - `src/lib/application/use-cases/admin/*`
+  - `src/lib/interface-adapters/admin/*`
+  - `src/lib/site-settings.ts`
+  - `src/routes/admin/+page.svelte`
+- Test additions:
+  - Add use-case tests for save/load/update passcode/siteName.
+  - Maintain Playwright admin flow tests.
 
-### Issue 4.3 - Validation and inline error messaging in modal
-- Goal: Prevent invalid reservations and give actionable feedback.
-- User-visible behavior: Form shows clear errors and blocks save until valid.
+### Issue 6.2 - Persist admin settings in SQLite provider and align schema usage
+- Goal: Store admin settings in SQLite for desktop mode using the same port contract.
 - Acceptance criteria:
-  - End date must be after start date.
-  - Parking location must exist.
-  - Overlaps are rejected with message naming conflicting reservation/location/date range.
-  - Validation runs on save and surfaces errors without breaking modal state.
-- Key files touched/created:
-  - `src/lib/reservations.ts`
-  - `src/lib/components/ReservationModal.svelte`
-- Notes:
-  - Keep UI messages concise and specific.
+  - SQLite implementation persists `siteName` and `adminPasscode`.
+  - Admin route behavior matches LocalStorage provider behavior.
+- Key files:
+  - `src/lib/infrastructure/storage/sqlite/*admin*`
+  - `src/lib/infrastructure/storage/localstorage/*admin*`
+  - `src/lib/app/composition.ts`
+- Test additions:
+  - Add SQLite repository tests for admin settings.
+  - Re-run Playwright `/admin` tests.
 
-## Epic 5: Parking Location Management and Autosave UX
+## Epic 7: Packaging for Windows/macOS
 
-### Issue 5.1 - Parking location management panel
-- Goal: Provide small UI to add/remove/rename parking locations.
-- User-visible behavior: User can manage parking rows and see grid update accordingly.
+### Issue 7.1 - Desktop packaging configuration and signing placeholders
+- Goal: Prepare Tauri packaging configuration for Windows/macOS builds.
 - Acceptance criteria:
-  - Default ~10 locations on first load.
-  - Add location appends a new row.
-  - Rename updates row label and reservation associations safely.
-  - Delete blocks if reservations exist for that location or offers clear error.
-- Key files touched/created:
-  - `src/lib/components/ParkingLocationsPanel.svelte`
-  - `src/lib/state.svelte.ts` (or store module)
-  - `src/routes/+page.svelte`
-- Notes:
-  - Renaming should migrate reservation `parkingLocation` values.
-
-### Issue 5.2 - Autosave indicator and close/unload flush behavior
-- Goal: Show persistence status and satisfy autosave timing/close requirements.
-- User-visible behavior: Indicator shows last save time, updates on changes, periodic heartbeat (<=15 min), and saves on tab close.
-- Acceptance criteria:
-  - State changes persist immediately and update status timestamp.
-  - Indicator refreshes displayed text at least every 15 minutes (prefer more frequently for UX).
-  - `beforeunload` triggers final persistence attempt.
-- Key files touched/created:
-  - `src/lib/storage.ts`
-  - `src/lib/state.svelte.ts` (or store module)
-  - `src/routes/+page.svelte`
-- Notes:
-  - Browser may limit async work in `beforeunload`; use synchronous LocalStorage write.
-
-## Epic 6: Documentation and Verification
-
-### Issue 6.1 - README and developer run instructions
-- Goal: Document how to install, run, and demo the app locally.
-- User-visible behavior: Developer can follow README to start app and understand features.
-- Acceptance criteria:
-  - README includes prerequisites, install/run/build commands.
-  - README documents LocalStorage persistence and reset method.
-  - README summarizes core interactions (double-click, TODAY button, parking management).
-- Key files touched/created:
+  - Tauri bundle targets configured for Windows and macOS.
+  - Signing/notarization placeholders/documentation are added (no secrets committed).
+  - Build commands are documented.
+- Key files:
+  - `src-tauri/tauri.conf.json`
   - `README.md`
-- Notes:
-  - Mention browser support assumptions for sticky grid.
+  - `docs/release.md` (new, optional)
+- Test additions:
+  - Add packaging smoke checklist (manual/CI matrix TODO as applicable).
 
-### Issue 6.2 - Smoke verification and completion event
-- Goal: Validate demo app behavior and signal completion.
-- User-visible behavior: N/A (developer workflow step).
+### Issue 7.2 - Release verification checklist and artifact naming conventions
+- Goal: Standardize release outputs and manual verification steps.
 - Acceptance criteria:
-  - Run at least available checks (`npm run check` and/or `npm run build`) if dependencies can be installed.
-  - Manually sanity-check key flows if runtime can be launched.
-  - Run required completion command exactly as requested.
-- Key files touched/created:
-  - None (unless fixing issues discovered during verification)
-- Notes:
-  - If local environment prevents install/build, document blocker and what was verified statically.
+  - Documented checklist covers install, launch, persistence, and core reservation/admin flows.
+  - Artifact naming/versioning conventions defined.
+- Key files:
+  - `docs/release.md`
+- Test additions:
+  - No new automated tests; ensure existing Playwright suite is part of release checklist.
 
-## Suggested Execution Order (Implementation Sequence)
-- 1.1 Scaffold project
-- 1.2 Base styles
-- 2.1 Date utilities
-- 2.2 Types + validation
-- 2.3 LocalStorage state
-- 3.1 Grid skeleton + sticky behavior
-- 3.2 Today alignment
-- 3.3 Reservation rendering
-- 4.1 Modal open flows
-- 4.2 CRUD actions
-- 4.3 Validation UX
-- 5.1 Parking location management
-- 5.2 Autosave indicator
-- 6.1 README
-- 6.2 Verification + completion event
+## Epic 8 (Stretch): Optional Sync Interface (No Implementation Yet)
+
+### Issue 8.1 - Define sync port/contracts and conflict metadata model (interfaces only)
+- Goal: Create a future-ready sync interface without implementing any remote sync provider.
+- Acceptance criteria:
+  - Sync-related ports/contracts are defined in application layer only.
+  - Domain/application models include any required metadata hooks (e.g., updatedAt/version/source) without enabling sync behavior yet.
+  - No Firebase/network SDK added.
+- Key files:
+  - `src/lib/application/ports/sync.ts`
+  - `src/lib/domain/*` (metadata additions if needed)
+  - `docs/architecture.md` (optional, new)
+- Test additions:
+  - Add unit tests for sync contract mappers/metadata defaults if code is introduced.
+
+## Planned Execution Order (Atomic Commit Sequence)
+1. Epic 1 (issues 1.1 -> 1.4)
+2. Epic 2 (issues 2.1 -> 2.3)
+3. Epic 3 (issues 3.1 -> 3.2)
+4. Epic 4 (issues 4.1 -> 4.2)
+5. Epic 5 (issues 5.1 -> 5.2)
+6. Epic 6 (issues 6.1 -> 6.2)
+7. Epic 7 (issues 7.1 -> 7.2)
+8. Epic 8 stretch (issue 8.1)
+
+## Milestone Artifacts (Per Epic)
+At the end of each epic:
+- Run `npm run check`
+- Run `npm run build` (and `npm test` / Playwright as applicable)
+- Generate/update screenshots in `screenshots/` via Playwright automation (`scripts/screenshot.mjs` may be adapted)
+- Commit the epic-completing issue separately from follow-up fixes when feasible
