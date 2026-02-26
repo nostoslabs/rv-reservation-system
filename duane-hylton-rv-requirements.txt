@@ -1,0 +1,23 @@
+
+
+Yahoo Mail: Search, Organize, Conquer 
+ 
+   ----- Forwarded Message ----- From: "Duane Hylton" <duanehylton@yahoo.com> To: "northgaterv@bellsouth.net" <northgaterv@bellsouth.net> Cc:  Sent: Wed, Feb 18, 2026 at 7:31 AM Subject: Fw: rv requirements  Read this over. Understand that the context was framed around a spreadsheet implementation. Hopefully the functionality is explicit enough to be platform neutral. 
+
+
+
+A display sheet or working sheet ( hereafter referred to as the “working sheet” ) that shows reservations represented as cells on the sheet where the columns represent the dates of the reservation and the rows Understand that the context the parking location of the reservation. The first row of the working sheet is fixed and is reserved for function buttons. The second row is a perpetual calendar in the format dd/mm/yyyy. The first column is fixed and contains the parking locations, except for the first row of the first column which will display the current date.
+A data Table on a separate sheet that holds the fields of the reservation which are:   
+   - The index number of the reservation which is assigned automatically at the time the data row is created and is incremented by one with each new reservation.
+   - The first cell id of the reservation
+   - The name of the reservation
+   - The start date of the reservation
+   - The end date of the reservation
+   - The parking location of the reservation
+   - The color assigned to the reservation
+
+A reservation is displayed on the working sheet in each cell by changing the color of the cell to the color assigned to the reservation and filling the cell with the name of the reservation. This is done for every day of the reservation minus one ( the cell for end date of the reservation is not filled.) Two reservations cannot be assigned to the same cell except when the end date of the first reservation is the same as the start date of the second reservation.
+When double clicking on an empty cell of the working sheet a dialogue box will pop up having fields for the entry of the reservation name, the start date of the reservation (should be autofilled from the column clicked on), the end date of the reservation, the parking location of the reservation (should be autofilled from the row clicked on), and the color to be assigned to the reservation from a selection of red, green, blue, yellow, pink, orange, purple. If the cell already has a reservation assigned then the dialogue box should pre-populate all of the fields from the reservation. The dialogue box should have three buttons, “save”, “cancel”, “delete”. The save button will save the reservation to the data Table sheet, creating a new row if the reservation is new or updating the reservation if it already existed. The cancel button will close the dialogue box and do nothing to the data Table. The delete button will delete the first cell id of the reservation, the name of the reservation, the start date of the reservation, the end date of the reservation, the parking location of the reservation, the color assigned to the reservation, and will disassociate any connection between the data Table and the working sheet for that cell(s)`.
+The spreadsheet should autosave every 15 minutes or when the spreadsheet is closed. When opened the spread sheet should display the working sheet starting with the reservations from the column containing the current date in its second row.
+A button assigned to the first row fourth column is labeled “TODAY”. When pressed it will realign the working sheet so that the date in the second column in the second row is equal to the current date.  
+  
