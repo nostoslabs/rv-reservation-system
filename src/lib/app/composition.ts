@@ -1,14 +1,16 @@
-import type { StorageRepositories } from '$lib/application/ports';
+import type { DesktopCapabilities, StorageRepositories } from '$lib/application/ports';
 import {
 	createReservationUseCases,
 	createParkingLocationUseCases,
 	type ReservationUseCases,
 	type ParkingLocationUseCases
 } from '$lib/application/use-cases';
+import { createWebFallbackDesktopCapabilities } from '$lib/infrastructure/desktop/web-fallback';
 import { createLocalStorageAppDataRepository } from '$lib/infrastructure/storage/localstorage/app-data-repository';
 import { createLocalStorageSiteSettingsRepository } from '$lib/infrastructure/storage/localstorage/site-settings-repository';
 
 export interface AppServices {
+	desktop: DesktopCapabilities;
 	repositories: StorageRepositories;
 	reservationUseCases: ReservationUseCases;
 	parkingLocationUseCases: ParkingLocationUseCases;
@@ -26,6 +28,7 @@ function createLocalStorageServices(): AppServices {
 	};
 
 	return {
+		desktop: createWebFallbackDesktopCapabilities(),
 		repositories,
 		reservationUseCases: createReservationUseCases(appDataRepo),
 		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo)
