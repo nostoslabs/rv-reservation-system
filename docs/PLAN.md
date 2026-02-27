@@ -136,7 +136,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 4: SQLite Schema + Migrations
 
-### Issue 4.1 - Define SQLite schema for reservations, parking locations, admin settings, metadata
+### Issue 4.1 - ~~Define SQLite schema for reservations, parking locations, admin settings, metadata~~ DONE
 - Goal: Create normalized schema supporting current features and future migration/sync hooks.
 - Acceptance criteria:
   - SQL schema includes tables for reservations, parking_locations, admin_settings, and schema metadata.
@@ -148,7 +148,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - Add migration/schema tests (parse/apply SQL in test environment if possible, otherwise verify statements via integration harness later).
 
-### Issue 4.2 - Add migration runner abstraction and initial migration set
+### Issue 4.2 - ~~Add migration runner abstraction and initial migration set~~ DONE
 - Goal: Version database schema and enable future upgrades safely.
 - Acceptance criteria:
   - Migration runner tracks applied versions.
@@ -162,7 +162,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 5: SQLite Storage Provider + Adapter Wiring
 
-### Issue 5.1 - Implement SQLite repositories for app data (reservations + parking locations)
+### Issue 5.1 - ~~Implement SQLite repositories for app data (reservations + parking locations)~~ DONE
 - Goal: Provide concrete SQLite repository implementations behind application ports.
 - Acceptance criteria:
   - Reservation and parking location reads/writes work through SQLite adapter.
@@ -174,7 +174,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - Add repository integration tests against a test SQLite database.
 
-### Issue 5.2 - Wire provider selection to choose SQLite in Tauri and LocalStorage in web/dev
+### Issue 5.2 - ~~Wire provider selection to choose SQLite in Tauri and LocalStorage in web/dev~~ DONE
 - Goal: Swap storage implementation by runtime platform/composition without changing use-cases.
 - Acceptance criteria:
   - Tauri desktop path selects SQLite provider.
@@ -190,7 +190,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 6: Admin Settings Stored in DB
 
-### Issue 6.1 - Add admin settings repository port/use-cases and move settings logic out of route store
+### Issue 6.1 - ~~Add admin settings repository port/use-cases and move settings logic out of route store~~ DONE
 - Goal: Bring admin settings into the same Clean Architecture stack used by reservations.
 - Acceptance criteria:
   - `siteName` and `adminPasscode` flow through application ports/use-cases.
@@ -205,7 +205,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
   - Add use-case tests for save/load/update passcode/siteName.
   - Maintain Playwright admin flow tests.
 
-### Issue 6.2 - Persist admin settings in SQLite provider and align schema usage
+### Issue 6.2 - ~~Persist admin settings in SQLite provider and align schema usage~~ DONE
 - Goal: Store admin settings in SQLite for desktop mode using the same port contract.
 - Acceptance criteria:
   - SQLite implementation persists `siteName` and `adminPasscode`.
@@ -220,7 +220,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 7: Packaging for Windows/macOS
 
-### Issue 7.1 - Desktop packaging configuration and signing placeholders
+### Issue 7.1 - ~~Desktop packaging configuration and signing placeholders~~ DONE
 - Goal: Prepare Tauri packaging configuration for Windows/macOS builds.
 - Acceptance criteria:
   - Tauri bundle targets configured for Windows and macOS.
@@ -233,7 +233,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - Add packaging smoke checklist (manual/CI matrix TODO as applicable).
 
-### Issue 7.2 - Release verification checklist and artifact naming conventions
+### Issue 7.2 - ~~Release verification checklist and artifact naming conventions~~ DONE
 - Goal: Standardize release outputs and manual verification steps.
 - Acceptance criteria:
   - Documented checklist covers install, launch, persistence, and core reservation/admin flows.
@@ -245,7 +245,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 8 (Stretch): Optional Sync Interface (No Implementation Yet)
 
-### Issue 8.1 - Define sync port/contracts and conflict metadata model (interfaces only)
+### Issue 8.1 - ~~Define sync port/contracts and conflict metadata model (interfaces only)~~ DONE
 - Goal: Create a future-ready sync interface without implementing any remote sync provider.
 - Acceptance criteria:
   - Sync-related ports/contracts are defined in application layer only.
