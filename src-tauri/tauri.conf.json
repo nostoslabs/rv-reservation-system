@@ -10,7 +10,6 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
-    "title": "RV Reservation Working Sheet",
     "windows": [
       {
         "title": "RV Reservation Working Sheet",
@@ -40,9 +39,7 @@
     "shortDescription": "Offline-first RV park reservation management",
     "longDescription": "A desktop application for managing RV park reservations with a grid-based calendar view, overlap detection, and local data persistence via SQLite.",
     "macOS": {
-      "minimumSystemVersion": "10.15",
-      "signingIdentity": null,
-      "providerShortName": null
+      "minimumSystemVersion": "10.15"
     },
     "windows": {
       "wix": null,
