@@ -155,6 +155,7 @@
   }
 
   .modal {
+    position: relative;
     width: min(38rem, 100%);
     background: white;
     border-radius: 14px;

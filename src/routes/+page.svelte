@@ -162,10 +162,6 @@
     applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
   }
 
-  function isOccupiedCell(location: string, dateIso: string): Reservation | undefined {
-    return occupancyMap.get(buildCellId(location, dateIso));
-  }
-
   function getReservationCellTitle(location: string, dateIso: string, reservation?: Reservation): string {
     if (!reservation) {
       return `Double-click to add reservation at ${location} on ${dateIso}`;
@@ -320,7 +316,8 @@
               <tr>
                 <th class="sticky-col location-cell" scope="row">{location}</th>
                 {#each dateColumns as dateIso}
-                  {@const reservation = isOccupiedCell(location, dateIso)}
+                  {@const cellId = buildCellId(location, dateIso)}
+                  {@const reservation = occupancyMap.get(cellId)}
                   <td
                     class={`grid-cell ${reservation ? `occupied color-${reservation.color}` : ''}`}
                     on:dblclick={() => openModalForCell(location, dateIso)}
