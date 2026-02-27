@@ -11,6 +11,7 @@
     "test": "npx playwright test",
     "test:unit": "vitest run",
     "test:e2e": "npx playwright test",
+    "tauri": "tauri",
     "tauri:dev": "npx tauri dev",
     "tauri:build": "npx tauri build"
   },
