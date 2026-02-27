@@ -4,3 +4,12 @@ export type {
   SiteSettingsRepository,
   StorageRepositories
 } from './storage';
+export type {
+  SyncMetadata,
+  SyncEnvelope,
+  SyncConflict,
+  ConflictResolution,
+  SyncResult,
+  SyncProvider,
+  ConflictResolver
+} from './sync';
