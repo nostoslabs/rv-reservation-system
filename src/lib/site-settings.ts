@@ -12,36 +12,34 @@ function getDefaultSettings(): SiteSettings {
 }
 
 function createSiteSettingsStore() {
-	const { repositories } = getAppServices();
+	const { adminSettingsUseCases } = getAppServices();
 	const internal = writable<SiteSettings>(
-		browser ? repositories.siteSettings.load() : getDefaultSettings()
+		browser ? adminSettingsUseCases.loadSettings() : getDefaultSettings()
 	);
 
 	function hydrate(): void {
 		if (!browser) return;
-		internal.set(repositories.siteSettings.load());
-	}
-
-	function commit(next: SiteSettings): SiteSettings {
-		const saved = repositories.siteSettings.save(next);
-		internal.set(saved);
-		return saved;
+		internal.set(adminSettingsUseCases.loadSettings());
 	}
 
 	function setSiteName(siteName: string): SiteSettings {
 		const current = get(internal);
-		return commit({
-			...current,
-			siteName
-		});
+		const result = adminSettingsUseCases.updateSiteName(siteName, current);
+		if (result.ok && result.settings) {
+			internal.set(result.settings);
+			return result.settings;
+		}
+		return current;
 	}
 
 	function setAdminPasscode(adminPasscode: string): SiteSettings {
 		const current = get(internal);
-		return commit({
-			...current,
-			adminPasscode
-		});
+		const result = adminSettingsUseCases.updatePasscode(adminPasscode, current);
+		if (result.ok && result.settings) {
+			internal.set(result.settings);
+			return result.settings;
+		}
+		return current;
 	}
 
 	return {

@@ -2,8 +2,10 @@ import type { DesktopCapabilities, StorageRepositories } from '$lib/application/
 import {
 	createReservationUseCases,
 	createParkingLocationUseCases,
+	createAdminSettingsUseCases,
 	type ReservationUseCases,
-	type ParkingLocationUseCases
+	type ParkingLocationUseCases,
+	type AdminSettingsUseCases
 } from '$lib/application/use-cases';
 import { createWebFallbackDesktopCapabilities } from '$lib/infrastructure/desktop/web-fallback';
 import { createLocalStorageAppDataRepository } from '$lib/infrastructure/storage/localstorage/app-data-repository';
@@ -14,6 +16,7 @@ export interface AppServices {
 	repositories: StorageRepositories;
 	reservationUseCases: ReservationUseCases;
 	parkingLocationUseCases: ParkingLocationUseCases;
+	adminSettingsUseCases: AdminSettingsUseCases;
 }
 
 let instance: AppServices | null = null;
@@ -36,7 +39,8 @@ function createLocalStorageServices(): AppServices {
 		desktop: createWebFallbackDesktopCapabilities(),
 		repositories,
 		reservationUseCases: createReservationUseCases(appDataRepo),
-		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo)
+		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
+		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo)
 	};
 }
 
@@ -74,7 +78,8 @@ async function createSqliteServices(): Promise<AppServices> {
 		desktop: createTauriDesktopCapabilities(),
 		repositories,
 		reservationUseCases: createReservationUseCases(appDataRepo),
-		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo)
+		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
+		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo)
 	};
 }
 
