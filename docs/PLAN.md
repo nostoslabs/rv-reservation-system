@@ -11,7 +11,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 1: Clean Architecture Refactor (Foundational)
 
-### Issue 1.1 - Introduce layer folders and storage/application ports (no behavior change)
+### Issue 1.1 - ~~Introduce layer folders and storage/application ports (no behavior change)~~ DONE
 - Goal: Create the initial Clean Architecture structure and define storage interfaces/ports used by the app.
 - Acceptance criteria:
   - Layer directories/modules exist for `domain`, `application`, `interface-adapters`, and `infrastructure`.
@@ -26,7 +26,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
   - Add/adjust compile-level import tests or minimal unit tests for port contracts (if harness exists).
   - Validate no regression via `npm run check` and `npm run build`.
 
-### Issue 1.2 - Move reservation validation/business rules into domain layer
+### Issue 1.2 - ~~Move reservation validation/business rules into domain layer~~ DONE
 - Goal: Relocate overlap/date/normalization logic into pure domain modules without UI coupling.
 - Acceptance criteria:
   - Domain reservation validation and occupancy logic are pure and framework-independent.
@@ -40,7 +40,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
   - Add domain tests for overlap rules and normalization.
   - Include adjacent-boundary non-overlap coverage.
 
-### Issue 1.3 - Introduce application use-cases for reservation and parking location mutations
+### Issue 1.3 - ~~Introduce application use-cases for reservation and parking location mutations~~ DONE
 - Goal: Move write operations from Svelte stores into application services/use-cases using repository ports.
 - Acceptance criteria:
   - CRUD and parking location mutations are orchestrated by application use-cases.
@@ -53,7 +53,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - Add use-case tests (save/edit/delete reservation, location rename/delete constraints).
 
-### Issue 1.4 - Introduce app composition root for choosing storage provider (LocalStorage default)
+### Issue 1.4 - ~~Introduce app composition root for choosing storage provider (LocalStorage default)~~ DONE
 - Goal: Centralize dependency wiring and make storage provider selection explicit.
 - Acceptance criteria:
   - A composition root wires application ports to a LocalStorage implementation by default.
@@ -69,7 +69,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 2: Playwright TDD Harness + CI
 
-### Issue 2.1 - Add Playwright test config, scripts, and deterministic local app launch
+### Issue 2.1 - ~~Add Playwright test config, scripts, and deterministic local app launch~~ DONE
 - Goal: Establish a repeatable Playwright test harness for local and CI runs.
 - Acceptance criteria:
   - `playwright.config.*` exists and runs against local app.
@@ -82,7 +82,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - Add smoke test that loads `/` and `/admin`.
 
-### Issue 2.2 - Add core user-flow Playwright tests (CRUD, overlap, TODAY, admin)
+### Issue 2.2 - ~~Add core user-flow Playwright tests (CRUD, overlap, TODAY, admin)~~ DONE
 - Goal: Capture current expected behavior in end-to-end tests before larger platform changes.
 - Acceptance criteria:
   - Playwright coverage exists for create/edit/delete reservation flow.
@@ -96,7 +96,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - The Playwright tests themselves (core required coverage).
 
-### Issue 2.3 - Add CI workflow for check/build/test
+### Issue 2.3 - ~~Add CI workflow for check/build/test~~ DONE
 - Goal: Run typecheck/build/Playwright on CI for regression control.
 - Acceptance criteria:
   - CI workflow runs `npm ci`, `npm run check`, `npm run build`, and Playwright tests.
@@ -108,7 +108,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 
 ## Epic 3: Tauri Scaffolding
 
-### Issue 3.1 - Add Tauri project scaffold and desktop dev scripts
+### Issue 3.1 - ~~Add Tauri project scaffold and desktop dev scripts~~ DONE
 - Goal: Introduce Tauri workspace/config without breaking web build.
 - Acceptance criteria:
   - `src-tauri/` scaffold exists with minimal app config.
@@ -122,7 +122,7 @@ Evolve the current SvelteKit RV reservation demo into an offline-first desktop a
 - Test additions:
   - Add a basic smoke validation step/documented command for Tauri config (or CI TODO if platform blocked).
 
-### Issue 3.2 - Add infrastructure boundary for desktop capabilities (feature-flagged/no-op web fallback)
+### Issue 3.2 - ~~Add infrastructure boundary for desktop capabilities (feature-flagged/no-op web fallback)~~ DONE
 - Goal: Prepare a stable interface for desktop-only operations used later by SQLite adapter.
 - Acceptance criteria:
   - Desktop capability interface is defined and injected through composition root.
