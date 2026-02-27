@@ -1,26 +1,11 @@
 import { browser } from '$app/environment';
 import { get, writable } from 'svelte/store';
-import { createParkingLocationUseCases } from '$lib/application/use-cases';
-import { createReservationUseCases } from '$lib/application/use-cases';
+import { getAppServices } from '$lib/app/composition';
 import type { AppState, MutationResult, PersistedAppData, ReservationFormValues } from '$lib/types';
-import { getDefaultPersistedAppData, loadPersistedAppData, savePersistedAppData } from '$lib/storage';
-
-// Temporary: use-cases are instantiated with a lightweight shim repo.
-// This will be replaced by the composition root in Issue 1.4.
-const shimRepo = {
-	getDefaultData: getDefaultPersistedAppData,
-	load: loadPersistedAppData,
-	save: savePersistedAppData,
-	clear() {
-		/* no-op for now */
-	}
-};
-
-const reservationUseCases = createReservationUseCases(shimRepo);
-const parkingLocationUseCases = createParkingLocationUseCases(shimRepo);
 
 function toRuntimeState(): AppState {
-	const persisted = browser ? loadPersistedAppData() : getDefaultPersistedAppData();
+	const { repositories } = getAppServices();
+	const persisted = browser ? repositories.appData.load() : repositories.appData.getDefaultData();
 	return {
 		...persisted,
 		hydrated: true
@@ -29,12 +14,13 @@ function toRuntimeState(): AppState {
 
 function createRvReservationStore() {
 	const internal = writable<AppState>(toRuntimeState());
+	const { repositories, reservationUseCases, parkingLocationUseCases } = getAppServices();
 
 	function commit(next: AppState, persist = true): void {
 		let finalState = next;
 
 		if (persist) {
-			const savedAt = savePersistedAppData({
+			const savedAt = repositories.appData.save({
 				version: next.version,
 				reservations: next.reservations,
 				parkingLocations: next.parkingLocations,
