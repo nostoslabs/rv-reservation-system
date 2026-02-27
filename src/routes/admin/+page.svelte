@@ -94,7 +94,7 @@
     <p class="eyebrow">Hidden Route</p>
     <h1>Admin</h1>
     <p>
-      This page is intentionally not linked from the main UI. It controls browser-local settings only.
+      This page is intentionally not linked from the main UI. It controls local settings only.
     </p>
   </header>
 
@@ -133,7 +133,7 @@
   {#if unlocked}
     <section class="panel">
       <h2>Site Name</h2>
-      <p>This value appears in the main page header and persists in LocalStorage.</p>
+      <p>This value appears in the main page header and persists locally.</p>
       <form class="stack" on:submit|preventDefault={handleSaveSiteName}>
         <label>
           <span>Site Name</span>
