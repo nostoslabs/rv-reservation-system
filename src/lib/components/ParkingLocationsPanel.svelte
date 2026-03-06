@@ -159,21 +159,21 @@
     padding: 0;
     display: grid;
     gap: 0.45rem;
-    max-height: 22rem;
-    overflow: auto;
+    max-height: min(32rem, 60vh);
+    overflow-y: auto;
   }
 
   .location-row {
     display: grid;
-    grid-template-columns: minmax(8rem, 1fr) auto auto auto;
-    gap: 0.45rem;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 0.3rem;
     align-items: center;
   }
 
   .count {
     color: #617184;
-    font-size: 0.8rem;
-    min-width: 7.5rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
     text-align: right;
   }
 

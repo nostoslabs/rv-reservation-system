@@ -6,3 +6,10 @@ build
 test-results
 playwright-report
 src-tauri/target
+.vercel
+.playwright-mcp
+.env*
+*.png
+!src/**/*.png
+!screenshots/**/*.png
+!static/**/*.png
