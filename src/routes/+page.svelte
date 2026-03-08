@@ -366,7 +366,7 @@
 
     <nav class="toolbar-nav" aria-label="Grid navigation">
       <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
-      <button type="button" class="primary" on:click={alignToToday}>Today</button>
+      <button type="button" class="primary" data-testid="today-button" on:click={alignToToday}>Today</button>
       <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
     </nav>
 

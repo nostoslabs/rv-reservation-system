@@ -4,7 +4,7 @@ async function resetApp(page: Page) {
 	await page.goto('/');
 	await page.evaluate(() => window.localStorage.clear());
 	await page.reload();
-	await page.waitForSelector('#working-sheet-title');
+	await page.waitForSelector('.toolbar-title');
 	await page.waitForTimeout(300);
 }
 

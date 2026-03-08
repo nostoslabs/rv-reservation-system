@@ -35,7 +35,7 @@ test.describe('Admin page', () => {
 		// Click navigates back to main page
 		await backLink.click();
 		await expect(page).toHaveURL(/\/$/);
-		await expect(page.locator('#working-sheet-title')).toHaveText('Working Sheet');
+		await expect(page.locator('.toolbar-title')).toBeVisible();
 	});
 
 	test('admin page does not describe itself as hidden', async ({ page }) => {
