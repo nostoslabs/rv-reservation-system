@@ -147,15 +147,22 @@ test.describe('TODAY alignment', () => {
 		const todayHeader = page.locator(`th.date-header[data-date="${today}"]`);
 		await expect(todayHeader).toBeAttached();
 
-		// Verify the today header is within the visible scroll area
+		// Wait for any scroll retries to settle
+		await page.waitForTimeout(600);
+
+		// Verify the today header is fully within the visible scroll area
+		// (right of the 220px sticky first column and left of the scroller's right edge)
 		const isInView = await page.evaluate((dateIso) => {
 			const scroller = document.querySelector('.sheet-scroll');
 			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
 			if (!scroller || !header) return false;
 			const scrollerRect = scroller.getBoundingClientRect();
 			const headerRect = header.getBoundingClientRect();
-			// The header should be at least partially within the scroller's visible bounds
-			return headerRect.left < scrollerRect.right && headerRect.right > scrollerRect.left + 220;
+			const stickyColumnWidth = 220;
+			return (
+				headerRect.left >= scrollerRect.left + stickyColumnWidth &&
+				headerRect.right <= scrollerRect.right
+			);
 		}, today);
 		expect(isInView).toBe(true);
 	});
@@ -163,25 +170,31 @@ test.describe('TODAY alignment', () => {
 	test('Today button scrolls grid to today', async ({ page }) => {
 		await resetApp(page);
 
-		// Scroll grid far to the right
+		// Scroll grid far to the right so today is off-screen
 		await page.evaluate(() => {
 			const scroller = document.querySelector('.sheet-scroll');
 			if (scroller) scroller.scrollLeft = scroller.scrollWidth;
 		});
+		await page.waitForTimeout(100);
 
-		await page.locator('.grid-nav button.primary:has-text("Today")').click();
+		// Click the Today button using data-testid for robustness
+		await page.locator('[data-testid="today-button"]').click();
 		await page.waitForTimeout(500);
 
 		const today = getTodayIso();
 
-		// Verify the today header is within the visible scroll area
+		// Verify the today header is fully within the visible scroll area
 		const isInView = await page.evaluate((dateIso) => {
 			const scroller = document.querySelector('.sheet-scroll');
 			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
 			if (!scroller || !header) return false;
 			const scrollerRect = scroller.getBoundingClientRect();
 			const headerRect = header.getBoundingClientRect();
-			return headerRect.left < scrollerRect.right && headerRect.right > scrollerRect.left + 220;
+			const stickyColumnWidth = 220;
+			return (
+				headerRect.left >= scrollerRect.left + stickyColumnWidth &&
+				headerRect.right <= scrollerRect.right
+			);
 		}, today);
 		expect(isInView).toBe(true);
 	});
@@ -194,6 +207,11 @@ test.describe('TODAY alignment', () => {
 		// Verify header has today class with highlight styling
 		const todayHeader = page.locator(`th.date-header.today[data-date="${today}"]`);
 		await expect(todayHeader).toBeAttached();
+
+		// Verify the today header has a distinguishable background colour
+		const headerBg = await todayHeader.evaluate((el) => getComputedStyle(el).backgroundColor);
+		// The today header uses rgba(10,99,224,0.12) which computes to a non-white value
+		expect(headerBg).not.toBe('rgb(255, 255, 255)');
 
 		// Verify today body cells also have the today class
 		const todayCells = page.locator('td.grid-cell.today');

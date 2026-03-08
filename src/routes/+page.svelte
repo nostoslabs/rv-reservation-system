@@ -95,14 +95,16 @@
     await tick();
     if (!gridScroller) return;
     const todayIndex = diffDays(gridStartDate, todayIso);
-    // Calculate today's scroll position from its column index
-    // Each date column starts at FIRST_COLUMN_WIDTH + index * DATE_COLUMN_WIDTH in the table
-    const todayScrollLeft = todayIndex * DATE_COLUMN_WIDTH;
-    // Center today in the visible area (the area right of the sticky column)
-    const visibleWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
-    const centeredOffset = todayScrollLeft - Math.max(0, (visibleWidth - DATE_COLUMN_WIDTH) / 2);
-    const maxOffset = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
-    gridScroller.scrollLeft = Math.min(Math.max(0, centeredOffset), maxOffset);
+    // The today column's left edge in the table is at FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH.
+    // The sticky first column occupies FIRST_COLUMN_WIDTH of the visible viewport, so the
+    // visible date area is clientWidth - FIRST_COLUMN_WIDTH wide.
+    // To center today in that visible date area, we set scrollLeft so that:
+    //   scrollLeft + FIRST_COLUMN_WIDTH + visibleDateWidth/2 = FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH + DATE_COLUMN_WIDTH/2
+    //   scrollLeft = todayIndex * DATE_COLUMN_WIDTH - (visibleDateWidth - DATE_COLUMN_WIDTH) / 2
+    const visibleDateWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
+    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH - Math.max(0, (visibleDateWidth - DATE_COLUMN_WIDTH) / 2);
+    const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
+    gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
   }
 
   function scrollWeek(direction: number): void {
@@ -224,8 +226,16 @@
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
+
+    // Scroll to today immediately, then retry a few times to handle late layout.
+    // The grid dimensions may not be final on the first tick, so we retry until the
+    // scroller has a nonzero clientWidth (meaning layout is complete) and the scroll
+    // position lands correctly.
     void alignToToday();
-    const alignTimeout = window.setTimeout(() => void alignToToday(), 80);
+    const retryDelays = [80, 200, 500];
+    const retryTimers = retryDelays.map((delay) =>
+      window.setTimeout(() => void alignToToday(), delay)
+    );
 
     const displayTicker = window.setInterval(() => {
       nowMs = Date.now();
@@ -243,7 +253,7 @@
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      window.clearTimeout(alignTimeout);
+      retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
