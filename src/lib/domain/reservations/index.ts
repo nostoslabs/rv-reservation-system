@@ -1,3 +1,6 @@
+export { computeDailySummary } from './daily-summary';
+export type { DailySummary } from './daily-summary';
+
 export {
 	MAX_RESERVATION_NOTES_LENGTH,
 	normalizeName,

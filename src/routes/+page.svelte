@@ -10,6 +10,7 @@
     formatTimestamp,
     getTodayIsoLocal
   } from '$lib/date';
+  import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
   import { buildCellId, buildOccupancyMap } from '$lib/reservations';
   import {
     STATUS_BACKGROUND_COLORS,
@@ -73,6 +74,11 @@
     ])
   ) as Record<string, number>;
   $: autosaveStatus = getAutosaveStatus($rvReservationStore.lastSavedAt, nowMs);
+  $: dailySummary = computeDailySummary(
+    $rvReservationStore.reservations,
+    $rvReservationStore.parkingLocations,
+    todayIso
+  );
 
   function getAutosaveStatus(lastSavedAt: number | null, nowTimestamp: number): string {
     if (!lastSavedAt) return 'Autosave pending';
@@ -288,6 +294,16 @@
     </div>
   </header>
 
+  <div class="daily-summary" aria-label="Daily operations summary">
+    <span class="summary-item"><strong>Arriving:</strong> {dailySummary.arrivals}</span>
+    <span class="summary-sep" aria-hidden="true">&middot;</span>
+    <span class="summary-item"><strong>Departing:</strong> {dailySummary.departures}</span>
+    <span class="summary-sep" aria-hidden="true">&middot;</span>
+    <span class="summary-item"><strong>Occupied:</strong> {dailySummary.occupied}/{dailySummary.totalSites}</span>
+    <span class="summary-sep" aria-hidden="true">&middot;</span>
+    <span class="summary-item"><strong>Vacant:</strong> {dailySummary.vacant}</span>
+  </div>
+
   <div class="layout-grid">
     <aside>
       <ParkingLocationsPanel
@@ -423,6 +439,29 @@
     display: flex;
     gap: 0.35rem;
     align-items: center;
+  }
+
+  .daily-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    background: #f0f5fc;
+    border: 1px solid #d6dfed;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: #334a68;
+  }
+
+  .summary-item strong {
+    font-weight: 700;
+    color: #1c2e45;
+  }
+
+  .summary-sep {
+    color: #a0b4cc;
+    font-weight: 300;
   }
 
   .toolbar-nav button {
