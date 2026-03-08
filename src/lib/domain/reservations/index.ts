@@ -18,3 +18,14 @@ export {
 	validateReservationDates,
 	validateReservationForm
 } from './validation';
+
+export {
+	DEFAULT_RESERVATION_STATUS,
+	STATUS_BG_COLORS,
+	STATUS_COLORS,
+	STATUS_LABELS,
+	getStatusBgColor,
+	getStatusColor,
+	getStatusLabel,
+	isReservationStatus
+} from './status';

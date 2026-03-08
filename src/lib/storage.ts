@@ -1,10 +1,11 @@
 import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
-import { isReservationColor, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
-import type { PersistedAppData, Reservation, SiteSettings } from '$lib/types';
+import { isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
+import type { PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
 
 const STORAGE_KEY = 'rv-reservation-demo:v1';
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
+const DEFAULT_STATUS: ReservationStatus = 'reserved';
 const SETTINGS_STORAGE_KEY = 'rv-reservation-demo:settings:v1';
 
 export const DEFAULT_SITE_NAME = 'RV Reservation Working Sheet';
@@ -65,6 +66,12 @@ function sanitizeReservation(value: unknown): Reservation | null {
     typeof raw.phoneNumber === 'string' ? normalizePhoneNumber(raw.phoneNumber) : '';
   const notes = typeof raw.notes === 'string' ? sanitizeReservationNotes(raw.notes) : '';
 
+  // v2→v3 migration: existing reservations without status get default 'reserved'
+  const status: ReservationStatus =
+    typeof raw.status === 'string' && isReservationStatus(raw.status)
+      ? raw.status
+      : DEFAULT_STATUS;
+
   return {
     index: raw.index,
     firstCellId: raw.firstCellId,
@@ -74,7 +81,8 @@ function sanitizeReservation(value: unknown): Reservation | null {
     startDate: raw.startDate,
     endDate: raw.endDate,
     parkingLocation: raw.parkingLocation.trim(),
-    color: raw.color
+    color: raw.color,
+    status
   };
 }
 

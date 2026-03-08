@@ -23,8 +23,8 @@ function getTodayIso(): string {
 
 const modal = (page: Page) => page.locator('.modal[role="dialog"]');
 
-/** Double-click a grid cell by locating the date column via data-date attribute. */
-async function dblclickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
+/** Click a grid cell by locating the date column via data-date attribute. */
+async function clickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
 	const colIndex = await page.evaluate((date) => {
 		const headers = document.querySelectorAll('th.date-header[data-date]');
 		for (let i = 0; i < headers.length; i++) {
@@ -36,7 +36,7 @@ async function dblclickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
 
 	const cell = page.locator('tbody tr').nth(rowIndex).locator('td.grid-cell').nth(colIndex);
 	await cell.scrollIntoViewIfNeeded();
-	await cell.dblclick();
+	await cell.click();
 }
 
 /** Create a reservation via UI and verify modal closes. */
@@ -44,7 +44,7 @@ async function createReservation(
 	page: Page,
 	opts: { name: string; startDate: string; endDate: string; rowIndex?: number }
 ) {
-	await dblclickCellAtDate(page, opts.startDate, opts.rowIndex ?? 0);
+	await clickCellAtDate(page, opts.startDate, opts.rowIndex ?? 0);
 	await expect(modal(page)).toBeVisible();
 
 	await modal(page).locator('input[placeholder="Guest name"]').fill(opts.name);
@@ -78,10 +78,10 @@ test.describe('Reservation CRUD', () => {
 
 		await createReservation(page, { name: 'Jane Smith', startDate: today, endDate });
 
-		// Find occupied cell, scroll to it, double-click to edit
+		// Find occupied cell, scroll to it, click to edit
 		const occupied = page.locator('.grid-cell.occupied').first();
 		await occupied.scrollIntoViewIfNeeded();
-		await occupied.dblclick();
+		await occupied.click();
 		await expect(modal(page)).toBeVisible();
 
 		await expect(modal(page).locator('#reservation-modal-title')).toHaveText('Edit Reservation');
@@ -102,9 +102,12 @@ test.describe('Reservation CRUD', () => {
 
 		const occupied = page.locator('.grid-cell.occupied').first();
 		await occupied.scrollIntoViewIfNeeded();
-		await occupied.dblclick();
+		await occupied.click();
 		await expect(modal(page)).toBeVisible();
 
+		// First click on danger enters confirmation state
+		await modal(page).locator('button.danger').click();
+		// Second click confirms the delete
 		await modal(page).locator('button.danger').click();
 		await expect(modal(page)).not.toBeVisible();
 
@@ -118,8 +121,8 @@ test.describe('Reservation CRUD', () => {
 
 		await createReservation(page, { name: 'First Guest', startDate, endDate });
 
-		// Double-click an EMPTY cell in the same row (today, before the reservation)
-		await dblclickCellAtDate(page, getTodayIso(), 0);
+		// Click an EMPTY cell in the same row (today, before the reservation)
+		await clickCellAtDate(page, getTodayIso(), 0);
 		await expect(modal(page)).toBeVisible();
 
 		await modal(page).locator('input[placeholder="Guest name"]').fill('Overlapper');
@@ -149,7 +152,7 @@ test.describe('TODAY alignment', () => {
 			if (scroller) scroller.scrollLeft = scroller.scrollWidth;
 		});
 
-		await page.locator('.grid-button.primary:has-text("TODAY")').click();
+		await page.locator('button.nav-btn.primary:has-text("Today")').click();
 		await page.waitForTimeout(500);
 
 		const today = getTodayIso();

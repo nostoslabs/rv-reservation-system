@@ -50,6 +50,16 @@ Recommended shape (adapt to repo conventions):
 2. Implement the minimal change.
 3. Refactor while keeping tests green.
 
+### Visual verification for UI changes (Mandatory)
+After every UI change, run a visual Playwright test to verify the impact:
+1. Take a Playwright screenshot of the affected area before making the change (baseline).
+2. Make the UI change.
+3. Take a new Playwright screenshot and compare against the baseline.
+4. Confirm the change looks correct and has no unintended visual side effects.
+5. If the change affects multiple viewports or states, capture screenshots for each.
+
+Use `page.screenshot()` for full-page captures or `locator.screenshot()` for component-level captures. Store visual verification screenshots in `screenshots/` with descriptive names.
+
 ### Test layers
 - Domain/application logic: fast tests (pure logic, validation, overlap rules, date logic).
 - UI integration / end-to-end: Playwright.

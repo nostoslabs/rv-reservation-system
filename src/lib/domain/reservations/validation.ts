@@ -6,6 +6,7 @@ import {
 	type ReservationFormValues
 } from '$lib/domain/models';
 import { normalizeName, normalizeReservationNotes, MAX_RESERVATION_NOTES_LENGTH } from './normalization';
+import { isReservationStatus } from './status';
 
 export function isReservationColor(value: string): value is ReservationColor {
 	return (RESERVATION_COLORS as readonly string[]).includes(value);
@@ -78,6 +79,10 @@ export function validateReservationForm(
 
 	if (!isReservationColor(form.color)) {
 		errors.push('Color must be one of: red, green, blue, yellow, pink, orange, purple.');
+	}
+
+	if (!isReservationStatus(form.status)) {
+		errors.push('Status must be one of: reserved, checked-in, due-out, maintenance.');
 	}
 
 	if (errors.length > 0) {

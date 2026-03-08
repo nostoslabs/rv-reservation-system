@@ -10,9 +10,10 @@
     getTodayIsoLocal
   } from '$lib/date';
   import { buildCellId, buildOccupancyMap } from '$lib/reservations';
+  import { STATUS_BG_COLORS, STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
-  import type { Reservation, ReservationFormValues } from '$lib/types';
+  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues } from '$lib/types';
 
   const FIRST_COLUMN_WIDTH = 220;
   const DATE_COLUMN_WIDTH = 128;
@@ -40,7 +41,8 @@
     startDate: todayIso,
     endDate: addDays(todayIso, 1),
     parkingLocation: '',
-    color: 'blue'
+    color: 'blue',
+    status: 'reserved'
   };
 
   // Toast notification state
@@ -115,7 +117,8 @@
         startDate: reservation.startDate,
         endDate: reservation.endDate,
         parkingLocation: reservation.parkingLocation,
-        color: reservation.color
+        color: reservation.color,
+        status: reservation.status
       };
     } else {
       modalMode = 'create';
@@ -126,7 +129,8 @@
         startDate: dateIso,
         endDate: addDays(dateIso, 1),
         parkingLocation,
-        color: 'blue'
+        color: 'blue',
+        status: 'reserved'
       };
     }
 
@@ -192,7 +196,8 @@
 
     const lines = [
       `${reservation.name} (${reservation.startDate} \u2192 ${reservation.endDate})`,
-      `Location: ${reservation.parkingLocation}`
+      `Location: ${reservation.parkingLocation}`,
+      `Status: ${STATUS_LABELS[reservation.status]}`
     ];
 
     if (reservation.phoneNumber) {
@@ -251,17 +256,30 @@
 </svelte:head>
 
 <div class="page-shell">
-  <header class="hero">
-    <div>
+  <header class="toolbar">
+    <div class="toolbar-left">
       <h1>{$siteSettingsStore.siteName}</h1>
-      <p class="lede">
-        Click any cell in the calendar to add or edit a reservation.
-      </p>
     </div>
-    <div class="status-card" aria-live="polite">
-      <div class="status-title">Autosave</div>
-      <div class="status-value">{autosaveStatus}</div>
-      <button type="button" on:click={saveNow}>Save Now</button>
+
+    <nav class="toolbar-center" aria-label="Grid navigation">
+      <button type="button" class="nav-btn" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
+      <button type="button" class="nav-btn primary" on:click={alignToToday}>Today</button>
+      <button type="button" class="nav-btn" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+    </nav>
+
+    <div class="toolbar-right">
+      <span class="badge">{$rvReservationStore.reservations.length} res</span>
+      <span class="badge">{$rvReservationStore.parkingLocations.length} sites</span>
+      <span class="autosave-badge" aria-live="polite" title={autosaveStatus}>
+        {autosaveStatus}
+      </span>
+      <button type="button" class="save-btn" on:click={saveNow}>Save</button>
+      <a href="/admin" class="settings-link" title="Settings" aria-label="Settings" data-testid="settings-link">
+        <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </a>
     </div>
   </header>
 
@@ -279,22 +297,16 @@
     </aside>
 
     <section class="sheet-panel" aria-labelledby="working-sheet-title">
-      <div class="sheet-header">
-        <div>
-          <h2 id="working-sheet-title">Working Sheet</h2>
-          <p>Rows = parking locations, columns = dates. Sticky top rows + sticky first column.</p>
-        </div>
-        <div class="sheet-stats">
-          <span>{ $rvReservationStore.reservations.length } reservations</span>
-          <span>{ $rvReservationStore.parkingLocations.length } locations</span>
-        </div>
-      </div>
+      <h2 id="working-sheet-title" class="sr-only">Working Sheet</h2>
 
-      <nav class="grid-nav" aria-label="Grid navigation">
-        <button type="button" on:click={() => scrollWeek(-1)}>&#8592; Previous Week</button>
-        <button type="button" class="primary" on:click={alignToToday}>Today</button>
-        <button type="button" on:click={() => scrollWeek(1)}>Next Week &#8594;</button>
-      </nav>
+      <div class="status-legend" data-testid="status-legend" aria-label="Status legend">
+        {#each RESERVATION_STATUSES as status}
+          <span class="legend-item">
+            <span class="legend-dot" style="background: {STATUS_COLORS[status]}"></span>
+            {STATUS_LABELS[status]}
+          </span>
+        {/each}
+      </div>
 
       <div class="sheet-scroll" bind:this={gridScroller}>
         <table class="sheet-table" aria-label="RV reservation working sheet">
@@ -334,7 +346,8 @@
                   {@const cellId = buildCellId(location, dateIso)}
                   {@const reservation = occupancyMap.get(cellId)}
                   <td
-                    class={`grid-cell ${reservation ? `occupied color-${reservation.color}` : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
+                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
+                    style={reservation ? `background: ${STATUS_BG_COLORS[reservation.status]}` : ''}
                     on:click={() => openModalForCell(location, dateIso)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
@@ -371,70 +384,154 @@
 
 <style>
   .page-shell {
-    padding: 1rem;
+    padding: 0.5rem 1rem 1rem;
     display: grid;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
-  .hero {
-    background: rgba(255, 255, 255, 0.82);
+  /* -- Compact operations toolbar -- */
+  .toolbar {
+    background: rgba(255, 255, 255, 0.88);
     border: 1px solid rgba(214, 222, 234, 0.9);
-    border-radius: 18px;
+    border-radius: 12px;
     box-shadow: var(--shadow);
-    padding: 1rem;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1rem;
-    align-items: start;
+    padding: 0.4rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     backdrop-filter: blur(6px);
+    min-height: 48px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   h1 {
-    margin: 0.2rem 0 0;
-    font-size: clamp(1.15rem, 2vw + 0.7rem, 1.65rem);
+    margin: 0;
+    font-size: clamp(0.95rem, 1.5vw + 0.5rem, 1.25rem);
+    white-space: nowrap;
   }
 
-  .lede {
-    margin: 0.4rem 0 0;
-    color: #455566;
-    max-width: 60ch;
+  .toolbar-center {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
   }
 
-  .status-card {
-    background: linear-gradient(180deg, #fdfefe, #f6f9fd);
-    border: 1px solid #d9e1ec;
-    border-radius: 14px;
-    padding: 0.75rem;
-    display: grid;
-    gap: 0.4rem;
-    min-width: 18rem;
-  }
-
-  .status-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #3d5a78;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .status-value {
-    font-size: 0.88rem;
-    color: #1c2e45;
-    line-height: 1.3;
-    min-height: 2.4em;
-  }
-
-  .status-card button {
-    justify-self: start;
-    border-radius: 10px;
+  .nav-btn {
+    border-radius: 8px;
     border: 1px solid #c3cddd;
     background: #f4f7fc;
-    padding: 0.6rem 0.75rem;
+    color: #223349;
+    padding: 0.3rem 0.65rem;
     cursor: pointer;
-    min-height: 44px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    min-height: 34px;
+    line-height: 1;
   }
 
+  .nav-btn:hover {
+    background: #edf3fd;
+  }
+
+  .nav-btn.primary {
+    background: #0a63e0;
+    border-color: #0a63e0;
+    color: white;
+  }
+
+  .nav-btn.primary:hover {
+    background: #0757c8;
+  }
+
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    background: #eef3fb;
+    border: 1px solid #d6dfed;
+    color: #334a68;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .autosave-badge {
+    font-size: 0.78rem;
+    color: #5c6c80;
+    white-space: nowrap;
+    max-width: 18ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .save-btn {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.25rem 0.55rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-height: 30px;
+  }
+
+  .save-btn:hover {
+    background: #edf3fd;
+  }
+
+  .settings-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid #d9e1ec;
+    background: #f4f7fc;
+    color: #5c6c80;
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+
+  .settings-link:hover {
+    color: #0a63e0;
+    border-color: #0a63e0;
+    background: #edf3fd;
+  }
+
+  .settings-icon {
+    display: block;
+  }
+
+  /* -- Screen-reader only utility -- */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* -- Layout -- */
   .layout-grid {
     display: grid;
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
@@ -449,81 +546,13 @@
     box-shadow: var(--shadow);
     padding: 0.9rem;
     display: grid;
-    gap: 0.75rem;
-    min-width: 0;
-  }
-
-  .sheet-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: end;
-  }
-
-  .sheet-header h2 {
-    margin: 0;
-    font-size: 1.05rem;
-  }
-
-  .sheet-header p {
-    margin: 0.2rem 0 0;
-    color: #455566;
-    font-size: 0.95rem;
-  }
-
-  .sheet-stats {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .sheet-stats span {
-    background: #eef3fb;
-    border: 1px solid #d6dfed;
-    color: #334a68;
-    font-size: 0.875rem;
-    border-radius: 999px;
-    padding: 0.25rem 0.55rem;
-  }
-
-  /* Grid navigation bar */
-  .grid-nav {
-    display: flex;
     gap: 0.5rem;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .grid-nav button {
-    border-radius: 10px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    color: #223349;
-    padding: 0.6rem 1rem;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    min-height: 44px;
-  }
-
-  .grid-nav button:hover {
-    background: #edf3fd;
-  }
-
-  .grid-nav button.primary {
-    background: #0a63e0;
-    border-color: #0a63e0;
-    color: white;
-  }
-
-  .grid-nav button.primary:hover {
-    background: #0757c8;
+    min-width: 0;
   }
 
   .sheet-scroll {
     overflow: auto;
-    max-height: min(70vh, 52rem);
+    max-height: min(78vh, 58rem);
     border: 1px solid #dbe3ef;
     border-radius: 14px;
     background: white;
@@ -692,36 +721,31 @@
     word-break: break-word;
   }
 
-  .color-red {
-    background: #ffd9d9;
-  }
-
-  .color-green {
-    background: #ddf7dd;
-  }
-
-  .color-blue {
-    background: #d9ebff;
-  }
-
-  .color-yellow {
-    background: #fff5c6;
-  }
-
-  .color-pink {
-    background: #ffe0ef;
-  }
-
-  .color-orange {
-    background: #ffe5cd;
-  }
-
-  .color-purple {
-    background: #eadfff;
-  }
-
   .grid-cell.occupied:hover {
     filter: brightness(0.97);
+  }
+
+  /* Status legend */
+  .status-legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #334a68;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   /* Toast notifications */
@@ -755,22 +779,16 @@
     .layout-grid {
       grid-template-columns: 1fr;
     }
+  }
 
-    .hero {
-      grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    .toolbar {
+      gap: 0.4rem;
+      padding: 0.35rem 0.5rem;
     }
 
-    .status-card {
-      min-width: 0;
-    }
-
-    .sheet-header {
-      flex-direction: column;
-      align-items: start;
-    }
-
-    .sheet-stats {
-      justify-content: flex-start;
+    .autosave-badge {
+      display: none;
     }
   }
 </style>

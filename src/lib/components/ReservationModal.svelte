@@ -1,7 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
-  import { RESERVATION_COLORS, type ReservationFormValues } from '$lib/types';
+  import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
 
   export let open = false;
   export let mode: 'create' | 'edit' = 'create';
@@ -13,7 +14,8 @@
     startDate: '',
     endDate: '',
     parkingLocation: '',
-    color: 'blue'
+    color: 'blue',
+    status: 'reserved'
   };
   export let errors: string[] = [];
 
@@ -22,16 +24,6 @@
     cancel: void;
     delete: { index: number };
   }>();
-
-  const COLOR_SWATCHES: Record<string, string> = {
-    red: '#ffd9d9',
-    green: '#ddf7dd',
-    blue: '#d9ebff',
-    yellow: '#fff5c6',
-    pink: '#ffe0ef',
-    orange: '#ffe5cd',
-    purple: '#eadfff'
-  };
 
   const emptyExtras = { phoneNumber: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
@@ -126,28 +118,21 @@
           </select>
         </label>
 
-        <div class="color-field">
-          <span class="color-label">Color</span>
-          <div class="color-swatches" role="radiogroup" aria-label="Reservation color">
-            {#each RESERVATION_COLORS as color}
-              <button
-                type="button"
-                class="swatch"
-                class:selected={form.color === color}
-                style="background: {COLOR_SWATCHES[color]}"
-                aria-label={color}
-                aria-checked={form.color === color}
-                role="radio"
-                on:click={() => { form.color = color; }}
-              >
-                {#if form.color === color}
-                  <span class="check" aria-hidden="true">&#10003;</span>
-                {/if}
-              </button>
-            {/each}
+        <label>
+          <span>Status</span>
+          <div class="status-select-wrapper">
+            <span
+              class="status-indicator"
+              style="background: {STATUS_COLORS[form.status]}"
+              aria-hidden="true"
+            ></span>
+            <select bind:value={form.status} required data-testid="status-select">
+              {#each RESERVATION_STATUSES as status}
+                <option value={status}>{STATUS_LABELS[status]}</option>
+              {/each}
+            </select>
           </div>
-          <span class="color-name">{form.color}</span>
-        </div>
+        </label>
 
         <label>
           <span class="notes-label-row">
@@ -293,57 +278,23 @@
     font-size: 0.8rem;
   }
 
-  /* Color swatches */
-  .color-field {
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .color-label {
-    font-weight: 600;
-    color: #263444;
-    font-size: 0.9rem;
-  }
-
-  .color-swatches {
+  /* Status dropdown with color indicator */
+  .status-select-wrapper {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
   }
 
-  .swatch {
-    width: 40px;
-    height: 40px;
-    min-height: 44px;
-    min-width: 44px;
+  .status-indicator {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
     border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    transition: border-color 0.15s;
+    flex-shrink: 0;
   }
 
-  .swatch:hover {
-    border-color: #a0b0c4;
-  }
-
-  .swatch.selected {
-    border-color: #1b304a;
-    box-shadow: 0 0 0 2px white, 0 0 0 4px #1b304a;
-  }
-
-  .check {
-    font-size: 1rem;
-    color: #1b304a;
-    font-weight: 700;
-  }
-
-  .color-name {
-    font-size: 0.85rem;
-    color: #455566;
-    text-transform: capitalize;
+  .status-select-wrapper select {
+    flex: 1;
   }
 
   .modal-actions {
