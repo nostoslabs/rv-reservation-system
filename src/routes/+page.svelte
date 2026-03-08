@@ -5,8 +5,9 @@
   import {
     addDays,
     diffDays,
-    formatDisplayDate,
-    formatLocalTimestamp,
+    formatReservationDetail,
+    formatScheduleHeader,
+    formatTimestamp,
     getTodayIsoLocal
   } from '$lib/date';
   import { buildCellId, buildOccupancyMap } from '$lib/reservations';
@@ -72,16 +73,16 @@
     const ageMs = Math.max(0, nowTimestamp - lastSavedAt);
     const ageMinutes = Math.floor(ageMs / 60000);
     if (ageMinutes <= 0) {
-      return `Saved just now (${formatLocalTimestamp(lastSavedAt)})`;
+      return `Saved just now (${formatTimestamp(lastSavedAt)})`;
     }
     if (ageMinutes === 1) {
-      return `Saved 1 minute ago (${formatLocalTimestamp(lastSavedAt)})`;
+      return `Saved 1 minute ago (${formatTimestamp(lastSavedAt)})`;
     }
     if (ageMinutes < 60) {
-      return `Saved ${ageMinutes} minutes ago (${formatLocalTimestamp(lastSavedAt)})`;
+      return `Saved ${ageMinutes} minutes ago (${formatTimestamp(lastSavedAt)})`;
     }
     const ageHours = Math.floor(ageMinutes / 60);
-    return `Saved ${ageHours}h ago (${formatLocalTimestamp(lastSavedAt)})`;
+    return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
   }
 
   async function alignToToday(): Promise<void> {
@@ -187,11 +188,11 @@
 
   function getReservationCellTitle(location: string, dateIso: string, reservation?: Reservation): string {
     if (!reservation) {
-      return `Click to add reservation at ${location} on ${dateIso}`;
+      return `Click to add reservation at ${location} on ${formatScheduleHeader(dateIso)}`;
     }
 
     const lines = [
-      `${reservation.name} (${reservation.startDate} \u2192 ${reservation.endDate})`,
+      `${reservation.name} (${formatReservationDetail(reservation.startDate)} \u2192 ${formatReservationDetail(reservation.endDate)})`,
       `Location: ${reservation.parkingLocation}`
     ];
 
@@ -310,7 +311,7 @@
               <th class="sticky-row1 sticky-col top-left-cell location-header" scope="col">
                 <div class="top-left-content">
                   <span class="label">Current Date</span>
-                  <strong>{formatDisplayDate(todayIso)}</strong>
+                  <strong>{formatReservationDetail(todayIso)}</strong>
                 </div>
               </th>
               {#each dateColumns as dateIso}
@@ -320,7 +321,7 @@
                   scope="col"
                   data-date={dateIso}
                 >
-                  {formatDisplayDate(dateIso)}
+                  {formatScheduleHeader(dateIso)}
                 </th>
               {/each}
             </tr>
