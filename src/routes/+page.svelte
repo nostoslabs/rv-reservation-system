@@ -40,6 +40,7 @@
   let modalOpen = false;
   let modalMode: 'create' | 'edit' = 'create';
   let modalErrors: string[] = [];
+  let modalTriggerElement: HTMLElement | null = null;
   let modalDraft: ReservationFormValues = {
     name: '',
     phoneNumber: '',
@@ -117,7 +118,8 @@
     gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
   }
 
-  function openModalForCell(parkingLocation: string, dateIso: string): void {
+  function openModalForCell(parkingLocation: string, dateIso: string, event?: MouseEvent): void {
+    modalTriggerElement = (event?.currentTarget as HTMLElement) ?? null;
     const reservation = occupancyMap.get(buildCellId(parkingLocation, dateIso));
 
     if (reservation) {
@@ -373,7 +375,7 @@
                   <td
                     class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
                     style={reservation ? `background: ${STATUS_BACKGROUND_COLORS[reservation.status]}; border-left: 3px solid ${STATUS_COLORS[reservation.status]};` : ''}
-                    on:click={() => openModalForCell(location, dateIso)}
+                    on:click={(e) => openModalForCell(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
                     {#if reservation}
@@ -402,6 +404,7 @@
   draft={modalDraft}
   errors={modalErrors}
   parkingLocations={$rvReservationStore.parkingLocations}
+  triggerElement={modalTriggerElement}
   on:save={handleModalSave}
   on:cancel={closeModal}
   on:delete={handleModalDelete}
