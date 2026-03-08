@@ -143,7 +143,7 @@ describe('SQLite SiteSettingsRepository', () => {
 		await repo.init();
 		const settings = repo.load();
 
-		expect(settings.siteName).toBe('RV Reservation Working Sheet');
+		expect(settings.siteName).toBe('RV Reservation Schedule');
 		expect(settings.adminPasscode).toBe('');
 	});
 

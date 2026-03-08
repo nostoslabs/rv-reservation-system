@@ -118,7 +118,7 @@
         </div>
 
         <label>
-          <span>Parking Location</span>
+          <span>Site</span>
           <select bind:value={form.parkingLocation} required>
             {#each parkingLocations as location}
               <option value={location}>{location}</option>

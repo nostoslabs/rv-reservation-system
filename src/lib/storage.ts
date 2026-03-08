@@ -7,7 +7,7 @@ const STORAGE_KEY = 'rv-reservation-demo:v1';
 const DATA_VERSION = 2;
 const SETTINGS_STORAGE_KEY = 'rv-reservation-demo:settings:v1';
 
-export const DEFAULT_SITE_NAME = 'RV Reservation Working Sheet';
+export const DEFAULT_SITE_NAME = 'RV Reservation Schedule';
 
 export const DEFAULT_PARKING_LOCATIONS = [
   'A-01',
