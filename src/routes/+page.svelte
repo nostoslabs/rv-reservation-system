@@ -118,6 +118,23 @@
     gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
   }
 
+  function openNewReservationModal(): void {
+    const firstLocation = $rvReservationStore.parkingLocations[0] ?? '';
+    modalMode = 'create';
+    modalDraft = {
+      name: '',
+      phoneNumber: '',
+      notes: '',
+      startDate: todayIso,
+      endDate: addDays(todayIso, 1),
+      parkingLocation: firstLocation,
+      color: 'blue',
+      status: 'reserved'
+    };
+    modalErrors = [];
+    modalOpen = true;
+  }
+
   function openModalForCell(parkingLocation: string, dateIso: string, event?: MouseEvent): void {
     modalTriggerElement = (event?.currentTarget as HTMLElement) ?? null;
     const reservation = occupancyMap.get(buildCellId(parkingLocation, dateIso));
@@ -289,6 +306,7 @@
     </nav>
 
     <div class="toolbar-right">
+      <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
       <span class="badge">{ $rvReservationStore.reservations.length } res</span>
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
       <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
@@ -334,6 +352,12 @@
           </span>
         {/each}
       </div>
+
+      {#if $rvReservationStore.reservations.length === 0 && $rvReservationStore.parkingLocations.length > 0}
+        <div class="empty-state" data-testid="empty-state">
+          <p>No reservations yet. Click <button type="button" class="inline-action" on:click={openNewReservationModal}>+ New Reservation</button> above or click any cell in the calendar to get started.</p>
+        </div>
+      {/if}
 
       <div class="sheet-scroll" bind:this={gridScroller}>
         <table class="sheet-table" aria-label="RV reservation schedule">
@@ -593,6 +617,38 @@
     margin-left: 0.25rem;
   }
 
+  /* Empty state prompt */
+  .empty-state {
+    background: #f0f6ff;
+    border: 1px dashed #b0c4de;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+    color: #3d5a78;
+    font-size: 0.95rem;
+  }
+
+  .empty-state p {
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .inline-action {
+    background: none;
+    border: none;
+    color: #16a34a;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    text-decoration: underline;
+    min-height: auto;
+  }
+
+  .inline-action:hover {
+    color: #15803d;
+  }
+
   .sheet-scroll {
     overflow: auto;
     max-height: min(82vh, 60rem);
@@ -740,18 +796,19 @@
   }
 
   .grid-cell.empty .empty-hint {
-    display: none;
-    color: #a0b0c4;
+    display: grid;
+    color: #d0d8e4;
     font-size: 1.1rem;
     font-weight: 300;
     position: absolute;
     inset: 0;
     place-content: center;
     place-items: center;
+    transition: color 0.15s;
   }
 
   .grid-cell.empty:hover .empty-hint {
-    display: grid;
+    color: #8899b0;
   }
 
   .grid-cell.occupied {
@@ -809,6 +866,10 @@
 
     .save-badge {
       display: none;
+    }
+
+    .grid-nav {
+      flex-wrap: wrap;
     }
   }
 </style>

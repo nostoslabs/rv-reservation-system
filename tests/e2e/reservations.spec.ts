@@ -203,6 +203,72 @@ test.describe('Modal accessibility and UX', () => {
 	});
 });
 
+test.describe('New Reservation button', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('button is visible and opens modal in create mode', async ({ page }) => {
+		const btn = page.getByTestId('new-reservation-btn');
+		await expect(btn).toBeVisible();
+		await expect(btn).toHaveText('+ New Reservation');
+
+		await btn.click();
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('#reservation-modal-title')).toHaveText('New Reservation');
+	});
+
+	test('create a reservation via New Reservation button', async ({ page }) => {
+		const today = getTodayIso();
+		const endDate = offsetDate(3);
+
+		await page.getByTestId('new-reservation-btn').click();
+		await expect(modal(page)).toBeVisible();
+
+		await modal(page).locator('input[placeholder="Guest name"]').fill('Button Guest');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		// Verify reservation appears in the grid
+		const occupied = page.locator('.grid-cell.occupied').first();
+		await occupied.scrollIntoViewIfNeeded();
+		await expect(occupied.locator('.reservation-label')).toHaveText('Button Guest');
+	});
+
+	test('empty state prompt is shown when no reservations exist', async ({ page }) => {
+		const emptyState = page.getByTestId('empty-state');
+		await expect(emptyState).toBeVisible();
+		await expect(emptyState).toContainText('No reservations yet');
+
+		// Clicking inline action in empty state also opens modal
+		await emptyState.locator('button.inline-action').click();
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('#reservation-modal-title')).toHaveText('New Reservation');
+		await modal(page).locator('button:has-text("Cancel")').click();
+		await expect(modal(page)).not.toBeVisible();
+	});
+
+	test('empty state disappears after creating a reservation', async ({ page }) => {
+		const emptyState = page.getByTestId('empty-state');
+		await expect(emptyState).toBeVisible();
+
+		const today = getTodayIso();
+		const endDate = offsetDate(2);
+
+		await page.getByTestId('new-reservation-btn').click();
+		await modal(page).locator('input[placeholder="Guest name"]').fill('First Res');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		await expect(emptyState).not.toBeVisible();
+	});
+});
+
 test.describe('TODAY alignment', () => {
 	test('today column is visible on initial load', async ({ page }) => {
 		await resetApp(page);
