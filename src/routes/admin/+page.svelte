@@ -91,7 +91,7 @@
 
 <div class="admin-shell">
   <header class="admin-header">
-    <p class="eyebrow">Hidden Route</p>
+    <p class="eyebrow">Settings</p>
     <h1>Admin</h1>
     <p>
       This page is intentionally not linked from the main UI. It controls local settings only.

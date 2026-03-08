@@ -75,8 +75,8 @@
 
 <section class="panel" aria-labelledby="parking-locations-title">
   <div class="panel-header">
-    <h2 id="parking-locations-title">Parking Locations</h2>
-    <p>Manage rows shown in the working sheet.</p>
+    <h2 id="parking-locations-title">Sites</h2>
+    <p>Manage rows shown in the schedule.</p>
   </div>
 
   {#if errorMessage}
@@ -87,7 +87,7 @@
   {/if}
 
   <form class="add-form" on:submit|preventDefault={submitAdd}>
-    <input bind:value={newLocationName} type="text" placeholder="Add parking location" maxlength="40" />
+    <input bind:value={newLocationName} type="text" placeholder="Add site" maxlength="40" />
     <button type="submit">Add</button>
   </form>
 

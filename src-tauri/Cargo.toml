@@ -1,7 +1,7 @@
 [package]
 name = "rv-reservation-demo"
 version = "0.1.0"
-description = "RV Reservation Working Sheet"
+description = "RV Reservation Schedule"
 authors = ["Nostos Labs"]
 edition = "2021"
 

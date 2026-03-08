@@ -168,22 +168,22 @@
       if (successMsg) showToast(successMsg);
       return;
     }
-    locationPanelError = result.errors?.[0] ?? 'Unable to update parking locations.';
+    locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
   }
 
   function handleAddLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name), 'Location added');
+    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name), 'Site added');
   }
 
   function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
     applyLocationMutation(
       rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName),
-      'Location renamed'
+      'Site renamed'
     );
   }
 
   function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name), 'Location deleted');
+    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name), 'Site deleted');
   }
 
   function getReservationCellTitle(location: string, dateIso: string, reservation?: Reservation): string {
@@ -193,7 +193,7 @@
 
     const lines = [
       `${reservation.name} (${formatReservationDetail(reservation.startDate)} \u2192 ${formatReservationDetail(reservation.endDate)})`,
-      `Location: ${reservation.parkingLocation}`
+      `Site: ${reservation.parkingLocation}`
     ];
 
     if (reservation.phoneNumber) {
@@ -247,7 +247,7 @@
   <title>{$siteSettingsStore.siteName}</title>
   <meta
     name="description"
-    content="Spreadsheet-style RV reservation working sheet with localStorage persistence."
+    content="RV reservation schedule with localStorage persistence."
   />
 </svelte:head>
 
@@ -279,15 +279,15 @@
       />
     </aside>
 
-    <section class="sheet-panel" aria-labelledby="working-sheet-title">
+    <section class="sheet-panel" aria-labelledby="schedule-title">
       <div class="sheet-header">
         <div>
-          <h2 id="working-sheet-title">Working Sheet</h2>
-          <p>Rows = parking locations, columns = dates. Sticky top rows + sticky first column.</p>
+          <h2 id="schedule-title">Schedule</h2>
+          <p>Rows = sites, columns = dates. Sticky top rows + sticky first column.</p>
         </div>
         <div class="sheet-stats">
           <span>{ $rvReservationStore.reservations.length } reservations</span>
-          <span>{ $rvReservationStore.parkingLocations.length } locations</span>
+          <span>{ $rvReservationStore.parkingLocations.length } sites</span>
         </div>
       </div>
 
@@ -298,7 +298,7 @@
       </nav>
 
       <div class="sheet-scroll" bind:this={gridScroller}>
-        <table class="sheet-table" aria-label="RV reservation working sheet">
+        <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
             <col class="first-col" />
             {#each dateColumns as _date}
