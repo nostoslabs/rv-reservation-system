@@ -32,3 +32,6 @@ export {
 	validateReservationDates,
 	validateReservationForm
 } from './validation';
+
+export { filterReservations } from './search';
+export type { SearchResult } from './search';
