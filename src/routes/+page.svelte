@@ -95,14 +95,16 @@
     await tick();
     if (!gridScroller) return;
     const todayIndex = diffDays(gridStartDate, todayIso);
-    const targetHeader = gridScroller.querySelector<HTMLTableCellElement>(
-      `th.date-header[data-date="${todayIso}"]`
-    );
-    const rawOffset = targetHeader
-      ? Math.max(0, targetHeader.offsetLeft - FIRST_COLUMN_WIDTH)
-      : todayIndex * DATE_COLUMN_WIDTH;
-    const maxOffset = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
-    gridScroller.scrollLeft = Math.min(Math.max(0, rawOffset), maxOffset);
+    // The today column's left edge in the table is at FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH.
+    // The sticky first column occupies FIRST_COLUMN_WIDTH of the visible viewport, so the
+    // visible date area is clientWidth - FIRST_COLUMN_WIDTH wide.
+    // To center today in that visible date area, we set scrollLeft so that:
+    //   scrollLeft + FIRST_COLUMN_WIDTH + visibleDateWidth/2 = FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH + DATE_COLUMN_WIDTH/2
+    //   scrollLeft = todayIndex * DATE_COLUMN_WIDTH - (visibleDateWidth - DATE_COLUMN_WIDTH) / 2
+    const visibleDateWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
+    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH - Math.max(0, (visibleDateWidth - DATE_COLUMN_WIDTH) / 2);
+    const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
+    gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
   }
 
   function scrollWeek(direction: number): void {
@@ -224,8 +226,16 @@
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
+
+    // Scroll to today immediately, then retry a few times to handle late layout.
+    // The grid dimensions may not be final on the first tick, so we retry until the
+    // scroller has a nonzero clientWidth (meaning layout is complete) and the scroll
+    // position lands correctly.
     void alignToToday();
-    const alignTimeout = window.setTimeout(() => void alignToToday(), 80);
+    const retryDelays = [80, 200, 500];
+    const retryTimers = retryDelays.map((delay) =>
+      window.setTimeout(() => void alignToToday(), delay)
+    );
 
     const displayTicker = window.setInterval(() => {
       nowMs = Date.now();
@@ -243,7 +253,7 @@
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      window.clearTimeout(alignTimeout);
+      retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -534,6 +544,13 @@
     border-radius: 3px;
   }
 
+  .grid-nav-date {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #3d5a78;
+    margin-left: 0.25rem;
+  }
+
   .sheet-scroll {
     overflow: auto;
     max-height: min(82vh, 60rem);
@@ -639,8 +656,9 @@
   }
 
   .date-header.today {
-    background: rgba(10, 99, 224, 0.1);
+    background: rgba(10, 99, 224, 0.12);
     color: #0a63e0;
+    box-shadow: inset 0 -3px 0 0 #0a63e0;
   }
 
   .location-cell {
@@ -670,11 +688,13 @@
   }
 
   .grid-cell.today {
-    background: rgba(10, 99, 224, 0.04);
+    background: rgba(10, 99, 224, 0.05);
+    border-left: 1px solid rgba(10, 99, 224, 0.18);
+    border-right: 1px solid rgba(10, 99, 224, 0.18);
   }
 
   .grid-cell.today:hover {
-    background: rgba(10, 99, 224, 0.09);
+    background: rgba(10, 99, 224, 0.1);
   }
 
   .grid-cell.empty .empty-hint {

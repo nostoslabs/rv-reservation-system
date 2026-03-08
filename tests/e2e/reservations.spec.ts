@@ -140,19 +140,84 @@ test.describe('Reservation CRUD', () => {
 });
 
 test.describe('TODAY alignment', () => {
-	test('TODAY button scrolls grid to today', async ({ page }) => {
+	test('today column is visible on initial load', async ({ page }) => {
 		await resetApp(page);
 
-		// Scroll grid far to the right
+		const today = getTodayIso();
+		const todayHeader = page.locator(`th.date-header[data-date="${today}"]`);
+		await expect(todayHeader).toBeAttached();
+
+		// Wait for any scroll retries to settle
+		await page.waitForTimeout(600);
+
+		// Verify the today header is fully within the visible scroll area
+		// (right of the 220px sticky first column and left of the scroller's right edge)
+		const isInView = await page.evaluate((dateIso) => {
+			const scroller = document.querySelector('.sheet-scroll');
+			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
+			if (!scroller || !header) return false;
+			const scrollerRect = scroller.getBoundingClientRect();
+			const headerRect = header.getBoundingClientRect();
+			const stickyColumnWidth = 220;
+			return (
+				headerRect.left >= scrollerRect.left + stickyColumnWidth &&
+				headerRect.right <= scrollerRect.right
+			);
+		}, today);
+		expect(isInView).toBe(true);
+	});
+
+	test('Today button scrolls grid to today', async ({ page }) => {
+		await resetApp(page);
+
+		// Scroll grid far to the right so today is off-screen
 		await page.evaluate(() => {
 			const scroller = document.querySelector('.sheet-scroll');
 			if (scroller) scroller.scrollLeft = scroller.scrollWidth;
 		});
+		await page.waitForTimeout(100);
 
-		await page.locator('.grid-button.primary:has-text("TODAY")').click();
+		// Click the Today button using data-testid for robustness
+		await page.locator('[data-testid="today-button"]').click();
 		await page.waitForTimeout(500);
 
 		const today = getTodayIso();
-		await expect(page.locator(`th.date-header[data-date="${today}"]`)).toBeVisible();
+
+		// Verify the today header is fully within the visible scroll area
+		const isInView = await page.evaluate((dateIso) => {
+			const scroller = document.querySelector('.sheet-scroll');
+			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
+			if (!scroller || !header) return false;
+			const scrollerRect = scroller.getBoundingClientRect();
+			const headerRect = header.getBoundingClientRect();
+			const stickyColumnWidth = 220;
+			return (
+				headerRect.left >= scrollerRect.left + stickyColumnWidth &&
+				headerRect.right <= scrollerRect.right
+			);
+		}, today);
+		expect(isInView).toBe(true);
+	});
+
+	test('today column has visual highlight', async ({ page }) => {
+		await resetApp(page);
+
+		const today = getTodayIso();
+
+		// Verify header has today class with highlight styling
+		const todayHeader = page.locator(`th.date-header.today[data-date="${today}"]`);
+		await expect(todayHeader).toBeAttached();
+
+		// Verify the today header has a distinguishable background colour
+		const headerBg = await todayHeader.evaluate((el) => getComputedStyle(el).backgroundColor);
+		// The today header uses rgba(10,99,224,0.12) which computes to a non-white value
+		expect(headerBg).not.toBe('rgb(255, 255, 255)');
+
+		// Verify today body cells also have the today class
+		const todayCells = page.locator('td.grid-cell.today');
+		const cellCount = await todayCells.count();
+		// There should be at least as many today cells as parking locations (if any exist)
+		const locationCount = await page.locator('th.location-cell').count();
+		expect(cellCount).toBe(locationCount);
 	});
 });
