@@ -1,0 +1,9 @@
+node_modules
+.svelte-kit
+src-tauri
+.vite
+.DS_Store
+test-results
+playwright-report
+.vercel
+.playwright-mcp
