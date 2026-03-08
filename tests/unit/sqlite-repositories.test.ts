@@ -17,6 +17,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 		endDate: '2025-03-05',
 		parkingLocation: 'A-01',
 		color: 'blue',
+		status: 'reserved',
 		...overrides
 	};
 }
@@ -34,7 +35,7 @@ describe('SQLite AppDataRepository', () => {
 		await repo.init();
 		const data = repo.load();
 
-		expect(data.version).toBe(2);
+		expect(data.version).toBe(3);
 		expect(data.reservations).toEqual([]);
 		expect(data.parkingLocations).toHaveLength(10);
 		expect(data.parkingLocations[0]).toBe('A-01');
@@ -46,7 +47,7 @@ describe('SQLite AppDataRepository', () => {
 		await repo.init();
 
 		const data: PersistedAppData = {
-			version: 2,
+			version: 3,
 			reservations: [
 				makeReservation({ index: 1 }),
 				makeReservation({ index: 2, name: 'Another Guest', startDate: '2025-04-01', endDate: '2025-04-03', firstCellId: 'A-01::2025-04-01' })
@@ -78,7 +79,7 @@ describe('SQLite AppDataRepository', () => {
 		await repo.init();
 
 		const data: PersistedAppData = {
-			version: 2,
+			version: 3,
 			reservations: [],
 			parkingLocations: ['Z-99', 'A-01', 'M-50'],
 			nextReservationIndex: 1,
@@ -98,7 +99,7 @@ describe('SQLite AppDataRepository', () => {
 		await repo.init();
 
 		repo.save({
-			version: 2,
+			version: 3,
 			reservations: [makeReservation()],
 			parkingLocations: ['A-01'],
 			nextReservationIndex: 5,
@@ -122,7 +123,7 @@ describe('SQLite AppDataRepository', () => {
 		const repo = createSqliteAppDataRepository(db);
 		const defaults = repo.getDefaultData();
 
-		expect(defaults.version).toBe(2);
+		expect(defaults.version).toBe(3);
 		expect(defaults.reservations).toEqual([]);
 		expect(defaults.parkingLocations).toHaveLength(10);
 		expect(defaults.nextReservationIndex).toBe(1);

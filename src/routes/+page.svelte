@@ -11,9 +11,14 @@
     getTodayIsoLocal
   } from '$lib/date';
   import { buildCellId, buildOccupancyMap } from '$lib/reservations';
+  import {
+    STATUS_BACKGROUND_COLORS,
+    STATUS_COLORS,
+    STATUS_LABELS
+  } from '$lib/domain/reservations/status';
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
-  import type { Reservation, ReservationFormValues } from '$lib/types';
+  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
 
   const FIRST_COLUMN_WIDTH = 220;
   const DATE_COLUMN_WIDTH = 128;
@@ -41,7 +46,8 @@
     startDate: todayIso,
     endDate: addDays(todayIso, 1),
     parkingLocation: '',
-    color: 'blue'
+    color: 'blue',
+    status: 'reserved'
   };
 
   // Toast notification state
@@ -116,7 +122,8 @@
         startDate: reservation.startDate,
         endDate: reservation.endDate,
         parkingLocation: reservation.parkingLocation,
-        color: reservation.color
+        color: reservation.color,
+        status: reservation.status
       };
     } else {
       modalMode = 'create';
@@ -127,7 +134,8 @@
         startDate: dateIso,
         endDate: addDays(dateIso, 1),
         parkingLocation,
-        color: 'blue'
+        color: 'blue',
+        status: 'reserved'
       };
     }
 
@@ -193,6 +201,7 @@
 
     const lines = [
       `${reservation.name} (${formatReservationDetail(reservation.startDate)} \u2192 ${formatReservationDetail(reservation.endDate)})`,
+      `Status: ${STATUS_LABELS[reservation.status]}`,
       `Site: ${reservation.parkingLocation}`
     ];
 
@@ -297,6 +306,19 @@
         <button type="button" on:click={() => scrollWeek(1)}>Next Week &#8594;</button>
       </nav>
 
+      <div class="status-legend" aria-label="Status legend">
+        {#each RESERVATION_STATUSES as statusKey}
+          <span class="legend-item">
+            <span
+              class="legend-swatch"
+              style="background: {STATUS_BACKGROUND_COLORS[statusKey]}; border-left: 3px solid {STATUS_COLORS[statusKey]};"
+              aria-hidden="true"
+            ></span>
+            {STATUS_LABELS[statusKey]}
+          </span>
+        {/each}
+      </div>
+
       <div class="sheet-scroll" bind:this={gridScroller}>
         <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
@@ -335,7 +357,8 @@
                   {@const cellId = buildCellId(location, dateIso)}
                   {@const reservation = occupancyMap.get(cellId)}
                   <td
-                    class={`grid-cell ${reservation ? `occupied color-${reservation.color}` : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
+                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
+                    style={reservation ? `background: ${STATUS_BACKGROUND_COLORS[reservation.status]}; border-left: 3px solid ${STATUS_COLORS[reservation.status]};` : ''}
                     on:click={() => openModalForCell(location, dateIso)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
@@ -522,6 +545,30 @@
     background: #0757c8;
   }
 
+  /* Status legend */
+  .status-legend {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: #334a68;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .legend-swatch {
+    display: inline-block;
+    width: 24px;
+    height: 16px;
+    border-radius: 3px;
+  }
+
   .sheet-scroll {
     overflow: auto;
     max-height: min(70vh, 52rem);
@@ -691,34 +738,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
-  }
-
-  .color-red {
-    background: #ffd9d9;
-  }
-
-  .color-green {
-    background: #ddf7dd;
-  }
-
-  .color-blue {
-    background: #d9ebff;
-  }
-
-  .color-yellow {
-    background: #fff5c6;
-  }
-
-  .color-pink {
-    background: #ffe0ef;
-  }
-
-  .color-orange {
-    background: #ffe5cd;
-  }
-
-  .color-purple {
-    background: #eadfff;
   }
 
   .grid-cell.occupied:hover {

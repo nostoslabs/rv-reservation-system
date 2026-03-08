@@ -1,4 +1,4 @@
--- RV Reservation Demo – SQLite Schema v1
+-- RV Reservation Demo – SQLite Schema v2
 -- Date columns store ISO 8601 local calendar dates (YYYY-MM-DD).
 -- All TEXT columns use UTF-8 encoding (SQLite default).
 
@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   end_date          TEXT    NOT NULL,      -- YYYY-MM-DD (exclusive)
   parking_location  TEXT    NOT NULL REFERENCES parking_locations(name),
   color             TEXT    NOT NULL DEFAULT 'blue',
+  status            TEXT    NOT NULL DEFAULT 'reserved',
   CHECK (start_date < end_date),
   CHECK (color IN ('red','green','blue','yellow','pink','orange','purple'))
 );
