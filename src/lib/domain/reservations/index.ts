@@ -13,6 +13,17 @@ export {
 } from './occupancy';
 
 export {
+	DEFAULT_RESERVATION_STATUS,
+	STATUS_BACKGROUND_COLORS,
+	STATUS_COLORS,
+	STATUS_LABELS,
+	getStatusBackgroundColor,
+	getStatusColor,
+	getStatusLabel,
+	isReservationStatus
+} from './status';
+
+export {
 	checkOverlap,
 	isReservationColor,
 	validateReservationDates,

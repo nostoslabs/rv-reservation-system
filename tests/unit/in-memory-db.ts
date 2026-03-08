@@ -76,6 +76,22 @@ export function createInMemoryDb(): Database & {
 		};
 	}
 
+	function parseAlterTableAddColumn(sql: string): {
+		table: string;
+		column: string;
+		defaultValue: unknown;
+	} | null {
+		const m = sql.match(
+			/ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)\s+\w+(?:\s+NOT\s+NULL)?(?:\s+DEFAULT\s+'([^']*)')?/i
+		);
+		if (!m) return null;
+		return {
+			table: m[1],
+			column: m[2],
+			defaultValue: m[3] ?? null
+		};
+	}
+
 	function evaluateWhere(
 		row: Row,
 		whereClause: string,
@@ -188,6 +204,20 @@ export function createInMemoryDb(): Database & {
 					}
 					for (const op of setOps) {
 						row[op.col] = params[op.paramIndex];
+					}
+				}
+				return;
+			}
+
+			// ALTER TABLE ADD COLUMN
+			const alter = parseAlterTableAddColumn(trimmed);
+			if (alter) {
+				const rows = tables.get(alter.table);
+				if (!rows) throw new Error(`Table ${alter.table} does not exist`);
+				// Add the column with the default value to all existing rows
+				for (const row of rows) {
+					if (!(alter.column in row)) {
+						row[alter.column] = alter.defaultValue;
 					}
 				}
 				return;
