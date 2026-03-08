@@ -9,6 +9,6 @@ test.describe('Smoke tests', () => {
 
 	test('admin page loads', async ({ page }) => {
 		await page.goto('/admin');
-		await expect(page.locator('h1')).toHaveText('Admin');
+		await expect(page.locator('h1')).toHaveText('Park Settings');
 	});
 });
