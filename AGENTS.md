@@ -109,6 +109,17 @@ Design choices must support both desktop and future web:
 - Do not batch multiple major issues into one commit.
 - After each epic completion, generate/update screenshots in `screenshots/` via Playwright (`scripts/screenshot.mjs` may be reused or revised).
 
+## Dev Commands (Quick Reference)
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Web dev server (Vite, hot reload) at localhost:5173 |
+| `npm run tauri:dev` | Tauri desktop app (compiles Rust + launches window) |
+| `npm run build` | Production web build (outputs to `build/`) |
+| `npm run tauri:build` | Production Tauri desktop build |
+| `npm run check` | Svelte type-check + lint |
+| `npm run test` | Playwright e2e tests |
+| `npm run test:unit` | Vitest unit tests |
+
 ## Current Repository Notes
 - Existing app is SvelteKit with browser LocalStorage persistence.
 - Current coupling exists in `src/lib/state.ts`, `src/lib/storage.ts`, and `src/lib/site-settings.ts`.

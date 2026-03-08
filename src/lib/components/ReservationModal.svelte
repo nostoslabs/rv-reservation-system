@@ -23,11 +23,23 @@
     delete: { index: number };
   }>();
 
+  const COLOR_SWATCHES: Record<string, string> = {
+    red: '#ffd9d9',
+    green: '#ddf7dd',
+    blue: '#d9ebff',
+    yellow: '#fff5c6',
+    pink: '#ffe0ef',
+    orange: '#ffe5cd',
+    purple: '#eadfff'
+  };
+
   const emptyExtras = { phoneNumber: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
+  let confirmingDelete = false;
 
   $: if (open) {
     form = { ...emptyExtras, ...draft };
+    confirmingDelete = false;
   }
 
   function handleSubmit(): void {
@@ -43,7 +55,19 @@
   function handleKeydown(event: KeyboardEvent): void {
     if (!open) return;
     if (event.key === 'Escape') {
-      dispatch('cancel');
+      if (confirmingDelete) {
+        confirmingDelete = false;
+      } else {
+        dispatch('cancel');
+      }
+    }
+  }
+
+  function handleDeleteClick(): void {
+    if (confirmingDelete) {
+      dispatch('delete', { index: form.index as number });
+    } else {
+      confirmingDelete = true;
     }
   }
 </script>
@@ -93,23 +117,36 @@
           </label>
         </div>
 
-        <div class="row-2">
-          <label>
-            <span>Parking Location</span>
-            <select bind:value={form.parkingLocation} required>
-              {#each parkingLocations as location}
-                <option value={location}>{location}</option>
-              {/each}
-            </select>
-          </label>
-          <label>
-            <span>Color</span>
-            <select bind:value={form.color} required>
-              {#each RESERVATION_COLORS as color}
-                <option value={color}>{color}</option>
-              {/each}
-            </select>
-          </label>
+        <label>
+          <span>Parking Location</span>
+          <select bind:value={form.parkingLocation} required>
+            {#each parkingLocations as location}
+              <option value={location}>{location}</option>
+            {/each}
+          </select>
+        </label>
+
+        <div class="color-field">
+          <span class="color-label">Color</span>
+          <div class="color-swatches" role="radiogroup" aria-label="Reservation color">
+            {#each RESERVATION_COLORS as color}
+              <button
+                type="button"
+                class="swatch"
+                class:selected={form.color === color}
+                style="background: {COLOR_SWATCHES[color]}"
+                aria-label={color}
+                aria-checked={form.color === color}
+                role="radio"
+                on:click={() => { form.color = color; }}
+              >
+                {#if form.color === color}
+                  <span class="check" aria-hidden="true">&#10003;</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+          <span class="color-name">{form.color}</span>
         </div>
 
         <label>
@@ -131,10 +168,10 @@
           {#if mode === 'edit' && typeof form.index === 'number'}
             <button
               type="button"
-              class="danger"
-              on:click={() => dispatch('delete', { index: form.index as number })}
+              class={confirmingDelete ? 'danger confirming' : 'danger'}
+              on:click={handleDeleteClick}
             >
-              Delete
+              {confirmingDelete ? 'Confirm Delete?' : 'Delete'}
             </button>
           {/if}
         </footer>
@@ -179,7 +216,7 @@
 
   .meta {
     margin: 0;
-    color: #5d6a7b;
+    color: #455566;
     font-size: 0.85rem;
   }
 
@@ -233,7 +270,7 @@
     width: 100%;
     border-radius: 10px;
     border: 1px solid #c8d1de;
-    padding: 0.55rem 0.65rem;
+    padding: 0.6rem 0.75rem;
     background: white;
     color: #102033;
   }
@@ -251,9 +288,62 @@
   }
 
   .notes-label-row small {
-    color: #607084;
+    color: #455566;
     font-weight: 600;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
+  }
+
+  /* Color swatches */
+  .color-field {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .color-label {
+    font-weight: 600;
+    color: #263444;
+    font-size: 0.9rem;
+  }
+
+  .color-swatches {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 40px;
+    height: 40px;
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    transition: border-color 0.15s;
+  }
+
+  .swatch:hover {
+    border-color: #a0b0c4;
+  }
+
+  .swatch.selected {
+    border-color: #1b304a;
+    box-shadow: 0 0 0 2px white, 0 0 0 4px #1b304a;
+  }
+
+  .check {
+    font-size: 1rem;
+    color: #1b304a;
+    font-weight: 700;
+  }
+
+  .color-name {
+    font-size: 0.85rem;
+    color: #455566;
+    text-transform: capitalize;
   }
 
   .modal-actions {
@@ -268,8 +358,9 @@
     border: 1px solid #c1cada;
     background: #f6f8fb;
     color: #203045;
-    padding: 0.55rem 0.8rem;
+    padding: 0.6rem 0.85rem;
     cursor: pointer;
+    min-height: 44px;
   }
 
   button.primary {
@@ -282,6 +373,13 @@
     background: #fbeaea;
     border-color: #efb2b2;
     color: #892727;
+  }
+
+  button.danger.confirming {
+    background: #d42a2a;
+    border-color: #b91c1c;
+    color: white;
+    font-weight: 700;
   }
 
   @media (max-width: 640px) {

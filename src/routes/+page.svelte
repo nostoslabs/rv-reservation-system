@@ -43,6 +43,21 @@
     color: 'blue'
   };
 
+  // Toast notification state
+  let toastMessage = '';
+  let toastVisible = false;
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showToast(message: string): void {
+    toastMessage = message;
+    toastVisible = true;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastVisible = false;
+      toastTimer = null;
+    }, 3000);
+  }
+
   $: occupancyMap = buildOccupancyMap($rvReservationStore.reservations);
   $: reservationCountsByLocation = Object.fromEntries(
     $rvReservationStore.parkingLocations.map((location) => [
@@ -81,6 +96,10 @@
       : todayIndex * DATE_COLUMN_WIDTH;
     const maxOffset = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, rawOffset), maxOffset);
+  }
+
+  function scrollWeek(direction: number): void {
+    gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
   }
 
   function openModalForCell(parkingLocation: string, dateIso: string): void {
@@ -128,6 +147,7 @@
     }
 
     closeModal();
+    showToast('Reservation saved');
   }
 
   function handleModalDelete(event: CustomEvent<{ index: number }>): void {
@@ -138,33 +158,36 @@
     }
 
     closeModal();
+    showToast('Reservation deleted');
   }
 
-  function applyLocationMutation(result: { ok: boolean; errors?: string[] }): void {
+  function applyLocationMutation(result: { ok: boolean; errors?: string[] }, successMsg?: string): void {
     if (result.ok) {
       locationPanelError = '';
+      if (successMsg) showToast(successMsg);
       return;
     }
     locationPanelError = result.errors?.[0] ?? 'Unable to update parking locations.';
   }
 
   function handleAddLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name));
+    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name), 'Location added');
   }
 
   function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
     applyLocationMutation(
-      rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName)
+      rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName),
+      'Location renamed'
     );
   }
 
   function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
+    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name), 'Location deleted');
   }
 
   function getReservationCellTitle(location: string, dateIso: string, reservation?: Reservation): string {
     if (!reservation) {
-      return `Double-click to add reservation at ${location} on ${dateIso}`;
+      return `Click to add reservation at ${location} on ${dateIso}`;
     }
 
     const lines = [
@@ -214,6 +237,7 @@
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (toastTimer) clearTimeout(toastTimer);
     };
   });
 </script>
@@ -229,10 +253,9 @@
 <div class="page-shell">
   <header class="hero">
     <div>
-      <p class="eyebrow">Demo App</p>
       <h1>{$siteSettingsStore.siteName}</h1>
       <p class="lede">
-        Double-click any calendar cell to add or edit a reservation. Dates are stored locally in your browser.
+        Click any cell in the calendar to add or edit a reservation.
       </p>
     </div>
     <div class="status-card" aria-live="polite">
@@ -267,6 +290,12 @@
         </div>
       </div>
 
+      <nav class="grid-nav" aria-label="Grid navigation">
+        <button type="button" on:click={() => scrollWeek(-1)}>&#8592; Previous Week</button>
+        <button type="button" class="primary" on:click={alignToToday}>Today</button>
+        <button type="button" on:click={() => scrollWeek(1)}>Next Week &#8594;</button>
+      </nav>
+
       <div class="sheet-scroll" bind:this={gridScroller}>
         <table class="sheet-table" aria-label="RV reservation working sheet">
           <colgroup>
@@ -277,34 +306,20 @@
           </colgroup>
 
           <thead>
-            <tr class="toolbar-row">
-              <th class="sticky-row1 sticky-col top-left-cell" scope="col">
+            <tr class="calendar-row">
+              <th class="sticky-row1 sticky-col top-left-cell location-header" scope="col">
                 <div class="top-left-content">
                   <span class="label">Current Date</span>
                   <strong>{formatDisplayDate(todayIso)}</strong>
                 </div>
               </th>
-              {#each dateColumns as _date, index}
-                <th class="sticky-row1 toolbar-cell" scope="col">
-                  {#if index === 0}
-                    <button type="button" class="grid-button" on:click={saveNow}>SAVE</button>
-                  {:else if index === 1}
-                    <button type="button" class="grid-button" on:click={() => gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7, behavior: 'smooth' })}>
-                      +7 DAYS
-                    </button>
-                  {:else if index === 2}
-                    <button type="button" class="grid-button primary" on:click={alignToToday}>TODAY</button>
-                  {:else}
-                    <span class="toolbar-placeholder" aria-hidden="true"></span>
-                  {/if}
-                </th>
-              {/each}
-            </tr>
-
-            <tr class="calendar-row">
-              <th class="sticky-row2 sticky-col location-header" scope="col">Parking Location</th>
               {#each dateColumns as dateIso}
-                <th class="sticky-row2 date-header" scope="col" data-date={dateIso}>
+                <th
+                  class="sticky-row1 date-header"
+                  class:today={dateIso === todayIso}
+                  scope="col"
+                  data-date={dateIso}
+                >
                   {formatDisplayDate(dateIso)}
                 </th>
               {/each}
@@ -319,12 +334,14 @@
                   {@const cellId = buildCellId(location, dateIso)}
                   {@const reservation = occupancyMap.get(cellId)}
                   <td
-                    class={`grid-cell ${reservation ? `occupied color-${reservation.color}` : ''}`}
-                    on:dblclick={() => openModalForCell(location, dateIso)}
+                    class={`grid-cell ${reservation ? `occupied color-${reservation.color}` : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
+                    on:click={() => openModalForCell(location, dateIso)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
                     {#if reservation}
                       <span class="reservation-label">{reservation.name}</span>
+                    {:else}
+                      <span class="empty-hint" aria-hidden="true">+</span>
                     {/if}
                   </td>
                 {/each}
@@ -336,6 +353,10 @@
     </section>
   </div>
 </div>
+
+{#if toastVisible}
+  <div class="toast" role="status" aria-live="polite">{toastMessage}</div>
+{/if}
 
 <ReservationModal
   open={modalOpen}
@@ -368,15 +389,6 @@
     backdrop-filter: blur(6px);
   }
 
-  .eyebrow {
-    margin: 0;
-    color: #406286;
-    font-weight: 700;
-    font-size: 0.8rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
   h1 {
     margin: 0.2rem 0 0;
     font-size: clamp(1.15rem, 2vw + 0.7rem, 1.65rem);
@@ -384,7 +396,7 @@
 
   .lede {
     margin: 0.4rem 0 0;
-    color: #5c6b7e;
+    color: #455566;
     max-width: 60ch;
   }
 
@@ -399,9 +411,9 @@
   }
 
   .status-title {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 700;
-    color: #45607f;
+    color: #3d5a78;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -418,8 +430,9 @@
     border-radius: 10px;
     border: 1px solid #c3cddd;
     background: #f4f7fc;
-    padding: 0.5rem 0.7rem;
+    padding: 0.6rem 0.75rem;
     cursor: pointer;
+    min-height: 44px;
   }
 
   .layout-grid {
@@ -454,8 +467,8 @@
 
   .sheet-header p {
     margin: 0.2rem 0 0;
-    color: #5d6c80;
-    font-size: 0.85rem;
+    color: #455566;
+    font-size: 0.95rem;
   }
 
   .sheet-stats {
@@ -469,9 +482,43 @@
     background: #eef3fb;
     border: 1px solid #d6dfed;
     color: #334a68;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     border-radius: 999px;
     padding: 0.25rem 0.55rem;
+  }
+
+  /* Grid navigation bar */
+  .grid-nav {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .grid-nav button {
+    border-radius: 10px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+
+  .grid-nav button:hover {
+    background: #edf3fd;
+  }
+
+  .grid-nav button.primary {
+    background: #0a63e0;
+    border-color: #0a63e0;
+    color: white;
+  }
+
+  .grid-nav button.primary:hover {
+    background: #0757c8;
   }
 
   .sheet-scroll {
@@ -488,8 +535,7 @@
     width: max-content;
     min-width: 100%;
     table-layout: fixed;
-    --row1-height: 46px;
-    --row2-height: 40px;
+    --row1-height: 44px;
   }
 
   .sheet-table th,
@@ -520,18 +566,9 @@
     position: sticky;
     top: 0;
     z-index: 8;
-    background: #f7fafe;
+    background: #eef3fb;
     height: var(--row1-height);
     min-height: var(--row1-height);
-  }
-
-  .sticky-row2 {
-    position: sticky;
-    top: var(--row1-height);
-    z-index: 7;
-    background: #eef3fb;
-    height: var(--row2-height);
-    min-height: var(--row2-height);
   }
 
   .sticky-col {
@@ -543,14 +580,14 @@
 
   .top-left-cell {
     z-index: 10;
-    background: linear-gradient(180deg, #f8fbff, #f1f5fd);
+    background: linear-gradient(180deg, #f1f5fd, #ebf1fb);
   }
 
   .location-header {
     z-index: 9;
     text-align: left;
     padding: 0 0.65rem;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: #31465f;
     background: #ebf1fb;
@@ -567,8 +604,8 @@
   }
 
   .top-left-content .label {
-    font-size: 0.7rem;
-    color: #54708f;
+    font-size: 0.8rem;
+    color: #3d5a78;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 700;
@@ -579,73 +616,67 @@
     color: #1b304a;
   }
 
-  .toolbar-cell {
-    background: #f7fafe;
-    text-align: center;
-  }
-
-  .toolbar-placeholder {
-    display: block;
-    height: 100%;
-  }
-
-  .grid-button {
-    height: 100%;
-    width: 100%;
-    border: 0;
-    background: transparent;
-    color: #324a67;
-    font-weight: 700;
-    font-size: 0.78rem;
-    letter-spacing: 0.03em;
-    cursor: pointer;
-  }
-
-  .grid-button:hover {
-    background: #edf3fd;
-  }
-
-  .grid-button.primary {
-    background: #0a63e0;
-    color: white;
-  }
-
-  .grid-button.primary:hover {
-    background: #0757c8;
-  }
-
   .date-header {
     text-align: center;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 700;
-    color: #3a536f;
+    color: #2d4055;
     white-space: nowrap;
     background: #edf3fb;
+  }
+
+  .date-header.today {
+    background: rgba(10, 99, 224, 0.1);
+    color: #0a63e0;
   }
 
   .location-cell {
     background: #fcfdff;
     text-align: left;
     padding: 0.45rem 0.6rem;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: #27384f;
     z-index: 5;
   }
 
   .grid-cell {
-    height: 44px;
-    min-height: 44px;
+    height: 48px;
+    min-height: 48px;
     padding: 0.2rem 0.35rem;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: #1b2940;
     background: #ffffff;
-    cursor: cell;
+    cursor: pointer;
     user-select: none;
+    position: relative;
   }
 
   .grid-cell:hover {
-    background: #f8fbff;
+    background: #f0f6ff;
+  }
+
+  .grid-cell.today {
+    background: rgba(10, 99, 224, 0.04);
+  }
+
+  .grid-cell.today:hover {
+    background: rgba(10, 99, 224, 0.09);
+  }
+
+  .grid-cell.empty .empty-hint {
+    display: none;
+    color: #a0b0c4;
+    font-size: 1.1rem;
+    font-weight: 300;
+    position: absolute;
+    inset: 0;
+    place-content: center;
+    place-items: center;
+  }
+
+  .grid-cell.empty:hover .empty-hint {
+    display: grid;
   }
 
   .grid-cell.occupied {
@@ -690,7 +721,34 @@
   }
 
   .grid-cell.occupied:hover {
-    filter: brightness(0.98);
+    filter: brightness(0.97);
+  }
+
+  /* Toast notifications */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #1b304a;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(15, 28, 47, 0.2);
+    z-index: 200;
+    animation: toast-in 0.25s ease-out;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @media (max-width: 1100px) {
