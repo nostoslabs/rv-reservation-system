@@ -85,16 +85,16 @@
 </script>
 
 <svelte:head>
-  <title>Admin | {$siteSettingsStore.siteName}</title>
-  <meta name="description" content="Admin settings for RV Reservation Demo." />
+  <title>Settings | {$siteSettingsStore.siteName}</title>
+  <meta name="description" content="Park settings for {$siteSettingsStore.siteName}." />
 </svelte:head>
 
 <div class="admin-shell">
   <header class="admin-header">
-    <p class="eyebrow">Settings</p>
-    <h1>Admin</h1>
+    <a href="/" class="back-link" data-testid="back-to-schedule">&larr; Back to Schedule</a>
+    <h1>Park Settings</h1>
     <p>
-      This page is intentionally not linked from the main UI. It controls local settings only.
+      Manage your park name and admin passcode. Protected settings require a passcode.
     </p>
   </header>
 
@@ -175,13 +175,17 @@
     padding: 1rem;
   }
 
-  .eyebrow {
-    margin: 0;
-    color: #466684;
-    font-weight: 700;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+  .back-link {
+    display: inline-block;
+    margin: 0 0 0.3rem;
+    color: #0c5fdb;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    text-decoration: underline;
   }
 
   h1,
