@@ -261,17 +261,20 @@
 </svelte:head>
 
 <div class="page-shell">
-  <header class="hero">
-    <div>
-      <h1>{$siteSettingsStore.siteName}</h1>
-      <p class="lede">
-        Click any cell in the calendar to add or edit a reservation.
-      </p>
-    </div>
-    <div class="status-card" aria-live="polite">
-      <div class="status-title">Autosave</div>
-      <div class="status-value">{autosaveStatus}</div>
-      <button type="button" on:click={saveNow}>Save Now</button>
+  <header class="toolbar">
+    <h1 class="toolbar-title">{$siteSettingsStore.siteName}</h1>
+
+    <nav class="toolbar-nav" aria-label="Grid navigation">
+      <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
+      <button type="button" class="primary" on:click={alignToToday}>Today</button>
+      <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+    </nav>
+
+    <div class="toolbar-right">
+      <span class="badge">{ $rvReservationStore.reservations.length } res</span>
+      <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
+      <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
+      <button type="button" class="save-btn" on:click={saveNow}>Save</button>
     </div>
   </header>
 
@@ -289,22 +292,7 @@
     </aside>
 
     <section class="sheet-panel" aria-labelledby="schedule-title">
-      <div class="sheet-header">
-        <div>
-          <h2 id="schedule-title">Schedule</h2>
-          <p>Rows = sites, columns = dates. Sticky top rows + sticky first column.</p>
-        </div>
-        <div class="sheet-stats">
-          <span>{ $rvReservationStore.reservations.length } reservations</span>
-          <span>{ $rvReservationStore.parkingLocations.length } sites</span>
-        </div>
-      </div>
-
-      <nav class="grid-nav" aria-label="Grid navigation">
-        <button type="button" on:click={() => scrollWeek(-1)}>&#8592; Previous Week</button>
-        <button type="button" class="primary" on:click={alignToToday}>Today</button>
-        <button type="button" on:click={() => scrollWeek(1)}>Next Week &#8594;</button>
-      </nav>
+      <h2 id="schedule-title" class="sr-only">Schedule</h2>
 
       <div class="status-legend" aria-label="Status legend">
         {#each RESERVATION_STATUSES as statusKey}
@@ -395,154 +383,131 @@
 
 <style>
   .page-shell {
-    padding: 1rem;
+    padding: 0.5rem 1rem;
     display: grid;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
-  .hero {
+  /* -- Compact toolbar ---------------------------------------------------- */
+  .toolbar {
     background: rgba(255, 255, 255, 0.82);
     border: 1px solid rgba(214, 222, 234, 0.9);
-    border-radius: 18px;
+    border-radius: 12px;
     box-shadow: var(--shadow);
-    padding: 1rem;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1rem;
-    align-items: start;
+    padding: 0.4rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     backdrop-filter: blur(6px);
+    flex-wrap: wrap;
+    min-height: 48px;
   }
 
-  h1 {
-    margin: 0.2rem 0 0;
-    font-size: clamp(1.15rem, 2vw + 0.7rem, 1.65rem);
+  .toolbar-title {
+    margin: 0;
+    font-size: 1.1rem;
+    white-space: nowrap;
   }
 
-  .lede {
-    margin: 0.4rem 0 0;
-    color: #455566;
-    max-width: 60ch;
+  .toolbar-nav {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
   }
 
-  .status-card {
-    background: linear-gradient(180deg, #fdfefe, #f6f9fd);
-    border: 1px solid #d9e1ec;
-    border-radius: 14px;
-    padding: 0.75rem;
-    display: grid;
-    gap: 0.4rem;
-    min-width: 18rem;
-  }
-
-  .status-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #3d5a78;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .status-value {
-    font-size: 0.88rem;
-    color: #1c2e45;
-    line-height: 1.3;
-    min-height: 2.4em;
-  }
-
-  .status-card button {
-    justify-self: start;
-    border-radius: 10px;
+  .toolbar-nav button {
+    border-radius: 8px;
     border: 1px solid #c3cddd;
     background: #f4f7fc;
-    padding: 0.6rem 0.75rem;
+    color: #223349;
+    padding: 0.3rem 0.65rem;
     cursor: pointer;
-    min-height: 44px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    min-height: 36px;
+    line-height: 1;
+  }
+
+  .toolbar-nav button:hover {
+    background: #edf3fd;
+  }
+
+  .toolbar-nav button.primary {
+    background: #0a63e0;
+    border-color: #0a63e0;
+    color: white;
+    padding: 0.3rem 0.75rem;
+  }
+
+  .toolbar-nav button.primary:hover {
+    background: #0757c8;
+  }
+
+  .toolbar-right {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    background: #eef3fb;
+    border: 1px solid #d6dfed;
+    color: #334a68;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .save-badge {
+    color: #3d5a78;
+  }
+
+  .save-btn {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-height: 36px;
+  }
+
+  .save-btn:hover {
+    background: #edf3fd;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .layout-grid {
     display: grid;
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-    gap: 1rem;
+    gap: 0.5rem;
     align-items: start;
   }
 
   .sheet-panel {
     background: rgba(255, 255, 255, 0.86);
     border: 1px solid rgba(214, 222, 234, 0.9);
-    border-radius: 18px;
+    border-radius: 14px;
     box-shadow: var(--shadow);
-    padding: 0.9rem;
+    padding: 0.5rem;
     display: grid;
-    gap: 0.75rem;
+    gap: 0;
     min-width: 0;
-  }
-
-  .sheet-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: end;
-  }
-
-  .sheet-header h2 {
-    margin: 0;
-    font-size: 1.05rem;
-  }
-
-  .sheet-header p {
-    margin: 0.2rem 0 0;
-    color: #455566;
-    font-size: 0.95rem;
-  }
-
-  .sheet-stats {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .sheet-stats span {
-    background: #eef3fb;
-    border: 1px solid #d6dfed;
-    color: #334a68;
-    font-size: 0.875rem;
-    border-radius: 999px;
-    padding: 0.25rem 0.55rem;
-  }
-
-  /* Grid navigation bar */
-  .grid-nav {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .grid-nav button {
-    border-radius: 10px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    color: #223349;
-    padding: 0.6rem 1rem;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    min-height: 44px;
-  }
-
-  .grid-nav button:hover {
-    background: #edf3fd;
-  }
-
-  .grid-nav button.primary {
-    background: #0a63e0;
-    border-color: #0a63e0;
-    color: white;
-  }
-
-  .grid-nav button.primary:hover {
-    background: #0757c8;
   }
 
   /* Status legend */
@@ -571,9 +536,9 @@
 
   .sheet-scroll {
     overflow: auto;
-    max-height: min(70vh, 52rem);
+    max-height: min(82vh, 60rem);
     border: 1px solid #dbe3ef;
-    border-radius: 14px;
+    border-radius: 10px;
     background: white;
   }
 
@@ -776,21 +741,12 @@
       grid-template-columns: 1fr;
     }
 
-    .hero {
-      grid-template-columns: 1fr;
+    .toolbar {
+      gap: 0.5rem;
     }
 
-    .status-card {
-      min-width: 0;
-    }
-
-    .sheet-header {
-      flex-direction: column;
-      align-items: start;
-    }
-
-    .sheet-stats {
-      justify-content: flex-start;
+    .save-badge {
+      display: none;
     }
   }
 </style>
