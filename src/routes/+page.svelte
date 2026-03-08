@@ -95,14 +95,14 @@
     await tick();
     if (!gridScroller) return;
     const todayIndex = diffDays(gridStartDate, todayIso);
-    const targetHeader = gridScroller.querySelector<HTMLTableCellElement>(
-      `th.date-header[data-date="${todayIso}"]`
-    );
-    const rawOffset = targetHeader
-      ? Math.max(0, targetHeader.offsetLeft - FIRST_COLUMN_WIDTH)
-      : todayIndex * DATE_COLUMN_WIDTH;
+    // Calculate today's scroll position from its column index
+    // Each date column starts at FIRST_COLUMN_WIDTH + index * DATE_COLUMN_WIDTH in the table
+    const todayScrollLeft = todayIndex * DATE_COLUMN_WIDTH;
+    // Center today in the visible area (the area right of the sticky column)
+    const visibleWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
+    const centeredOffset = todayScrollLeft - Math.max(0, (visibleWidth - DATE_COLUMN_WIDTH) / 2);
     const maxOffset = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
-    gridScroller.scrollLeft = Math.min(Math.max(0, rawOffset), maxOffset);
+    gridScroller.scrollLeft = Math.min(Math.max(0, centeredOffset), maxOffset);
   }
 
   function scrollWeek(direction: number): void {
@@ -534,6 +534,13 @@
     border-radius: 3px;
   }
 
+  .grid-nav-date {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #3d5a78;
+    margin-left: 0.25rem;
+  }
+
   .sheet-scroll {
     overflow: auto;
     max-height: min(82vh, 60rem);
@@ -639,8 +646,9 @@
   }
 
   .date-header.today {
-    background: rgba(10, 99, 224, 0.1);
+    background: rgba(10, 99, 224, 0.12);
     color: #0a63e0;
+    box-shadow: inset 0 -3px 0 0 #0a63e0;
   }
 
   .location-cell {
@@ -670,11 +678,13 @@
   }
 
   .grid-cell.today {
-    background: rgba(10, 99, 224, 0.04);
+    background: rgba(10, 99, 224, 0.05);
+    border-left: 1px solid rgba(10, 99, 224, 0.18);
+    border-right: 1px solid rgba(10, 99, 224, 0.18);
   }
 
   .grid-cell.today:hover {
-    background: rgba(10, 99, 224, 0.09);
+    background: rgba(10, 99, 224, 0.1);
   }
 
   .grid-cell.empty .empty-hint {

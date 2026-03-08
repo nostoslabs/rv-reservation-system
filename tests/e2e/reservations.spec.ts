@@ -140,7 +140,27 @@ test.describe('Reservation CRUD', () => {
 });
 
 test.describe('TODAY alignment', () => {
-	test('TODAY button scrolls grid to today', async ({ page }) => {
+	test('today column is visible on initial load', async ({ page }) => {
+		await resetApp(page);
+
+		const today = getTodayIso();
+		const todayHeader = page.locator(`th.date-header[data-date="${today}"]`);
+		await expect(todayHeader).toBeAttached();
+
+		// Verify the today header is within the visible scroll area
+		const isInView = await page.evaluate((dateIso) => {
+			const scroller = document.querySelector('.sheet-scroll');
+			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
+			if (!scroller || !header) return false;
+			const scrollerRect = scroller.getBoundingClientRect();
+			const headerRect = header.getBoundingClientRect();
+			// The header should be at least partially within the scroller's visible bounds
+			return headerRect.left < scrollerRect.right && headerRect.right > scrollerRect.left + 220;
+		}, today);
+		expect(isInView).toBe(true);
+	});
+
+	test('Today button scrolls grid to today', async ({ page }) => {
 		await resetApp(page);
 
 		// Scroll grid far to the right
@@ -149,10 +169,37 @@ test.describe('TODAY alignment', () => {
 			if (scroller) scroller.scrollLeft = scroller.scrollWidth;
 		});
 
-		await page.locator('.grid-button.primary:has-text("TODAY")').click();
+		await page.locator('.grid-nav button.primary:has-text("Today")').click();
 		await page.waitForTimeout(500);
 
 		const today = getTodayIso();
-		await expect(page.locator(`th.date-header[data-date="${today}"]`)).toBeVisible();
+
+		// Verify the today header is within the visible scroll area
+		const isInView = await page.evaluate((dateIso) => {
+			const scroller = document.querySelector('.sheet-scroll');
+			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
+			if (!scroller || !header) return false;
+			const scrollerRect = scroller.getBoundingClientRect();
+			const headerRect = header.getBoundingClientRect();
+			return headerRect.left < scrollerRect.right && headerRect.right > scrollerRect.left + 220;
+		}, today);
+		expect(isInView).toBe(true);
+	});
+
+	test('today column has visual highlight', async ({ page }) => {
+		await resetApp(page);
+
+		const today = getTodayIso();
+
+		// Verify header has today class with highlight styling
+		const todayHeader = page.locator(`th.date-header.today[data-date="${today}"]`);
+		await expect(todayHeader).toBeAttached();
+
+		// Verify today body cells also have the today class
+		const todayCells = page.locator('td.grid-cell.today');
+		const cellCount = await todayCells.count();
+		// There should be at least as many today cells as parking locations (if any exist)
+		const locationCount = await page.locator('th.location-cell').count();
+		expect(cellCount).toBe(locationCount);
 	});
 });
