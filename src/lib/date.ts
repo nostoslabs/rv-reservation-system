@@ -65,6 +65,51 @@ export function formatDisplayDate(isoDate: string): string {
   return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
 }
 
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const SHORT_MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+] as const;
+
+/**
+ * Compact format for grid/schedule column headers.
+ * Example: "Sat, Mar 7"
+ */
+export function formatScheduleHeader(isoDate: string): string {
+  const parts = parseIsoParts(isoDate);
+  if (!parts) return isoDate;
+  const [year, month, day] = parts;
+  const utcMs = Date.UTC(year, month - 1, day);
+  const dow = new Date(utcMs).getUTCDay();
+  return `${SHORT_DAYS[dow]}, ${SHORT_MONTHS[month - 1]} ${day}`;
+}
+
+/**
+ * Explicit format for reservation detail displays.
+ * Example: "Mar 7, 2026"
+ */
+export function formatReservationDetail(isoDate: string): string {
+  const parts = parseIsoParts(isoDate);
+  if (!parts) return isoDate;
+  const [year, month, day] = parts;
+  return `${SHORT_MONTHS[month - 1]} ${day}, ${year}`;
+}
+
+/**
+ * Locale-aware readable timestamp for autosave and audit displays.
+ * Example: "Mar 7, 2026, 2:30 PM"
+ */
+export function formatTimestamp(date: Date | number): string {
+  const d = typeof date === 'number' ? new Date(date) : date;
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(d);
+}
+
 export function getTodayIsoLocal(now: Date = new Date()): string {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');

@@ -5,15 +5,22 @@
   import {
     addDays,
     diffDays,
-    formatDisplayDate,
-    formatLocalTimestamp,
+    formatReservationDetail,
+    formatScheduleHeader,
+    formatTimestamp,
     getTodayIsoLocal
   } from '$lib/date';
+  import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
+  import { filterReservations } from '$lib/domain/reservations/search';
   import { buildCellId, buildOccupancyMap } from '$lib/reservations';
-  import { STATUS_BG_COLORS, STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
+  import {
+    STATUS_BACKGROUND_COLORS,
+    STATUS_COLORS,
+    STATUS_LABELS
+  } from '$lib/domain/reservations/status';
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
-  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues } from '$lib/types';
+  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
 
   const DAYS_BEFORE_TODAY = 45;
   const TOTAL_DATE_COLUMNS = 540;
@@ -32,6 +39,7 @@
   let modalOpen = false;
   let modalMode: 'create' | 'edit' = 'create';
   let modalErrors: string[] = [];
+  let modalTriggerElement: HTMLElement | null = null;
   let modalDraft: ReservationFormValues = {
     name: '',
     phoneNumber: '',
@@ -42,6 +50,68 @@
     color: 'blue',
     status: 'reserved'
   };
+
+  // Search state
+  let searchQuery = '';
+  let searchOpen = false;
+  let searchInputEl: HTMLInputElement | null = null;
+  let searchContainerEl: HTMLDivElement | null = null;
+  let selectedSearchIndex = -1;
+
+  $: searchResults = filterReservations($rvReservationStore.reservations, searchQuery);
+  $: if (searchQuery.trim() !== '') {
+    searchOpen = true;
+    selectedSearchIndex = -1;
+  } else {
+    searchOpen = false;
+  }
+
+  function handleSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      searchOpen = false;
+      searchQuery = '';
+      searchInputEl?.blur();
+      return;
+    }
+    if (!searchOpen || searchResults.length === 0) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      selectedSearchIndex = Math.min(selectedSearchIndex + 1, searchResults.length - 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      selectedSearchIndex = Math.max(selectedSearchIndex - 1, 0);
+    } else if (event.key === 'Enter' && selectedSearchIndex >= 0) {
+      event.preventDefault();
+      openReservationFromSearch(searchResults[selectedSearchIndex].reservation);
+    }
+  }
+
+  function openReservationFromSearch(reservation: Reservation): void {
+    searchOpen = false;
+    searchQuery = '';
+
+    modalMode = 'edit';
+    modalDraft = {
+      index: reservation.index,
+      name: reservation.name,
+      phoneNumber: reservation.phoneNumber,
+      notes: reservation.notes,
+      startDate: reservation.startDate,
+      endDate: reservation.endDate,
+      parkingLocation: reservation.parkingLocation,
+      color: reservation.color,
+      status: reservation.status
+    };
+    modalErrors = [];
+    modalOpen = true;
+  }
+
+  function handleSearchClickOutside(event: MouseEvent): void {
+    if (searchContainerEl && !searchContainerEl.contains(event.target as Node)) {
+      searchOpen = false;
+    }
+  }
 
   // Toast notification state
   let toastMessage = '';
@@ -70,43 +140,68 @@
     ])
   ) as Record<string, number>;
   $: autosaveStatus = getAutosaveStatus($rvReservationStore.lastSavedAt, nowMs);
+  $: dailySummary = computeDailySummary(
+    $rvReservationStore.reservations,
+    $rvReservationStore.parkingLocations,
+    todayIso
+  );
 
   function getAutosaveStatus(lastSavedAt: number | null, nowTimestamp: number): string {
     if (!lastSavedAt) return 'Autosave pending';
     const ageMs = Math.max(0, nowTimestamp - lastSavedAt);
     const ageMinutes = Math.floor(ageMs / 60000);
     if (ageMinutes <= 0) {
-      return `Saved just now (${formatLocalTimestamp(lastSavedAt)})`;
+      return `Saved just now (${formatTimestamp(lastSavedAt)})`;
     }
     if (ageMinutes === 1) {
-      return `Saved 1 minute ago (${formatLocalTimestamp(lastSavedAt)})`;
+      return `Saved 1 minute ago (${formatTimestamp(lastSavedAt)})`;
     }
     if (ageMinutes < 60) {
-      return `Saved ${ageMinutes} minutes ago (${formatLocalTimestamp(lastSavedAt)})`;
+      return `Saved ${ageMinutes} minutes ago (${formatTimestamp(lastSavedAt)})`;
     }
     const ageHours = Math.floor(ageMinutes / 60);
-    return `Saved ${ageHours}h ago (${formatLocalTimestamp(lastSavedAt)})`;
+    return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
   }
 
   async function alignToToday(): Promise<void> {
     await tick();
     if (!gridScroller) return;
     const todayIndex = diffDays(gridStartDate, todayIso);
-    const targetHeader = gridScroller.querySelector<HTMLTableCellElement>(
-      `th.date-header[data-date="${todayIso}"]`
-    );
-    const rawOffset = targetHeader
-      ? Math.max(0, targetHeader.offsetLeft - FIRST_COLUMN_WIDTH)
-      : todayIndex * DATE_COLUMN_WIDTH;
-    const maxOffset = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
-    gridScroller.scrollLeft = Math.min(Math.max(0, rawOffset), maxOffset);
+    // The today column's left edge in the table is at FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH.
+    // The sticky first column occupies FIRST_COLUMN_WIDTH of the visible viewport, so the
+    // visible date area is clientWidth - FIRST_COLUMN_WIDTH wide.
+    // To center today in that visible date area, we set scrollLeft so that:
+    //   scrollLeft + FIRST_COLUMN_WIDTH + visibleDateWidth/2 = FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH + DATE_COLUMN_WIDTH/2
+    //   scrollLeft = todayIndex * DATE_COLUMN_WIDTH - (visibleDateWidth - DATE_COLUMN_WIDTH) / 2
+    const visibleDateWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
+    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH - Math.max(0, (visibleDateWidth - DATE_COLUMN_WIDTH) / 2);
+    const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
+    gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
   }
 
   function scrollWeek(direction: number): void {
     gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
   }
 
-  function openModalForCell(parkingLocation: string, dateIso: string): void {
+  function openNewReservationModal(): void {
+    const firstLocation = $rvReservationStore.parkingLocations[0] ?? '';
+    modalMode = 'create';
+    modalDraft = {
+      name: '',
+      phoneNumber: '',
+      notes: '',
+      startDate: todayIso,
+      endDate: addDays(todayIso, 1),
+      parkingLocation: firstLocation,
+      color: 'blue',
+      status: 'reserved'
+    };
+    modalErrors = [];
+    modalOpen = true;
+  }
+
+  function openModalForCell(parkingLocation: string, dateIso: string, event?: MouseEvent): void {
+    modalTriggerElement = (event?.currentTarget as HTMLElement) ?? null;
     const reservation = occupancyMap.get(buildCellId(parkingLocation, dateIso));
 
     if (reservation) {
@@ -173,33 +268,33 @@
       if (successMsg) showToast(successMsg);
       return;
     }
-    locationPanelError = result.errors?.[0] ?? 'Unable to update parking locations.';
+    locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
   }
 
   function handleAddLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name), 'Location added');
+    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name), 'Site added');
   }
 
   function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
     applyLocationMutation(
       rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName),
-      'Location renamed'
+      'Site renamed'
     );
   }
 
   function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name), 'Location deleted');
+    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name), 'Site deleted');
   }
 
   function getReservationCellTitle(location: string, dateIso: string, reservation?: Reservation): string {
     if (!reservation) {
-      return `Click to add reservation at ${location} on ${dateIso}`;
+      return `Click to add reservation at ${location} on ${formatScheduleHeader(dateIso)}`;
     }
 
     const lines = [
-      `${reservation.name} (${reservation.startDate} \u2192 ${reservation.endDate})`,
-      `Location: ${reservation.parkingLocation}`,
-      `Status: ${STATUS_LABELS[reservation.status]}`
+      `${reservation.name} (${formatReservationDetail(reservation.startDate)} \u2192 ${formatReservationDetail(reservation.endDate)})`,
+      `Status: ${STATUS_LABELS[reservation.status]}`,
+      `Site: ${reservation.parkingLocation}`
     ];
 
     if (reservation.phoneNumber) {
@@ -227,8 +322,16 @@
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
+
+    // Scroll to today immediately, then retry a few times to handle late layout.
+    // The grid dimensions may not be final on the first tick, so we retry until the
+    // scroller has a nonzero clientWidth (meaning layout is complete) and the scroll
+    // position lands correctly.
     void alignToToday();
-    const alignTimeout = window.setTimeout(() => void alignToToday(), 80);
+    const retryDelays = [80, 200, 500];
+    const retryTimers = retryDelays.map((delay) =>
+      window.setTimeout(() => void alignToToday(), delay)
+    );
 
     const displayTicker = window.setInterval(() => {
       nowMs = Date.now();
@@ -244,12 +347,14 @@
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('click', handleSearchClickOutside);
 
     return () => {
-      window.clearTimeout(alignTimeout);
+      retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('click', handleSearchClickOutside);
       if (toastTimer) clearTimeout(toastTimer);
     };
   });
@@ -259,23 +364,20 @@
   <title>{$siteSettingsStore.siteName}</title>
   <meta
     name="description"
-    content="Spreadsheet-style RV reservation working sheet with localStorage persistence."
+    content="RV reservation schedule with localStorage persistence."
   />
 </svelte:head>
 
 <div class="page-shell">
   <header class="toolbar">
-    <div class="toolbar-left">
-      <h1>{$siteSettingsStore.siteName}</h1>
-    </div>
+    <h1 class="toolbar-title">{$siteSettingsStore.siteName}</h1>
 
-    <nav class="toolbar-center" aria-label="Grid navigation">
-      <button type="button" class="nav-btn" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
-      <button type="button" class="nav-btn primary" on:click={alignToToday}>Today</button>
-      <button type="button" class="nav-btn" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+    <nav class="toolbar-nav" aria-label="Grid navigation">
+      <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
+      <button type="button" class="primary" data-testid="today-button" on:click={alignToToday}>Today</button>
+      <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
       <button
         type="button"
-        class="nav-btn"
         class:primary={compactView}
         data-testid="compact-toggle"
         on:click={toggleCompactView}
@@ -293,11 +395,55 @@
     </nav>
 
     <div class="toolbar-right">
-      <span class="badge">{$rvReservationStore.reservations.length} res</span>
-      <span class="badge">{$rvReservationStore.parkingLocations.length} sites</span>
-      <span class="autosave-badge" aria-live="polite" title={autosaveStatus}>
-        {autosaveStatus}
-      </span>
+      <div class="search-container" bind:this={searchContainerEl}>
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="16" height="16">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+          </svg>
+          <input
+            type="search"
+            class="search-input"
+            placeholder="Search guests..."
+            bind:value={searchQuery}
+            bind:this={searchInputEl}
+            on:keydown={handleSearchKeydown}
+            aria-label="Search reservations"
+            aria-expanded={searchOpen && searchResults.length > 0}
+            aria-controls="search-results-dropdown"
+            role="combobox"
+            aria-autocomplete="list"
+          />
+        </div>
+        {#if searchOpen && searchResults.length > 0}
+          <ul class="search-dropdown" id="search-results-dropdown" role="listbox">
+            {#each searchResults.slice(0, 15) as result, i}
+              <li
+                class="search-result"
+                class:selected={i === selectedSearchIndex}
+                role="option"
+                aria-selected={i === selectedSearchIndex}
+                on:click={() => openReservationFromSearch(result.reservation)}
+                on:keydown={(e) => { if (e.key === 'Enter') openReservationFromSearch(result.reservation); }}
+                on:mouseenter={() => { selectedSearchIndex = i; }}
+              >
+                <span class="search-result-name">{result.reservation.name}</span>
+                <span class="search-result-meta">
+                  <span class="search-result-location">{result.reservation.parkingLocation}</span>
+                  <span class="search-result-dates">{formatReservationDetail(result.reservation.startDate)} - {formatReservationDetail(result.reservation.endDate)}</span>
+                </span>
+              </li>
+            {/each}
+          </ul>
+        {:else if searchOpen && searchQuery.trim() !== ''}
+          <div class="search-dropdown search-no-results" id="search-results-dropdown">
+            No results found
+          </div>
+        {/if}
+      </div>
+      <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
+      <span class="badge">{ $rvReservationStore.reservations.length } res</span>
+      <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
+      <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
       <button type="button" class="save-btn" on:click={saveNow}>Save</button>
       <a href="/admin" class="settings-link" title="Settings" aria-label="Settings" data-testid="settings-link">
         <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
@@ -307,6 +453,16 @@
       </a>
     </div>
   </header>
+
+  <div class="daily-summary" aria-label="Daily operations summary">
+    <span class="summary-item"><strong>Arriving:</strong> {dailySummary.arrivals}</span>
+    <span class="summary-sep" aria-hidden="true">&middot;</span>
+    <span class="summary-item"><strong>Departing:</strong> {dailySummary.departures}</span>
+    <span class="summary-sep" aria-hidden="true">&middot;</span>
+    <span class="summary-item"><strong>Occupied:</strong> {dailySummary.occupied}/{dailySummary.totalSites}</span>
+    <span class="summary-sep" aria-hidden="true">&middot;</span>
+    <span class="summary-item"><strong>Vacant:</strong> {dailySummary.vacant}</span>
+  </div>
 
   <div class="layout-grid">
     <aside>
@@ -321,20 +477,30 @@
       />
     </aside>
 
-    <section class="sheet-panel" aria-labelledby="working-sheet-title">
-      <h2 id="working-sheet-title" class="sr-only">Working Sheet</h2>
+    <section class="sheet-panel" aria-labelledby="schedule-title">
+      <h2 id="schedule-title" class="sr-only">Schedule</h2>
 
-      <div class="status-legend" data-testid="status-legend" aria-label="Status legend">
-        {#each RESERVATION_STATUSES as status}
+      <div class="status-legend" aria-label="Status legend">
+        {#each RESERVATION_STATUSES as statusKey}
           <span class="legend-item">
-            <span class="legend-dot" style="background: {STATUS_COLORS[status]}"></span>
-            {STATUS_LABELS[status]}
+            <span
+              class="legend-swatch"
+              style="background: {STATUS_BACKGROUND_COLORS[statusKey]}; border-left: 3px solid {STATUS_COLORS[statusKey]};"
+              aria-hidden="true"
+            ></span>
+            {STATUS_LABELS[statusKey]}
           </span>
         {/each}
       </div>
 
+      {#if $rvReservationStore.reservations.length === 0 && $rvReservationStore.parkingLocations.length > 0}
+        <div class="empty-state" data-testid="empty-state">
+          <p>No reservations yet. Click <button type="button" class="inline-action" on:click={openNewReservationModal}>+ New Reservation</button> above or click any cell in the calendar to get started.</p>
+        </div>
+      {/if}
+
       <div class="sheet-scroll" class:compact={compactView} bind:this={gridScroller}>
-        <table class="sheet-table" aria-label="RV reservation working sheet">
+        <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
             <col class="first-col" />
             {#each dateColumns as _date}
@@ -347,7 +513,7 @@
               <th class="sticky-row1 sticky-col top-left-cell location-header" scope="col">
                 <div class="top-left-content">
                   <span class="label">Current Date</span>
-                  <strong>{formatDisplayDate(todayIso)}</strong>
+                  <strong>{formatReservationDetail(todayIso)}</strong>
                 </div>
               </th>
               {#each dateColumns as dateIso}
@@ -357,7 +523,7 @@
                   scope="col"
                   data-date={dateIso}
                 >
-                  {formatDisplayDate(dateIso)}
+                  {formatScheduleHeader(dateIso)}
                 </th>
               {/each}
             </tr>
@@ -372,8 +538,8 @@
                   {@const reservation = occupancyMap.get(cellId)}
                   <td
                     class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
-                    style={reservation ? `background: ${STATUS_BG_COLORS[reservation.status]}` : ''}
-                    on:click={() => openModalForCell(location, dateIso)}
+                    style={reservation ? `background: ${STATUS_BACKGROUND_COLORS[reservation.status]}; border-left: 3px solid ${STATUS_COLORS[reservation.status]};` : ''}
+                    on:click={(e) => openModalForCell(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
                     {#if reservation}
@@ -402,6 +568,7 @@
   draft={modalDraft}
   errors={modalErrors}
   parkingLocations={$rvReservationStore.parkingLocations}
+  triggerElement={modalTriggerElement}
   on:save={handleModalSave}
   on:cancel={closeModal}
   on:delete={handleModalDelete}
@@ -409,14 +576,14 @@
 
 <style>
   .page-shell {
-    padding: 0.5rem 1rem 1rem;
+    padding: 0.5rem 1rem;
     display: grid;
     gap: 0.5rem;
   }
 
-  /* -- Compact operations toolbar -- */
+  /* -- Compact toolbar ---------------------------------------------------- */
   .toolbar {
-    background: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.82);
     border: 1px solid rgba(214, 222, 234, 0.9);
     border-radius: 12px;
     box-shadow: var(--shadow);
@@ -425,108 +592,31 @@
     align-items: center;
     gap: 0.75rem;
     backdrop-filter: blur(6px);
+    flex-wrap: wrap;
     min-height: 48px;
-    flex-wrap: wrap;
   }
 
-  .toolbar-left {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  h1 {
+  .toolbar-title {
     margin: 0;
-    font-size: clamp(0.95rem, 1.5vw + 0.5rem, 1.25rem);
+    font-size: 1.1rem;
     white-space: nowrap;
   }
 
-  .toolbar-center {
+  .toolbar-nav {
     display: flex;
-    align-items: center;
     gap: 0.35rem;
-  }
-
-  .nav-btn {
-    border-radius: 8px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    color: #223349;
-    padding: 0.3rem 0.65rem;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.85rem;
-    min-height: 34px;
-    line-height: 1;
-  }
-
-  .nav-btn:hover {
-    background: #edf3fd;
-  }
-
-  .nav-btn.primary {
-    background: #0a63e0;
-    border-color: #0a63e0;
-    color: white;
-  }
-
-  .nav-btn.primary:hover {
-    background: #0757c8;
-  }
-
-  .toolbar-right {
-    display: flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-left: auto;
-    flex-wrap: wrap;
-  }
-
-  .badge {
-    background: #eef3fb;
-    border: 1px solid #d6dfed;
-    color: #334a68;
-    font-size: 0.8rem;
-    font-weight: 600;
-    border-radius: 999px;
-    padding: 0.2rem 0.5rem;
-    white-space: nowrap;
-  }
-
-  .autosave-badge {
-    font-size: 0.78rem;
-    color: #5c6c80;
-    white-space: nowrap;
-    max-width: 18ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .save-btn {
-    border-radius: 8px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    color: #223349;
-    padding: 0.25rem 0.55rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    min-height: 30px;
-  }
-
-  .save-btn:hover {
-    background: #edf3fd;
   }
 
   .settings-link {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     border: 1px solid #d9e1ec;
-    background: #f4f7fc;
+    background: #f6f9fd;
     color: #5c6c80;
     text-decoration: none;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
@@ -543,7 +633,94 @@
     display: block;
   }
 
-  /* -- Screen-reader only utility -- */
+  .daily-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    background: #f0f5fc;
+    border: 1px solid #d6dfed;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: #334a68;
+  }
+
+  .summary-item strong {
+    font-weight: 700;
+    color: #1c2e45;
+  }
+
+  .summary-sep {
+    color: #a0b4cc;
+    font-weight: 300;
+  }
+
+  .toolbar-nav button {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.3rem 0.65rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+    min-height: 36px;
+    line-height: 1;
+  }
+
+  .toolbar-nav button:hover {
+    background: #edf3fd;
+  }
+
+  .toolbar-nav button.primary {
+    background: #0a63e0;
+    border-color: #0a63e0;
+    color: white;
+    padding: 0.3rem 0.75rem;
+  }
+
+  .toolbar-nav button.primary:hover {
+    background: #0757c8;
+  }
+
+  .toolbar-right {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    background: #eef3fb;
+    border: 1px solid #d6dfed;
+    color: #334a68;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .save-badge {
+    color: #3d5a78;
+  }
+
+  .save-btn {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-height: 36px;
+  }
+
+  .save-btn:hover {
+    background: #edf3fd;
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;
@@ -556,30 +733,92 @@
     border: 0;
   }
 
-  /* -- Layout -- */
   .layout-grid {
     display: grid;
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-    gap: 1rem;
+    gap: 0.5rem;
     align-items: start;
   }
 
   .sheet-panel {
     background: rgba(255, 255, 255, 0.86);
     border: 1px solid rgba(214, 222, 234, 0.9);
-    border-radius: 18px;
+    border-radius: 14px;
     box-shadow: var(--shadow);
-    padding: 0.9rem;
+    padding: 0.5rem;
     display: grid;
-    gap: 0.5rem;
+    gap: 0;
     min-width: 0;
+  }
+
+  /* Status legend */
+  .status-legend {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: #334a68;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .legend-swatch {
+    display: inline-block;
+    width: 24px;
+    height: 16px;
+    border-radius: 3px;
+  }
+
+  .grid-nav-date {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #3d5a78;
+    margin-left: 0.25rem;
+  }
+
+  /* Empty state prompt */
+  .empty-state {
+    background: #f0f6ff;
+    border: 1px dashed #b0c4de;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+    color: #3d5a78;
+    font-size: 0.95rem;
+  }
+
+  .empty-state p {
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .inline-action {
+    background: none;
+    border: none;
+    color: #16a34a;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    text-decoration: underline;
+    min-height: auto;
+  }
+
+  .inline-action:hover {
+    color: #15803d;
   }
 
   .sheet-scroll {
     overflow: auto;
-    max-height: min(78vh, 58rem);
+    max-height: min(82vh, 60rem);
     border: 1px solid #dbe3ef;
-    border-radius: 14px;
+    border-radius: 10px;
     background: white;
   }
 
@@ -598,6 +837,16 @@
     --location-padding: 0.45rem 0.6rem;
   }
 
+  .compact .sheet-table {
+    --row1-height: 32px;
+    --cell-height: 28px;
+    --cell-font: 0.75rem;
+    --header-font: 0.8rem;
+    --date-font: 0.75rem;
+    --cell-padding: 0.1rem 0.2rem;
+    --location-padding: 0.2rem 0.4rem;
+  }
+
   .sheet-table th,
   .sheet-table td {
     border-right: 1px solid #e2e8f1;
@@ -612,16 +861,6 @@
 
   .sheet-table thead tr:first-child > * {
     border-top: 1px solid #e2e8f1;
-  }
-
-  .compact .sheet-table {
-    --row1-height: 32px;
-    --cell-height: 28px;
-    --cell-font: 0.75rem;
-    --header-font: 0.8rem;
-    --date-font: 0.75rem;
-    --cell-padding: 0.1rem 0.2rem;
-    --location-padding: 0.2rem 0.4rem;
   }
 
   .first-col {
@@ -704,8 +943,9 @@
   }
 
   .date-header.today {
-    background: rgba(10, 99, 224, 0.1);
+    background: rgba(10, 99, 224, 0.12);
     color: #0a63e0;
+    box-shadow: inset 0 -3px 0 0 #0a63e0;
   }
 
   .location-cell {
@@ -735,26 +975,29 @@
   }
 
   .grid-cell.today {
-    background: rgba(10, 99, 224, 0.04);
+    background: rgba(10, 99, 224, 0.05);
+    border-left: 1px solid rgba(10, 99, 224, 0.18);
+    border-right: 1px solid rgba(10, 99, 224, 0.18);
   }
 
   .grid-cell.today:hover {
-    background: rgba(10, 99, 224, 0.09);
+    background: rgba(10, 99, 224, 0.1);
   }
 
   .grid-cell.empty .empty-hint {
-    display: none;
-    color: #a0b0c4;
+    display: grid;
+    color: #d0d8e4;
     font-size: 1.1rem;
     font-weight: 300;
     position: absolute;
     inset: 0;
     place-content: center;
     place-items: center;
+    transition: color 0.15s;
   }
 
   .grid-cell.empty:hover .empty-hint {
-    display: grid;
+    color: #8899b0;
   }
 
   .grid-cell.occupied {
@@ -779,27 +1022,99 @@
     filter: brightness(0.97);
   }
 
-  /* Status legend */
-  .status-legend {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    align-items: center;
-    font-size: 0.85rem;
-    color: #334a68;
+  /* Search */
+  .search-container {
+    position: relative;
+    align-self: center;
+    min-width: 14rem;
   }
 
-  .legend-item {
+  .search-input-wrap {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
   }
 
-  .legend-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    flex-shrink: 0;
+  .search-icon {
+    position: absolute;
+    left: 0.65rem;
+    color: #7a8da4;
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    padding: 0.6rem 0.75rem 0.6rem 2rem;
+    font-size: 0.9rem;
+    color: #1c2e45;
+    min-height: 44px;
+  }
+
+  .search-input::placeholder {
+    color: #8a9bb2;
+  }
+
+  .search-input:focus {
+    background: white;
+    border-color: #0a63e0;
+  }
+
+  .search-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d6deea;
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(10, 24, 47, 0.14);
+    z-index: 50;
+    max-height: 24rem;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem;
+  }
+
+  .search-no-results {
+    padding: 0.85rem 0.75rem;
+    color: #6b7d93;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .search-result {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .search-result:hover,
+  .search-result.selected {
+    background: #eef3fb;
+  }
+
+  .search-result-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1b304a;
+  }
+
+  .search-result-meta {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    color: #5a6f87;
+  }
+
+  .search-result-location {
+    font-weight: 600;
   }
 
   /* Toast notifications */
@@ -833,16 +1148,17 @@
     .layout-grid {
       grid-template-columns: 1fr;
     }
-  }
 
-  @media (max-width: 640px) {
     .toolbar {
-      gap: 0.4rem;
-      padding: 0.35rem 0.5rem;
+      gap: 0.5rem;
     }
 
-    .autosave-badge {
+    .save-badge {
       display: none;
+    }
+
+    .search-container {
+      min-width: 0;
     }
   }
 </style>

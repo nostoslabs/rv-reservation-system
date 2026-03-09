@@ -4,7 +4,7 @@ async function resetApp(page: Page) {
 	await page.goto('/');
 	await page.evaluate(() => window.localStorage.clear());
 	await page.reload();
-	await page.waitForSelector('#working-sheet-title');
+	await page.waitForSelector('.toolbar-title');
 	await page.waitForTimeout(300);
 }
 
@@ -56,7 +56,7 @@ test.describe('Compact View Toggle', () => {
 		await expect(compactToggle(page)).toHaveAttribute('aria-pressed', 'true');
 
 		await page.reload();
-		await page.waitForSelector('#working-sheet-title');
+		await page.waitForSelector('.toolbar-title');
 		await page.waitForTimeout(300);
 
 		await expect(compactToggle(page)).toHaveAttribute('aria-pressed', 'true');

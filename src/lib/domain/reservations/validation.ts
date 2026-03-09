@@ -1,4 +1,4 @@
-import { compareIsoDates, isIsoDateString } from '$lib/date';
+import { compareIsoDates, formatReservationDetail, isIsoDateString } from '$lib/date';
 import {
 	RESERVATION_COLORS,
 	type Reservation,
@@ -100,7 +100,7 @@ export function validateReservationForm(
 
 		if (checkOverlap(form.startDate, form.endDate, reservation.startDate, reservation.endDate)) {
 			errors.push(
-				`Overlap with reservation #${reservation.index} (${reservation.name}) at ${reservation.parkingLocation} from ${reservation.startDate} to ${reservation.endDate}.`
+				`Overlap with reservation #${reservation.index} (${reservation.name}) at ${reservation.parkingLocation} from ${formatReservationDetail(reservation.startDate)} to ${formatReservationDetail(reservation.endDate)}.`
 			);
 			break;
 		}

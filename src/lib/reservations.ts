@@ -1,15 +1,15 @@
 // Re-export from domain layer for backwards compatibility during migration.
 export {
-	MAX_RESERVATION_NOTES_LENGTH,
 	DEFAULT_RESERVATION_STATUS,
-	STATUS_BG_COLORS,
+	MAX_RESERVATION_NOTES_LENGTH,
+	STATUS_BACKGROUND_COLORS,
 	STATUS_COLORS,
 	STATUS_LABELS,
 	buildCellId,
 	buildFirstCellId,
 	buildOccupancyMap,
 	checkOverlap as rangesOverlap,
-	getStatusBgColor,
+	getStatusBackgroundColor,
 	getStatusColor,
 	getStatusLabel,
 	isReservationColor,

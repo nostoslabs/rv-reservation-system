@@ -1,3 +1,6 @@
+export { computeDailySummary } from './daily-summary';
+export type { DailySummary } from './daily-summary';
+
 export {
 	MAX_RESERVATION_NOTES_LENGTH,
 	normalizeName,
@@ -13,19 +16,22 @@ export {
 } from './occupancy';
 
 export {
+	DEFAULT_RESERVATION_STATUS,
+	STATUS_BACKGROUND_COLORS,
+	STATUS_COLORS,
+	STATUS_LABELS,
+	getStatusBackgroundColor,
+	getStatusColor,
+	getStatusLabel,
+	isReservationStatus
+} from './status';
+
+export {
 	checkOverlap,
 	isReservationColor,
 	validateReservationDates,
 	validateReservationForm
 } from './validation';
 
-export {
-	DEFAULT_RESERVATION_STATUS,
-	STATUS_BG_COLORS,
-	STATUS_COLORS,
-	STATUS_LABELS,
-	getStatusBgColor,
-	getStatusColor,
-	getStatusLabel,
-	isReservationStatus
-} from './status';
+export { filterReservations } from './search';
+export type { SearchResult } from './search';

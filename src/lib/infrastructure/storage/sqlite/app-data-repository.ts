@@ -1,6 +1,6 @@
 import type { AppDataRepository } from '$lib/application/ports';
 import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus } from '$lib/domain/models';
-import { buildFirstCellId, isReservationStatus } from '$lib/domain/reservations';
+import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
 import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
 import type { Database } from './types';
 
@@ -15,7 +15,7 @@ interface ReservationRow {
 	end_date: string;
 	parking_location: string;
 	color: string;
-	status: string;
+	status: string | null;
 }
 
 interface MetadataRow {
@@ -39,6 +39,11 @@ function getDefaultData(): PersistedAppData {
 }
 
 function rowToReservation(row: ReservationRow): Reservation {
+	const status: ReservationStatus =
+		typeof row.status === 'string' && isReservationStatus(row.status)
+			? row.status
+			: DEFAULT_RESERVATION_STATUS;
+
 	return {
 		index: row.id,
 		firstCellId: buildFirstCellId(row.parking_location, row.start_date),
@@ -49,7 +54,7 @@ function rowToReservation(row: ReservationRow): Reservation {
 		endDate: row.end_date,
 		parkingLocation: row.parking_location,
 		color: row.color as ReservationColor,
-		status: (isReservationStatus(row.status) ? row.status : 'reserved') as ReservationStatus
+		status
 	};
 }
 

@@ -50,12 +50,12 @@ describe('runMigrations', () => {
 			}
 		};
 
-		const version = await runMigrations(db, [...allMigrations, fakeMigration3]);
+		const version = await runMigrations(db, [...firstMigration, fakeMigration3]);
 		expect(version).toBe(3);
 		expect(db.tables.has('test_table')).toBe(true);
 
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(3);
+		expect(rows).toHaveLength(2);
 	});
 
 	it('returns 0 when no migrations are provided', async () => {
