@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, afterUpdate } from 'svelte';
+  import { diffDays } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
-  import { RESERVATION_COLORS, type ReservationFormValues } from '$lib/types';
+  import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
+  import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
 
   export let open = false;
   export let mode: 'create' | 'edit' = 'create';
@@ -13,9 +15,12 @@
     startDate: '',
     endDate: '',
     parkingLocation: '',
-    color: 'blue'
+    color: 'blue',
+    status: 'reserved'
   };
   export let errors: string[] = [];
+  /** Element that triggered the modal open, used for focus return on close. */
+  export let triggerElement: HTMLElement | null = null;
 
   const dispatch = createEventDispatcher<{
     save: ReservationFormValues;
@@ -25,9 +30,42 @@
 
   const emptyExtras = { phoneNumber: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
+  let confirmingDelete = false;
+  let guestNameInput: HTMLInputElement | null = null;
+  let wasOpen = false;
+
+  /** Computed nights display */
+  $: nightsCount = (form.startDate && form.endDate)
+    ? diffDays(form.startDate, form.endDate)
+    : null;
+  $: nightsLabel = nightsCount !== null && nightsCount > 0
+    ? `${nightsCount} night${nightsCount === 1 ? '' : 's'}`
+    : null;
 
   $: if (open) {
     form = { ...emptyExtras, ...draft };
+    confirmingDelete = false;
+  }
+
+  afterUpdate(() => {
+    // Focus guest name input when modal just opened
+    if (open && !wasOpen && guestNameInput) {
+      guestNameInput.focus();
+    }
+    wasOpen = open;
+  });
+
+  function returnFocusToTrigger(): void {
+    if (triggerElement) {
+      requestAnimationFrame(() => {
+        triggerElement?.focus();
+      });
+    }
+  }
+
+  function handleClose(): void {
+    dispatch('cancel');
+    returnFocusToTrigger();
   }
 
   function handleSubmit(): void {
@@ -36,14 +74,27 @@
 
   function handleOverlayClick(event: MouseEvent): void {
     if (event.currentTarget === event.target) {
-      dispatch('cancel');
+      handleClose();
     }
   }
 
   function handleKeydown(event: KeyboardEvent): void {
     if (!open) return;
     if (event.key === 'Escape') {
-      dispatch('cancel');
+      if (confirmingDelete) {
+        confirmingDelete = false;
+      } else {
+        handleClose();
+      }
+    }
+  }
+
+  function handleDeleteClick(): void {
+    if (confirmingDelete) {
+      dispatch('delete', { index: form.index as number });
+      returnFocusToTrigger();
+    } else {
+      confirmingDelete = true;
     }
   }
 </script>
@@ -54,10 +105,19 @@
   <div class="modal-backdrop" role="presentation" on:click={handleOverlayClick}>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title">
       <header class="modal-header">
-        <h2 id="reservation-modal-title">{mode === 'create' ? 'New Reservation' : 'Edit Reservation'}</h2>
-        {#if mode === 'edit' && typeof form.index === 'number'}
-          <p class="meta">Reservation #{form.index}</p>
-        {/if}
+        <div class="modal-header-text">
+          <h2 id="reservation-modal-title">{mode === 'create' ? 'New Reservation' : 'Edit Reservation'}</h2>
+          {#if mode === 'edit' && typeof form.index === 'number'}
+            <p class="meta">Reservation #{form.index}</p>
+          {/if}
+        </div>
+        <button
+          type="button"
+          class="close-button"
+          aria-label="Close modal"
+          data-testid="modal-close-button"
+          on:click={handleClose}
+        >&times;</button>
       </header>
 
       {#if errors.length > 0}
@@ -72,46 +132,71 @@
       {/if}
 
       <form class="modal-form" on:submit|preventDefault={handleSubmit}>
+        <!-- 1. Guest Name (autofocused) -->
         <label>
           <span>Name</span>
-          <input bind:value={form.name} type="text" placeholder="Guest name" required maxlength="80" />
+          <input
+            bind:this={guestNameInput}
+            bind:value={form.name}
+            type="text"
+            placeholder="Guest name"
+            required
+            maxlength="80"
+          />
         </label>
 
+        <!-- 2. Arrival / Departure dates -->
+        <div class="row-2">
+          <label>
+            <span>Arrival</span>
+            <input bind:value={form.startDate} type="date" required />
+          </label>
+          <label>
+            <span>Departure</span>
+            <input bind:value={form.endDate} type="date" required />
+          </label>
+        </div>
+
+        <!-- Nights display -->
+        {#if nightsLabel}
+          <div class="nights-display" data-testid="nights-display" aria-live="polite">
+            {nightsLabel}
+          </div>
+        {/if}
+
+        <!-- 3. Site (parking location) -->
+        <label>
+          <span>Site</span>
+          <select bind:value={form.parkingLocation} required>
+            {#each parkingLocations as location}
+              <option value={location}>{location}</option>
+            {/each}
+          </select>
+        </label>
+
+        <label>
+          <span>Status</span>
+          <div class="status-select-wrapper">
+            <span
+              class="status-indicator"
+              style="background: {STATUS_COLORS[form.status]}"
+              aria-hidden="true"
+            ></span>
+            <select bind:value={form.status} required aria-label="Reservation status">
+              {#each RESERVATION_STATUSES as statusValue}
+                <option value={statusValue}>{STATUS_LABELS[statusValue]}</option>
+              {/each}
+            </select>
+          </div>
+        </label>
+
+        <!-- 5. Phone Number -->
         <label>
           <span>Phone Number</span>
           <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
         </label>
 
-        <div class="row-2">
-          <label>
-            <span>Start Date</span>
-            <input bind:value={form.startDate} type="date" required />
-          </label>
-          <label>
-            <span>End Date</span>
-            <input bind:value={form.endDate} type="date" required />
-          </label>
-        </div>
-
-        <div class="row-2">
-          <label>
-            <span>Parking Location</span>
-            <select bind:value={form.parkingLocation} required>
-              {#each parkingLocations as location}
-                <option value={location}>{location}</option>
-              {/each}
-            </select>
-          </label>
-          <label>
-            <span>Color</span>
-            <select bind:value={form.color} required>
-              {#each RESERVATION_COLORS as color}
-                <option value={color}>{color}</option>
-              {/each}
-            </select>
-          </label>
-        </div>
-
+        <!-- 6. Notes -->
         <label>
           <span class="notes-label-row">
             <span>Notes</span>
@@ -126,17 +211,21 @@
         </label>
 
         <footer class="modal-actions">
-          <button type="submit" class="primary">Save</button>
-          <button type="button" on:click={() => dispatch('cancel')}>Cancel</button>
           {#if mode === 'edit' && typeof form.index === 'number'}
-            <button
-              type="button"
-              class="danger"
-              on:click={() => dispatch('delete', { index: form.index as number })}
-            >
-              Delete
-            </button>
+            <div class="delete-zone">
+              <button
+                type="button"
+                class={confirmingDelete ? 'danger confirming' : 'danger'}
+                on:click={handleDeleteClick}
+              >
+                {confirmingDelete ? 'Confirm Delete?' : 'Delete'}
+              </button>
+            </div>
           {/if}
+          <div class="save-cancel">
+            <button type="button" on:click={handleClose}>Cancel</button>
+            <button type="submit" class="primary">Save</button>
+          </div>
         </footer>
       </form>
     </section>
@@ -166,10 +255,17 @@
 
   .modal-header {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 0.75rem;
+  }
+
+  .modal-header-text {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex: 1;
   }
 
   h2 {
@@ -179,8 +275,29 @@
 
   .meta {
     margin: 0;
-    color: #5d6a7b;
+    color: #455566;
     font-size: 0.85rem;
+  }
+
+  .close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #6b7a8d;
+    cursor: pointer;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    min-height: 32px;
+    min-width: 32px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  .close-button:hover {
+    background: #f0f3f7;
+    color: #1b304a;
   }
 
   .error-box {
@@ -208,6 +325,17 @@
     gap: 0.75rem;
   }
 
+  .nights-display {
+    font-size: 0.88rem;
+    color: #3d5a78;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    background: #f0f6ff;
+    border: 1px solid #d0dfef;
+    border-radius: 8px;
+    text-align: center;
+  }
+
   label {
     display: grid;
     gap: 0.35rem;
@@ -233,7 +361,7 @@
     width: 100%;
     border-radius: 10px;
     border: 1px solid #c8d1de;
-    padding: 0.55rem 0.65rem;
+    padding: 0.6rem 0.75rem;
     background: white;
     color: #102033;
   }
@@ -251,16 +379,46 @@
   }
 
   .notes-label-row small {
-    color: #607084;
+    color: #455566;
     font-weight: 600;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
+  }
+
+  /* Status select */
+  .status-select-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-indicator {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-select-wrapper select {
+    flex: 1;
   }
 
   .modal-actions {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 0.55rem;
-    justify-content: flex-end;
     margin-top: 0.25rem;
+  }
+
+  .delete-zone {
+    flex-shrink: 0;
+  }
+
+  .save-cancel {
+    display: flex;
+    gap: 0.55rem;
+    margin-left: auto;
   }
 
   button {
@@ -268,8 +426,9 @@
     border: 1px solid #c1cada;
     background: #f6f8fb;
     color: #203045;
-    padding: 0.55rem 0.8rem;
+    padding: 0.6rem 0.85rem;
     cursor: pointer;
+    min-height: 44px;
   }
 
   button.primary {
@@ -284,6 +443,13 @@
     color: #892727;
   }
 
+  button.danger.confirming {
+    background: #d42a2a;
+    border-color: #b91c1c;
+    color: white;
+    font-weight: 700;
+  }
+
   @media (max-width: 640px) {
     .row-2 {
       grid-template-columns: 1fr;
@@ -291,11 +457,22 @@
 
     .modal-actions {
       flex-wrap: wrap;
-      justify-content: stretch;
     }
 
-    .modal-actions button {
-      flex: 1 1 30%;
+    .delete-zone {
+      width: 100%;
+    }
+
+    .delete-zone button {
+      width: 100%;
+    }
+
+    .save-cancel {
+      width: 100%;
+    }
+
+    .save-cancel button {
+      flex: 1;
     }
   }
 </style>

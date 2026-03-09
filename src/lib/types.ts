@@ -10,6 +10,10 @@ export const RESERVATION_COLORS = [
 
 export type ReservationColor = (typeof RESERVATION_COLORS)[number];
 
+export const RESERVATION_STATUSES = ['reserved', 'checked-in', 'due-out', 'maintenance'] as const;
+
+export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
+
 export interface Reservation {
   index: number;
   firstCellId: string;
@@ -20,6 +24,7 @@ export interface Reservation {
   endDate: string;
   parkingLocation: string;
   color: ReservationColor;
+  status: ReservationStatus;
 }
 
 export interface PersistedAppData {
@@ -43,11 +48,13 @@ export interface ReservationFormValues {
   endDate: string;
   parkingLocation: string;
   color: ReservationColor;
+  status: ReservationStatus;
 }
 
 export interface SiteSettings {
   siteName: string;
   adminPasscode: string;
+  compactView?: boolean;
 }
 
 export interface ActionResult {

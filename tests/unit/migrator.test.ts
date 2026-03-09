@@ -8,7 +8,7 @@ describe('runMigrations', () => {
 		const db = createInMemoryDb();
 		const version = await runMigrations(db, allMigrations);
 
-		expect(version).toBe(1);
+		expect(version).toBe(2);
 		expect(db.tables.has('schema_migrations')).toBe(true);
 		expect(db.tables.has('parking_locations')).toBe(true);
 		expect(db.tables.has('reservations')).toBe(true);
@@ -21,8 +21,9 @@ describe('runMigrations', () => {
 		await runMigrations(db, allMigrations);
 
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(1);
+		expect(rows).toHaveLength(2);
 		expect(rows[0].version).toBe(1);
+		expect(rows[1].version).toBe(2);
 	});
 
 	it('is idempotent — re-running does not re-apply migrations', async () => {
@@ -30,9 +31,9 @@ describe('runMigrations', () => {
 		await runMigrations(db, allMigrations);
 		const version2 = await runMigrations(db, allMigrations);
 
-		expect(version2).toBe(1);
+		expect(version2).toBe(2);
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(1);
+		expect(rows).toHaveLength(2);
 	});
 
 	it('applies only new migrations when database is partially migrated', async () => {
@@ -40,8 +41,8 @@ describe('runMigrations', () => {
 		const firstMigration: Migration[] = [allMigrations[0]];
 		await runMigrations(db, firstMigration);
 
-		const fakeMigration2: Migration = {
-			version: 2,
+		const fakeMigration3: Migration = {
+			version: 3,
 			async up(d) {
 				await d.execute(
 					'CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY)'
@@ -49,8 +50,8 @@ describe('runMigrations', () => {
 			}
 		};
 
-		const version = await runMigrations(db, [...firstMigration, fakeMigration2]);
-		expect(version).toBe(2);
+		const version = await runMigrations(db, [...firstMigration, fakeMigration3]);
+		expect(version).toBe(3);
 		expect(db.tables.has('test_table')).toBe(true);
 
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');

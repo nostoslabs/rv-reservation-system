@@ -1,10 +1,10 @@
 import type { AppDataRepository } from '$lib/application/ports';
-import type { PersistedAppData, Reservation, ReservationColor } from '$lib/domain/models';
-import { buildFirstCellId } from '$lib/domain/reservations';
+import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus } from '$lib/domain/models';
+import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
 import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
 import type { Database } from './types';
 
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 
 interface ReservationRow {
 	id: number;
@@ -15,6 +15,7 @@ interface ReservationRow {
 	end_date: string;
 	parking_location: string;
 	color: string;
+	status: string | null;
 }
 
 interface MetadataRow {
@@ -38,6 +39,11 @@ function getDefaultData(): PersistedAppData {
 }
 
 function rowToReservation(row: ReservationRow): Reservation {
+	const status: ReservationStatus =
+		typeof row.status === 'string' && isReservationStatus(row.status)
+			? row.status
+			: DEFAULT_RESERVATION_STATUS;
+
 	return {
 		index: row.id,
 		firstCellId: buildFirstCellId(row.parking_location, row.start_date),
@@ -47,7 +53,8 @@ function rowToReservation(row: ReservationRow): Reservation {
 		startDate: row.start_date,
 		endDate: row.end_date,
 		parkingLocation: row.parking_location,
-		color: row.color as ReservationColor
+		color: row.color as ReservationColor,
+		status
 	};
 }
 
@@ -100,8 +107,8 @@ async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 	await db.execute('DELETE FROM reservations');
 	for (const r of data.reservations) {
 		await db.execute(
-			'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-			[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color]
+			'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+			[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status]
 		);
 	}
 

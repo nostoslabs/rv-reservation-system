@@ -50,6 +50,16 @@ Recommended shape (adapt to repo conventions):
 2. Implement the minimal change.
 3. Refactor while keeping tests green.
 
+### Visual verification for UI changes (Mandatory)
+After every UI change, run a visual Playwright test to verify the impact:
+1. Take a Playwright screenshot of the affected area before making the change (baseline).
+2. Make the UI change.
+3. Take a new Playwright screenshot and compare against the baseline.
+4. Confirm the change looks correct and has no unintended visual side effects.
+5. If the change affects multiple viewports or states, capture screenshots for each.
+
+Use `page.screenshot()` for full-page captures or `locator.screenshot()` for component-level captures. Store visual verification screenshots in `screenshots/` with descriptive names.
+
 ### Test layers
 - Domain/application logic: fast tests (pure logic, validation, overlap rules, date logic).
 - UI integration / end-to-end: Playwright.
@@ -108,6 +118,17 @@ Design choices must support both desktop and future web:
 - Report what issue is being executed and what tests/checks were run.
 - Do not batch multiple major issues into one commit.
 - After each epic completion, generate/update screenshots in `screenshots/` via Playwright (`scripts/screenshot.mjs` may be reused or revised).
+
+## Dev Commands (Quick Reference)
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Web dev server (Vite, hot reload) at localhost:5173 |
+| `npm run tauri:dev` | Tauri desktop app (compiles Rust + launches window) |
+| `npm run build` | Production web build (outputs to `build/`) |
+| `npm run tauri:build` | Production Tauri desktop build |
+| `npm run check` | Svelte type-check + lint |
+| `npm run test` | Playwright e2e tests |
+| `npm run test:unit` | Vitest unit tests |
 
 ## Current Repository Notes
 - Existing app is SvelteKit with browser LocalStorage persistence.

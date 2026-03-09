@@ -10,6 +10,47 @@ test.describe('Admin page', () => {
 		await clearStorage(page);
 	});
 
+	test('gear icon on main page navigates to settings', async ({ page }) => {
+		await page.goto('/');
+
+		// Gear icon should be visible
+		const settingsLink = page.locator('[data-testid="settings-link"]');
+		await expect(settingsLink).toBeVisible();
+		await expect(settingsLink).toHaveAttribute('href', '/admin');
+		await expect(settingsLink).toHaveAttribute('aria-label', 'Settings');
+
+		// Click navigates to /admin
+		await settingsLink.click();
+		await expect(page).toHaveURL(/\/admin$/);
+		await expect(page.locator('h1')).toHaveText('Park Settings');
+	});
+
+	test('admin page has back link to main schedule', async ({ page }) => {
+		await page.goto('/admin');
+
+		const backLink = page.locator('[data-testid="back-to-schedule"]');
+		await expect(backLink).toBeVisible();
+		await expect(backLink).toHaveAttribute('href', '/');
+
+		// Click navigates back to main page
+		await backLink.click();
+		await expect(page).toHaveURL(/\/$/);
+		await expect(page.locator('.toolbar-title')).toBeVisible();
+	});
+
+	test('admin page does not describe itself as hidden', async ({ page }) => {
+		await page.goto('/admin');
+
+		// Should say "Park Settings", not "Admin"
+		await expect(page.locator('h1')).toHaveText('Park Settings');
+
+		// Should not contain "hidden" language
+		const headerText = await page.locator('.admin-header').textContent();
+		expect(headerText?.toLowerCase()).not.toContain('hidden');
+		expect(headerText?.toLowerCase()).not.toContain('secret');
+		expect(headerText?.toLowerCase()).not.toContain('not linked');
+	});
+
 	test('set initial passcode and change site name', async ({ page }) => {
 		await page.goto('/admin');
 

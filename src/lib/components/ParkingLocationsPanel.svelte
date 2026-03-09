@@ -13,35 +13,70 @@
   }>();
 
   let newLocationName = '';
-  let renameDrafts: Record<string, string> = {};
-
-  $: {
-    const next: Record<string, string> = {};
-    for (const location of locations) {
-      next[location] = renameDrafts[location] ?? location;
-    }
-    const changed =
-      Object.keys(next).length !== Object.keys(renameDrafts).length ||
-      Object.entries(next).some(([key, value]) => renameDrafts[key] !== value);
-    if (changed) {
-      renameDrafts = next;
-    }
-  }
+  let openMenu: string | null = null;
+  let editingLocation: string | null = null;
+  let editDraft = '';
+  let confirmingDelete: string | null = null;
 
   function submitAdd(): void {
     dispatch('add', { name: newLocationName });
     newLocationName = '';
   }
 
+  function toggleMenu(location: string): void {
+    if (openMenu === location) {
+      openMenu = null;
+    } else {
+      openMenu = location;
+      confirmingDelete = null;
+    }
+  }
+
+  function startRename(location: string): void {
+    editingLocation = location;
+    editDraft = location;
+    openMenu = null;
+  }
+
   function submitRename(oldName: string): void {
-    dispatch('rename', { oldName, newName: renameDrafts[oldName] ?? oldName });
+    dispatch('rename', { oldName, newName: editDraft });
+    editingLocation = null;
+    editDraft = '';
+  }
+
+  function cancelRename(): void {
+    editingLocation = null;
+    editDraft = '';
+  }
+
+  function startDelete(location: string): void {
+    confirmingDelete = location;
+    openMenu = null;
+  }
+
+  function confirmDelete(location: string): void {
+    dispatch('remove', { name: location });
+    confirmingDelete = null;
+  }
+
+  function cancelDelete(): void {
+    confirmingDelete = null;
+  }
+
+  function handleClickOutside(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (openMenu && !target.closest('.kebab-wrapper')) {
+      openMenu = null;
+    }
   }
 </script>
 
+<svelte:window on:click={handleClickOutside} />
+
 <section class="panel" aria-labelledby="parking-locations-title">
   <div class="panel-header">
-    <h2 id="parking-locations-title">Parking Locations</h2>
-    <p>Manage rows shown in the working sheet.</p>
+    <h2 id="parking-locations-title">Sites</h2>
+    <p>Manage rows shown in the schedule.</p>
   </div>
 
   {#if errorMessage}
@@ -52,21 +87,53 @@
   {/if}
 
   <form class="add-form" on:submit|preventDefault={submitAdd}>
-    <input bind:value={newLocationName} type="text" placeholder="Add parking location" maxlength="40" />
+    <input bind:value={newLocationName} type="text" placeholder="Add site" maxlength="40" />
     <button type="submit">Add</button>
   </form>
 
   <ul class="location-list">
     {#each locations as location}
       <li>
-        <div class="location-row">
-          <input bind:value={renameDrafts[location]} type="text" maxlength="40" aria-label={`Rename ${location}`} />
-          <span class="count">{reservationCounts[location] ?? 0} reservations</span>
-          <button type="button" on:click={() => submitRename(location)}>Rename</button>
-          <button type="button" class="danger" on:click={() => dispatch('remove', { name: location })}>
-            Delete
-          </button>
-        </div>
+        {#if editingLocation === location}
+          <div class="location-row editing">
+            <input
+              bind:value={editDraft}
+              type="text"
+              maxlength="40"
+              aria-label={`Rename ${location}`}
+              on:keydown={(e) => { if (e.key === 'Escape') cancelRename(); }}
+            />
+            <button type="button" class="save-btn" on:click={() => submitRename(location)}>Save</button>
+            <button type="button" on:click={cancelRename}>Cancel</button>
+          </div>
+        {:else if confirmingDelete === location}
+          <div class="location-row confirm-delete">
+            <span class="confirm-text">
+              Delete <strong>{location}</strong> and {reservationCounts[location] ?? 0} reservations?
+            </span>
+            <button type="button" class="danger" on:click={() => confirmDelete(location)}>Yes</button>
+            <button type="button" on:click={cancelDelete}>No</button>
+          </div>
+        {:else}
+          <div class="location-row">
+            <span class="location-name">{location}</span>
+            <span class="count">{reservationCounts[location] ?? 0} reservations</span>
+            <div class="kebab-wrapper">
+              <button
+                type="button"
+                class="kebab-btn"
+                aria-label={`Actions for ${location}`}
+                on:click|stopPropagation={() => toggleMenu(location)}
+              >⋮</button>
+              {#if openMenu === location}
+                <div class="kebab-menu" role="menu">
+                  <button type="button" role="menuitem" on:click|stopPropagation={() => startRename(location)}>Rename</button>
+                  <button type="button" role="menuitem" class="menu-danger" on:click|stopPropagation={() => startDelete(location)}>Delete</button>
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/if}
       </li>
     {/each}
   </ul>
@@ -90,8 +157,8 @@
 
   .panel-header p {
     margin: 0.2rem 0 0;
-    color: #5f6e80;
-    font-size: 0.85rem;
+    color: #455566;
+    font-size: 0.95rem;
   }
 
   .panel-error {
@@ -113,6 +180,7 @@
     color: inherit;
     font-weight: 600;
     cursor: pointer;
+    min-height: 44px;
   }
 
   .add-form {
@@ -132,7 +200,7 @@
   .location-row input {
     border-radius: 10px;
     border: 1px solid #c7d0dd;
-    padding: 0.5rem 0.6rem;
+    padding: 0.6rem 0.75rem;
     background: white;
     color: #13263c;
   }
@@ -143,14 +211,21 @@
     border: 1px solid #c2ccdb;
     background: #f4f7fb;
     color: #223349;
-    padding: 0.5rem 0.7rem;
+    padding: 0.6rem 0.75rem;
     cursor: pointer;
+    min-height: 44px;
   }
 
   .location-row button.danger {
     background: #fff0f0;
     color: #8d2b2b;
     border-color: #efb8b8;
+  }
+
+  .location-row button.save-btn {
+    background: #0c5fdb;
+    border-color: #0c5fdb;
+    color: white;
   }
 
   .location-list {
@@ -165,21 +240,104 @@
 
   .location-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
-    gap: 0.3rem;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.4rem;
     align-items: center;
   }
 
+  .location-row.editing,
+  .location-row.confirm-delete {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .location-name {
+    font-weight: 600;
+    color: #1b304a;
+    padding: 0.3rem 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .count {
-    color: #617184;
-    font-size: 0.78rem;
+    color: #4a5568;
+    font-size: 0.875rem;
     white-space: nowrap;
     text-align: right;
   }
 
+  .confirm-text {
+    font-size: 0.9rem;
+    color: #7a3b22;
+  }
+
+  .kebab-wrapper {
+    position: relative;
+  }
+
+  .kebab-btn {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #455566;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    min-height: 44px;
+    min-width: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    line-height: 1;
+  }
+
+  .kebab-btn:hover {
+    background: #f0f4fa;
+    border-color: #d6deea;
+  }
+
+  .kebab-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    border: 1px solid #d6deea;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 28, 47, 0.12);
+    z-index: 20;
+    min-width: 120px;
+    overflow: hidden;
+  }
+
+  .kebab-menu button {
+    display: block;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: white;
+    color: #1b304a;
+    padding: 0.6rem 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+
+  .kebab-menu button:hover {
+    background: #f0f4fa;
+  }
+
+  .kebab-menu button.menu-danger {
+    color: #8d2b2b;
+  }
+
+  .kebab-menu button.menu-danger:hover {
+    background: #fff0f0;
+  }
+
   @media (max-width: 900px) {
     .location-row {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) auto auto;
     }
 
     .count {

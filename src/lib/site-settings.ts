@@ -42,11 +42,19 @@ function createSiteSettingsStore() {
 		return current;
 	}
 
+	function setCompactView(compact: boolean): SiteSettings {
+		const current = get(internal);
+		const result = adminSettingsUseCases.setCompactView(compact, current);
+		internal.set(result.settings);
+		return result.settings;
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
 		setSiteName,
-		setAdminPasscode
+		setAdminPasscode,
+		setCompactView
 	};
 }
 

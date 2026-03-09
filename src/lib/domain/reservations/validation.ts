@@ -1,4 +1,4 @@
-import { compareIsoDates, isIsoDateString } from '$lib/date';
+import { compareIsoDates, formatReservationDetail, isIsoDateString } from '$lib/date';
 import {
 	RESERVATION_COLORS,
 	type Reservation,
@@ -6,6 +6,7 @@ import {
 	type ReservationFormValues
 } from '$lib/domain/models';
 import { normalizeName, normalizeReservationNotes, MAX_RESERVATION_NOTES_LENGTH } from './normalization';
+import { isReservationStatus } from './status';
 
 export function isReservationColor(value: string): value is ReservationColor {
 	return (RESERVATION_COLORS as readonly string[]).includes(value);
@@ -80,6 +81,10 @@ export function validateReservationForm(
 		errors.push('Color must be one of: red, green, blue, yellow, pink, orange, purple.');
 	}
 
+	if (!isReservationStatus(form.status)) {
+		errors.push('Status must be one of: reserved, checked-in, due-out, maintenance.');
+	}
+
 	if (errors.length > 0) {
 		return errors;
 	}
@@ -95,7 +100,7 @@ export function validateReservationForm(
 
 		if (checkOverlap(form.startDate, form.endDate, reservation.startDate, reservation.endDate)) {
 			errors.push(
-				`Overlap with reservation #${reservation.index} (${reservation.name}) at ${reservation.parkingLocation} from ${reservation.startDate} to ${reservation.endDate}.`
+				`Overlap with reservation #${reservation.index} (${reservation.name}) at ${reservation.parkingLocation} from ${formatReservationDetail(reservation.startDate)} to ${formatReservationDetail(reservation.endDate)}.`
 			);
 			break;
 		}

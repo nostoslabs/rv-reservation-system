@@ -4,7 +4,7 @@ async function resetApp(page: Page) {
 	await page.goto('/');
 	await page.evaluate(() => window.localStorage.clear());
 	await page.reload();
-	await page.waitForSelector('#working-sheet-title');
+	await page.waitForSelector('.toolbar-title');
 	await page.waitForTimeout(300);
 }
 
@@ -23,8 +23,8 @@ function getTodayIso(): string {
 
 const modal = (page: Page) => page.locator('.modal[role="dialog"]');
 
-/** Double-click a grid cell by locating the date column via data-date attribute. */
-async function dblclickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
+/** Click a grid cell by locating the date column via data-date attribute. */
+async function clickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
 	const colIndex = await page.evaluate((date) => {
 		const headers = document.querySelectorAll('th.date-header[data-date]');
 		for (let i = 0; i < headers.length; i++) {
@@ -36,7 +36,7 @@ async function dblclickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
 
 	const cell = page.locator('tbody tr').nth(rowIndex).locator('td.grid-cell').nth(colIndex);
 	await cell.scrollIntoViewIfNeeded();
-	await cell.dblclick();
+	await cell.click();
 }
 
 /** Create a reservation via UI and verify modal closes. */
@@ -44,7 +44,7 @@ async function createReservation(
 	page: Page,
 	opts: { name: string; startDate: string; endDate: string; rowIndex?: number }
 ) {
-	await dblclickCellAtDate(page, opts.startDate, opts.rowIndex ?? 0);
+	await clickCellAtDate(page, opts.startDate, opts.rowIndex ?? 0);
 	await expect(modal(page)).toBeVisible();
 
 	await modal(page).locator('input[placeholder="Guest name"]').fill(opts.name);
@@ -60,7 +60,7 @@ test.describe('Reservation CRUD', () => {
 		await resetApp(page);
 	});
 
-	test('create a reservation via double-click', async ({ page }) => {
+	test('create a reservation via click', async ({ page }) => {
 		const today = getTodayIso();
 		const endDate = offsetDate(3);
 
@@ -78,10 +78,10 @@ test.describe('Reservation CRUD', () => {
 
 		await createReservation(page, { name: 'Jane Smith', startDate: today, endDate });
 
-		// Find occupied cell, scroll to it, double-click to edit
+		// Find occupied cell, scroll to it, click to edit
 		const occupied = page.locator('.grid-cell.occupied').first();
 		await occupied.scrollIntoViewIfNeeded();
-		await occupied.dblclick();
+		await occupied.click();
 		await expect(modal(page)).toBeVisible();
 
 		await expect(modal(page).locator('#reservation-modal-title')).toHaveText('Edit Reservation');
@@ -102,9 +102,14 @@ test.describe('Reservation CRUD', () => {
 
 		const occupied = page.locator('.grid-cell.occupied').first();
 		await occupied.scrollIntoViewIfNeeded();
-		await occupied.dblclick();
+		await occupied.click();
 		await expect(modal(page)).toBeVisible();
 
+		// First click shows confirmation
+		await modal(page).locator('button.danger').click();
+		await expect(modal(page).locator('button.danger')).toContainText('Confirm Delete');
+
+		// Second click actually deletes
 		await modal(page).locator('button.danger').click();
 		await expect(modal(page)).not.toBeVisible();
 
@@ -118,8 +123,8 @@ test.describe('Reservation CRUD', () => {
 
 		await createReservation(page, { name: 'First Guest', startDate, endDate });
 
-		// Double-click an EMPTY cell in the same row (today, before the reservation)
-		await dblclickCellAtDate(page, getTodayIso(), 0);
+		// Click an EMPTY cell in the same row (today, before the reservation)
+		await clickCellAtDate(page, getTodayIso(), 0);
 		await expect(modal(page)).toBeVisible();
 
 		await modal(page).locator('input[placeholder="Guest name"]').fill('Overlapper');
@@ -139,20 +144,210 @@ test.describe('Reservation CRUD', () => {
 	});
 });
 
+test.describe('Modal accessibility and UX', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('modal opens with focus on guest name field', async ({ page }) => {
+		const today = getTodayIso();
+		await clickCellAtDate(page, today, 0);
+		await expect(modal(page)).toBeVisible();
+
+		// Guest name input should be focused
+		const nameInput = modal(page).locator('input[placeholder="Guest name"]');
+		await expect(nameInput).toBeFocused();
+	});
+
+	test('close button dismisses modal', async ({ page }) => {
+		const today = getTodayIso();
+		await clickCellAtDate(page, today, 0);
+		await expect(modal(page)).toBeVisible();
+
+		// Click the X close button
+		await modal(page).locator('[data-testid="modal-close-button"]').click();
+		await expect(modal(page)).not.toBeVisible();
+	});
+
+	test('nights display shows correct count when both dates are set', async ({ page }) => {
+		const today = getTodayIso();
+		const endDate = offsetDate(5);
+		await clickCellAtDate(page, today, 0);
+		await expect(modal(page)).toBeVisible();
+
+		// Set dates
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+
+		// Nights display should show "5 nights"
+		const nightsDisplay = modal(page).locator('[data-testid="nights-display"]');
+		await expect(nightsDisplay).toBeVisible();
+		await expect(nightsDisplay).toHaveText('5 nights');
+	});
+
+	test('nights display updates when dates change', async ({ page }) => {
+		const today = getTodayIso();
+		await clickCellAtDate(page, today, 0);
+		await expect(modal(page)).toBeVisible();
+
+		// Set for 3 nights
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(offsetDate(3));
+
+		const nightsDisplay = modal(page).locator('[data-testid="nights-display"]');
+		await expect(nightsDisplay).toHaveText('3 nights');
+
+		// Change to 1 night
+		await modal(page).locator('input[type="date"]').nth(1).fill(offsetDate(1));
+		await expect(nightsDisplay).toHaveText('1 night');
+	});
+});
+
+test.describe('New Reservation button', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('button is visible and opens modal in create mode', async ({ page }) => {
+		const btn = page.getByTestId('new-reservation-btn');
+		await expect(btn).toBeVisible();
+		await expect(btn).toHaveText('+ New Reservation');
+
+		await btn.click();
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('#reservation-modal-title')).toHaveText('New Reservation');
+	});
+
+	test('create a reservation via New Reservation button', async ({ page }) => {
+		const today = getTodayIso();
+		const endDate = offsetDate(3);
+
+		await page.getByTestId('new-reservation-btn').click();
+		await expect(modal(page)).toBeVisible();
+
+		await modal(page).locator('input[placeholder="Guest name"]').fill('Button Guest');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		// Verify reservation appears in the grid
+		const occupied = page.locator('.grid-cell.occupied').first();
+		await occupied.scrollIntoViewIfNeeded();
+		await expect(occupied.locator('.reservation-label')).toHaveText('Button Guest');
+	});
+
+	test('empty state prompt is shown when no reservations exist', async ({ page }) => {
+		const emptyState = page.getByTestId('empty-state');
+		await expect(emptyState).toBeVisible();
+		await expect(emptyState).toContainText('No reservations yet');
+
+		// Clicking inline action in empty state also opens modal
+		await emptyState.locator('button.inline-action').click();
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('#reservation-modal-title')).toHaveText('New Reservation');
+		await modal(page).locator('button:has-text("Cancel")').click();
+		await expect(modal(page)).not.toBeVisible();
+	});
+
+	test('empty state disappears after creating a reservation', async ({ page }) => {
+		const emptyState = page.getByTestId('empty-state');
+		await expect(emptyState).toBeVisible();
+
+		const today = getTodayIso();
+		const endDate = offsetDate(2);
+
+		await page.getByTestId('new-reservation-btn').click();
+		await modal(page).locator('input[placeholder="Guest name"]').fill('First Res');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		await expect(emptyState).not.toBeVisible();
+	});
+});
+
 test.describe('TODAY alignment', () => {
-	test('TODAY button scrolls grid to today', async ({ page }) => {
+	test('today column is visible on initial load', async ({ page }) => {
 		await resetApp(page);
 
-		// Scroll grid far to the right
+		const today = getTodayIso();
+		const todayHeader = page.locator(`th.date-header[data-date="${today}"]`);
+		await expect(todayHeader).toBeAttached();
+
+		// Wait for any scroll retries to settle
+		await page.waitForTimeout(600);
+
+		// Verify the today header is fully within the visible scroll area
+		// (right of the 220px sticky first column and left of the scroller's right edge)
+		const isInView = await page.evaluate((dateIso) => {
+			const scroller = document.querySelector('.sheet-scroll');
+			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
+			if (!scroller || !header) return false;
+			const scrollerRect = scroller.getBoundingClientRect();
+			const headerRect = header.getBoundingClientRect();
+			const stickyColumnWidth = 220;
+			return (
+				headerRect.left >= scrollerRect.left + stickyColumnWidth &&
+				headerRect.right <= scrollerRect.right
+			);
+		}, today);
+		expect(isInView).toBe(true);
+	});
+
+	test('Today button scrolls grid to today', async ({ page }) => {
+		await resetApp(page);
+
+		// Scroll grid far to the right so today is off-screen
 		await page.evaluate(() => {
 			const scroller = document.querySelector('.sheet-scroll');
 			if (scroller) scroller.scrollLeft = scroller.scrollWidth;
 		});
+		await page.waitForTimeout(100);
 
-		await page.locator('.grid-button.primary:has-text("TODAY")').click();
+		// Click the Today button using data-testid for robustness
+		await page.locator('[data-testid="today-button"]').click();
 		await page.waitForTimeout(500);
 
 		const today = getTodayIso();
-		await expect(page.locator(`th.date-header[data-date="${today}"]`)).toBeVisible();
+
+		// Verify the today header is fully within the visible scroll area
+		const isInView = await page.evaluate((dateIso) => {
+			const scroller = document.querySelector('.sheet-scroll');
+			const header = document.querySelector(`th.date-header[data-date="${dateIso}"]`);
+			if (!scroller || !header) return false;
+			const scrollerRect = scroller.getBoundingClientRect();
+			const headerRect = header.getBoundingClientRect();
+			const stickyColumnWidth = 220;
+			return (
+				headerRect.left >= scrollerRect.left + stickyColumnWidth &&
+				headerRect.right <= scrollerRect.right
+			);
+		}, today);
+		expect(isInView).toBe(true);
+	});
+
+	test('today column has visual highlight', async ({ page }) => {
+		await resetApp(page);
+
+		const today = getTodayIso();
+
+		// Verify header has today class with highlight styling
+		const todayHeader = page.locator(`th.date-header.today[data-date="${today}"]`);
+		await expect(todayHeader).toBeAttached();
+
+		// Verify the today header has a distinguishable background colour
+		const headerBg = await todayHeader.evaluate((el) => getComputedStyle(el).backgroundColor);
+		// The today header uses rgba(10,99,224,0.12) which computes to a non-white value
+		expect(headerBg).not.toBe('rgb(255, 255, 255)');
+
+		// Verify today body cells also have the today class
+		const todayCells = page.locator('td.grid-cell.today');
+		const cellCount = await todayCells.count();
+		// There should be at least as many today cells as parking locations (if any exist)
+		const locationCount = await page.locator('th.location-cell').count();
+		expect(cellCount).toBe(locationCount);
 	});
 });

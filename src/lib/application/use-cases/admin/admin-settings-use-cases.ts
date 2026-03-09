@@ -11,6 +11,10 @@ export interface AdminSettingsUseCases {
 		passcode: string,
 		currentSettings: SiteSettings
 	): MutationResult & { settings?: SiteSettings };
+	setCompactView(
+		compact: boolean,
+		currentSettings: SiteSettings
+	): { ok: true; settings: SiteSettings };
 }
 
 export function createAdminSettingsUseCases(
@@ -44,6 +48,14 @@ export function createAdminSettingsUseCases(
 			}
 
 			const saved = repo.save({ ...currentSettings, adminPasscode: trimmed });
+			return { ok: true, settings: saved };
+		},
+
+		setCompactView(
+			compact: boolean,
+			currentSettings: SiteSettings
+		): { ok: true; settings: SiteSettings } {
+			const saved = repo.save({ ...currentSettings, compactView: compact });
 			return { ok: true, settings: saved };
 		}
 	};

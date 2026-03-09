@@ -1,13 +1,13 @@
 import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
-import { isReservationColor, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
-import type { PersistedAppData, Reservation, SiteSettings } from '$lib/types';
+import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
+import type { PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
 
 const STORAGE_KEY = 'rv-reservation-demo:v1';
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 const SETTINGS_STORAGE_KEY = 'rv-reservation-demo:settings:v1';
 
-export const DEFAULT_SITE_NAME = 'RV Reservation Working Sheet';
+export const DEFAULT_SITE_NAME = 'RV Reservation Schedule';
 
 export const DEFAULT_PARKING_LOCATIONS = [
   'A-01',
@@ -61,6 +61,12 @@ function sanitizeReservation(value: unknown): Reservation | null {
   if (typeof raw.parkingLocation !== 'string' || !raw.parkingLocation.trim()) return null;
   if (typeof raw.color !== 'string' || !isReservationColor(raw.color)) return null;
 
+  // Migration: default status to 'reserved' for v2 data that lacks it
+  const status: ReservationStatus =
+    typeof raw.status === 'string' && isReservationStatus(raw.status)
+      ? raw.status
+      : DEFAULT_RESERVATION_STATUS;
+
   const phoneNumber =
     typeof raw.phoneNumber === 'string' ? normalizePhoneNumber(raw.phoneNumber) : '';
   const notes = typeof raw.notes === 'string' ? sanitizeReservationNotes(raw.notes) : '';
@@ -74,7 +80,8 @@ function sanitizeReservation(value: unknown): Reservation | null {
     startDate: raw.startDate,
     endDate: raw.endDate,
     parkingLocation: raw.parkingLocation.trim(),
-    color: raw.color
+    color: raw.color,
+    status
   };
 }
 
@@ -159,9 +166,12 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
   const adminPasscode =
     typeof raw.adminPasscode === 'string' ? raw.adminPasscode.trim().slice(0, 64) : '';
 
+  const compactView = typeof raw.compactView === 'boolean' ? raw.compactView : false;
+
   return {
     siteName,
-    adminPasscode
+    adminPasscode,
+    compactView
   };
 }
 
