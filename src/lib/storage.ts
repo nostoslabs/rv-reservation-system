@@ -167,9 +167,12 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
   const adminPasscode =
     typeof raw.adminPasscode === 'string' ? raw.adminPasscode.trim().slice(0, 64) : '';
 
+  const compactView = typeof raw.compactView === 'boolean' ? raw.compactView : false;
+
   return {
     siteName,
-    adminPasscode
+    adminPasscode,
+    compactView
   };
 }
 
