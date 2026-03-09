@@ -78,6 +78,13 @@ Notes:
 - Screenshots for milestone documentation should come from Playwright automation.
 - When changing user-visible flows, update Playwright tests first (or in the same commit before implementation changes).
 
+## Branch & PR Workflow (Mandatory)
+- **Never commit directly to `main`.** Always work from a feature branch.
+- Branch naming: `<type>/<short-description>` (e.g. `feat/customer-management`, `fix/overlap-validation`, `refactor/storage-ports`).
+- Push the branch to origin and open a pull request via `gh pr create`.
+- PRs must pass all checks (type-check, unit tests, build) before merging.
+- Use squash-merge or regular merge per PR size — avoid force-pushing to shared branches.
+
 ## Commit Discipline (Mandatory)
 - Make incremental atomic commits.
 - Commit messages must be small and meaningful.
@@ -106,11 +113,13 @@ Design choices must support both desktop and future web:
 - Keep IDs and timestamps compatible with future remote sync and conflict resolution.
 
 ## Definition of Done (Per Issue)
+- Work done on a feature branch, not `main`.
 - Tests added/updated first and passing (where harness exists for the layer touched).
 - `npm run check` passes.
 - `npm run build` passes for UI-affecting changes.
 - Docs/plan updated if scope or sequencing changed.
-- Atomic commit created.
+- Atomic commit(s) created.
+- PR opened via `gh pr create` for review/merge.
 
 ## Working Agreement for Codex Agents
 - Read this file and `docs/PLAN.md` before editing.
