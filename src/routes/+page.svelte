@@ -22,8 +22,6 @@
   import { rvReservationStore } from '$lib/state';
   import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
 
-  const FIRST_COLUMN_WIDTH = 220;
-  const DATE_COLUMN_WIDTH = 128;
   const DAYS_BEFORE_TODAY = 45;
   const TOTAL_DATE_COLUMNS = 540;
 
@@ -129,6 +127,10 @@
       toastTimer = null;
     }, 3000);
   }
+
+  $: compactView = $siteSettingsStore.compactView ?? false;
+  $: FIRST_COLUMN_WIDTH = compactView ? 140 : 220;
+  $: DATE_COLUMN_WIDTH = compactView ? 90 : 128;
 
   $: occupancyMap = buildOccupancyMap($rvReservationStore.reservations);
   $: reservationCountsByLocation = Object.fromEntries(
@@ -311,6 +313,12 @@
     nowMs = Date.now();
   }
 
+  async function toggleCompactView(): Promise<void> {
+    siteSettingsStore.setCompactView(!compactView);
+    await tick();
+    await alignToToday();
+  }
+
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
@@ -368,6 +376,22 @@
       <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
       <button type="button" class="primary" data-testid="today-button" on:click={alignToToday}>Today</button>
       <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+      <button
+        type="button"
+        class:primary={compactView}
+        data-testid="compact-toggle"
+        on:click={toggleCompactView}
+        aria-label={compactView ? 'Switch to normal view' : 'Switch to compact view'}
+        aria-pressed={compactView}
+        title={compactView ? 'Normal view' : 'Compact view'}
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="16" height="16">
+          <rect x="2" y="3" width="16" height="2" rx="1" />
+          <rect x="2" y="7.5" width="16" height="2" rx="1" />
+          <rect x="2" y="12" width="16" height="2" rx="1" />
+          <rect x="2" y="16.5" width="16" height="2" rx="1" />
+        </svg>
+      </button>
     </nav>
 
     <div class="toolbar-right">
@@ -475,7 +499,7 @@
         </div>
       {/if}
 
-      <div class="sheet-scroll" bind:this={gridScroller}>
+      <div class="sheet-scroll" class:compact={compactView} bind:this={gridScroller}>
         <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
             <col class="first-col" />
@@ -805,6 +829,22 @@
     min-width: 100%;
     table-layout: fixed;
     --row1-height: 44px;
+    --cell-height: 48px;
+    --cell-font: 0.875rem;
+    --header-font: 0.95rem;
+    --date-font: 0.875rem;
+    --cell-padding: 0.2rem 0.35rem;
+    --location-padding: 0.45rem 0.6rem;
+  }
+
+  .compact .sheet-table {
+    --row1-height: 32px;
+    --cell-height: 28px;
+    --cell-font: 0.75rem;
+    --header-font: 0.8rem;
+    --date-font: 0.75rem;
+    --cell-padding: 0.1rem 0.2rem;
+    --location-padding: 0.2rem 0.4rem;
   }
 
   .sheet-table th,
@@ -827,8 +867,16 @@
     width: 220px;
   }
 
+  .compact .first-col {
+    width: 140px;
+  }
+
   .date-col {
     width: 128px;
+  }
+
+  .compact .date-col {
+    width: 90px;
   }
 
   .sticky-row1 {
@@ -856,7 +904,7 @@
     z-index: 9;
     text-align: left;
     padding: 0 0.65rem;
-    font-size: 0.95rem;
+    font-size: var(--header-font);
     font-weight: 700;
     color: #31465f;
     background: #ebf1fb;
@@ -887,7 +935,7 @@
 
   .date-header {
     text-align: center;
-    font-size: 0.875rem;
+    font-size: var(--date-font);
     font-weight: 700;
     color: #2d4055;
     white-space: nowrap;
@@ -903,18 +951,18 @@
   .location-cell {
     background: #fcfdff;
     text-align: left;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.95rem;
+    padding: var(--location-padding);
+    font-size: var(--header-font);
     font-weight: 600;
     color: #27384f;
     z-index: 5;
   }
 
   .grid-cell {
-    height: 48px;
-    min-height: 48px;
-    padding: 0.2rem 0.35rem;
-    font-size: 0.875rem;
+    height: var(--cell-height);
+    min-height: var(--cell-height);
+    padding: var(--cell-padding);
+    font-size: var(--cell-font);
     color: #1b2940;
     background: #ffffff;
     cursor: pointer;
@@ -963,6 +1011,11 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
+  }
+
+  .compact .reservation-label {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
   }
 
   .grid-cell.occupied:hover {
