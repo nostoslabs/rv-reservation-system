@@ -1,3 +1,4 @@
+screenshots
 node_modules
 .svelte-kit
 build
@@ -6,6 +7,8 @@ build
 test-results
 playwright-report
 src-tauri/target
+src-tauri/Cargo.lock
+src-tauri/gen/
 .vercel
 .playwright-mcp
 .env*
