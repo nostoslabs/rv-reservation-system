@@ -25,6 +25,7 @@ export interface Reservation {
   parkingLocation: string;
   color: ReservationColor;
   status: ReservationStatus;
+  customerId?: string;
 }
 
 export interface PersistedAppData {
@@ -49,6 +50,7 @@ export interface ReservationFormValues {
   parkingLocation: string;
   color: ReservationColor;
   status: ReservationStatus;
+  customerId?: string;
 }
 
 export interface SiteSettings {

@@ -11,3 +11,5 @@ export type {
   ReservationStatus,
   SiteSettings
 } from '$lib/types';
+
+export type { Customer, CustomerFormValues, CustomerSearchResult } from '$lib/domain/customers';

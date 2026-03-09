@@ -3,13 +3,16 @@ import {
 	createReservationUseCases,
 	createParkingLocationUseCases,
 	createAdminSettingsUseCases,
+	createCustomerUseCases,
 	type ReservationUseCases,
 	type ParkingLocationUseCases,
-	type AdminSettingsUseCases
+	type AdminSettingsUseCases,
+	type CustomerUseCases
 } from '$lib/application/use-cases';
 import { createWebFallbackDesktopCapabilities } from '$lib/infrastructure/desktop/web-fallback';
 import { createLocalStorageAppDataRepository } from '$lib/infrastructure/storage/localstorage/app-data-repository';
 import { createLocalStorageSiteSettingsRepository } from '$lib/infrastructure/storage/localstorage/site-settings-repository';
+import { createLocalStorageCustomerRepository } from '$lib/infrastructure/storage/localstorage/customer-repository';
 
 export interface AppServices {
 	desktop: DesktopCapabilities;
@@ -17,6 +20,7 @@ export interface AppServices {
 	reservationUseCases: ReservationUseCases;
 	parkingLocationUseCases: ParkingLocationUseCases;
 	adminSettingsUseCases: AdminSettingsUseCases;
+	customerUseCases: CustomerUseCases;
 }
 
 let instance: AppServices | null = null;
@@ -29,10 +33,12 @@ function isTauri(): boolean {
 function createLocalStorageServices(): AppServices {
 	const appDataRepo = createLocalStorageAppDataRepository();
 	const siteSettingsRepo = createLocalStorageSiteSettingsRepository();
+	const customerRepo = createLocalStorageCustomerRepository();
 
 	const repositories: StorageRepositories = {
 		appData: appDataRepo,
-		siteSettings: siteSettingsRepo
+		siteSettings: siteSettingsRepo,
+		customers: customerRepo
 	};
 
 	return {
@@ -40,7 +46,8 @@ function createLocalStorageServices(): AppServices {
 		repositories,
 		reservationUseCases: createReservationUseCases(appDataRepo),
 		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
-		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo)
+		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
+		customerUseCases: createCustomerUseCases(customerRepo)
 	};
 }
 
@@ -57,6 +64,9 @@ async function createSqliteServices(): Promise<AppServices> {
 	const { createSqliteSiteSettingsRepository } = await import(
 		'$lib/infrastructure/storage/sqlite/site-settings-repository'
 	);
+	const { createSqliteCustomerRepository } = await import(
+		'$lib/infrastructure/storage/sqlite/customer-repository'
+	);
 	const { runMigrations } = await import('$lib/infrastructure/storage/sqlite/migrator');
 	const { allMigrations } = await import('$lib/infrastructure/storage/sqlite/migrations');
 
@@ -65,13 +75,16 @@ async function createSqliteServices(): Promise<AppServices> {
 
 	const appDataRepo = createSqliteAppDataRepository(db);
 	const siteSettingsRepo = createSqliteSiteSettingsRepository(db);
+	const customerRepo = createSqliteCustomerRepository(db);
 
 	await appDataRepo.init();
 	await siteSettingsRepo.init();
+	await customerRepo.init();
 
 	const repositories: StorageRepositories = {
 		appData: appDataRepo,
-		siteSettings: siteSettingsRepo
+		siteSettings: siteSettingsRepo,
+		customers: customerRepo
 	};
 
 	return {
@@ -79,7 +92,8 @@ async function createSqliteServices(): Promise<AppServices> {
 		repositories,
 		reservationUseCases: createReservationUseCases(appDataRepo),
 		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
-		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo)
+		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
+		customerUseCases: createCustomerUseCases(customerRepo)
 	};
 }
 

@@ -16,6 +16,7 @@ interface ReservationRow {
 	parking_location: string;
 	color: string;
 	status: string | null;
+	customer_id: string | null;
 }
 
 interface MetadataRow {
@@ -44,7 +45,7 @@ function rowToReservation(row: ReservationRow): Reservation {
 			? row.status
 			: DEFAULT_RESERVATION_STATUS;
 
-	return {
+	const reservation: Reservation = {
 		index: row.id,
 		firstCellId: buildFirstCellId(row.parking_location, row.start_date),
 		name: row.name,
@@ -56,6 +57,12 @@ function rowToReservation(row: ReservationRow): Reservation {
 		color: row.color as ReservationColor,
 		status
 	};
+
+	if (row.customer_id) {
+		reservation.customerId = row.customer_id;
+	}
+
+	return reservation;
 }
 
 async function loadFromDb(db: Database): Promise<PersistedAppData> {
@@ -107,8 +114,8 @@ async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 	await db.execute('DELETE FROM reservations');
 	for (const r of data.reservations) {
 		await db.execute(
-			'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-			[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status]
+			'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+			[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
 		);
 	}
 

@@ -1,4 +1,5 @@
 import type { PersistedAppData, SiteSettings } from '$lib/domain/models';
+import type { CustomerRepository } from './customer';
 
 export interface AppDataRepository {
   getDefaultData(): PersistedAppData;
@@ -15,4 +16,5 @@ export interface SiteSettingsRepository {
 export interface StorageRepositories {
   appData: AppDataRepository;
   siteSettings: SiteSettingsRepository;
+  customers: CustomerRepository;
 }
