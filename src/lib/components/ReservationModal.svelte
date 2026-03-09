@@ -29,6 +29,7 @@
     save: ReservationFormValues;
     cancel: void;
     delete: { index: number };
+    bookagain: ReservationFormValues;
   }>();
 
   const emptyExtras = { phoneNumber: '', notes: '' };
@@ -112,6 +113,19 @@
     } else {
       confirmingDelete = true;
     }
+  }
+
+  function handleBookAgain(): void {
+    dispatch('bookagain', {
+      name: form.name,
+      phoneNumber: form.phoneNumber,
+      notes: form.notes,
+      parkingLocation: form.parkingLocation,
+      color: form.color,
+      status: 'reserved',
+      startDate: '',
+      endDate: ''
+    });
   }
 </script>
 
@@ -242,6 +256,15 @@
           {/if}
           <div class="save-cancel">
             <button type="button" on:click={handleClose}>Cancel</button>
+            {#if mode === 'edit'}
+              <button
+                type="button"
+                class="book-again"
+                data-testid="book-again-btn"
+                on:click={handleBookAgain}
+                title="Pre-fill a new reservation with this guest's details"
+              >Book Again</button>
+            {/if}
             <button type="submit" class="primary">Save</button>
           </div>
         </footer>
@@ -466,6 +489,17 @@
     border-color: #b91c1c;
     color: white;
     font-weight: 700;
+  }
+
+  button.book-again {
+    background: #f0f6ff;
+    border-color: #c0d4f0;
+    color: #1a4a8a;
+  }
+
+  button.book-again:hover {
+    background: #e0eeff;
+    border-color: #a0c0e8;
   }
 
   @media (max-width: 640px) {

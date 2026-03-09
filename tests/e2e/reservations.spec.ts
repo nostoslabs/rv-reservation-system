@@ -351,3 +351,94 @@ test.describe('TODAY alignment', () => {
 		expect(cellCount).toBe(locationCount);
 	});
 });
+
+test.describe('Book Again (issue #15)', () => {
+test.beforeEach(async ({ page }) => {
+await resetApp(page);
+});
+
+test('"Book Again" button is visible when editing an existing reservation', async ({ page }) => {
+const today = getTodayIso();
+const endDate = offsetDate(3);
+
+await createReservation(page, { name: 'Returning Guest', startDate: today, endDate });
+
+// Open the reservation for editing
+const occupied = page.locator('.grid-cell.occupied').first();
+await occupied.scrollIntoViewIfNeeded();
+await occupied.click();
+
+await expect(modal(page)).toBeVisible();
+await expect(modal(page).locator('#reservation-modal-title')).toHaveText('Edit Reservation');
+
+// Book Again button should be visible in edit mode
+await expect(modal(page).getByTestId('book-again-btn')).toBeVisible();
+});
+
+test('"Book Again" button is NOT visible in create mode', async ({ page }) => {
+const today = getTodayIso();
+await page.getByTestId('new-reservation-btn').click();
+
+await expect(modal(page)).toBeVisible();
+await expect(modal(page).locator('#reservation-modal-title')).toHaveText('New Reservation');
+
+// Book Again button should NOT appear in create mode
+await expect(modal(page).getByTestId('book-again-btn')).not.toBeVisible();
+});
+
+test('"Book Again" pre-fills name, phone, notes and site into a new reservation form', async ({
+page
+}) => {
+const today = getTodayIso();
+const endDate = offsetDate(3);
+
+// Create a reservation with phone and notes
+await page.getByTestId('new-reservation-btn').click();
+await modal(page).locator('input[placeholder="Guest name"]').fill('Jane Returning');
+await modal(page).locator('input[type="date"]').first().fill(today);
+await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+await modal(page).locator('input[type="tel"]').fill('555-1234');
+await modal(page).locator('textarea').fill('Prefers site 1');
+// Note the selected parking location before saving
+const selectedSite = await modal(page).locator('select').first().inputValue();
+await modal(page).locator('button[type="submit"]').click();
+await expect(modal(page)).not.toBeVisible();
+
+// Open the reservation for editing
+const occupied = page.locator('.grid-cell.occupied').first();
+await occupied.scrollIntoViewIfNeeded();
+await occupied.click();
+await expect(modal(page)).toBeVisible();
+
+// Click Book Again
+await modal(page).getByTestId('book-again-btn').click();
+
+// Modal should now be in create mode with pre-filled guest details
+await expect(modal(page).locator('#reservation-modal-title')).toHaveText('New Reservation');
+await expect(modal(page).locator('input[placeholder="Guest name"]')).toHaveValue(
+'Jane Returning'
+);
+await expect(modal(page).locator('input[type="tel"]')).toHaveValue('555-1234');
+await expect(modal(page).locator('textarea')).toHaveValue('Prefers site 1');
+// Site (parking location) should also be pre-filled
+await expect(modal(page).locator('select').first()).toHaveValue(selectedSite);
+});
+
+test('"Book Again" new reservation uses today as default start date', async ({ page }) => {
+const today = getTodayIso();
+const endDate = offsetDate(3);
+
+await createReservation(page, { name: 'Repeat Guest', startDate: today, endDate });
+
+const occupied = page.locator('.grid-cell.occupied').first();
+await occupied.scrollIntoViewIfNeeded();
+await occupied.click();
+await expect(modal(page)).toBeVisible();
+
+await modal(page).getByTestId('book-again-btn').click();
+
+// Start date should default to today
+const startDateInput = modal(page).locator('input[type="date"]').first();
+await expect(startDateInput).toHaveValue(today);
+});
+});

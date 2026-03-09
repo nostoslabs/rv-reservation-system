@@ -268,6 +268,22 @@
     showToast('Reservation deleted');
   }
 
+  function handleModalBookAgain(event: CustomEvent<ReservationFormValues>): void {
+    const { name, phoneNumber, notes, parkingLocation, color } = event.detail;
+    modalMode = 'create';
+    modalDraft = {
+      name,
+      phoneNumber,
+      notes,
+      startDate: todayIso,
+      endDate: addDays(todayIso, 1),
+      parkingLocation,
+      color,
+      status: 'reserved'
+    };
+    modalErrors = [];
+  }
+
   function applyLocationMutation(result: { ok: boolean; errors?: string[] }, successMsg?: string): void {
     if (result.ok) {
       locationPanelError = '';
@@ -485,6 +501,7 @@
         locations={$rvReservationStore.parkingLocations}
         reservationCounts={reservationCountsByLocation}
         errorMessage={locationPanelError}
+        adminPasscode={$siteSettingsStore.adminPasscode}
         on:add={handleAddLocation}
         on:rename={handleRenameLocation}
         on:remove={handleDeleteLocation}
@@ -588,6 +605,7 @@
   on:save={handleModalSave}
   on:cancel={closeModal}
   on:delete={handleModalDelete}
+  on:bookagain={handleModalBookAgain}
 />
 
 <style>
