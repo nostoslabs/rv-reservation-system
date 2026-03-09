@@ -565,6 +565,12 @@
     min-width: 100%;
     table-layout: fixed;
     --row1-height: 44px;
+    --cell-height: 48px;
+    --cell-font: 0.875rem;
+    --header-font: 0.95rem;
+    --date-font: 0.875rem;
+    --cell-padding: 0.2rem 0.35rem;
+    --location-padding: 0.45rem 0.6rem;
   }
 
   .sheet-table th,
@@ -616,7 +622,7 @@
     z-index: 9;
     text-align: left;
     padding: 0 0.65rem;
-    font-size: 0.95rem;
+    font-size: var(--header-font);
     font-weight: 700;
     color: #31465f;
     background: #ebf1fb;
@@ -647,7 +653,7 @@
 
   .date-header {
     text-align: center;
-    font-size: 0.875rem;
+    font-size: var(--date-font);
     font-weight: 700;
     color: #2d4055;
     white-space: nowrap;
@@ -662,18 +668,18 @@
   .location-cell {
     background: #fcfdff;
     text-align: left;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.95rem;
+    padding: var(--location-padding);
+    font-size: var(--header-font);
     font-weight: 600;
     color: #27384f;
     z-index: 5;
   }
 
   .grid-cell {
-    height: 48px;
-    min-height: 48px;
-    padding: 0.2rem 0.35rem;
-    font-size: 0.875rem;
+    height: var(--cell-height);
+    min-height: var(--cell-height);
+    padding: var(--cell-padding);
+    font-size: var(--cell-font);
     color: #1b2940;
     background: #ffffff;
     cursor: pointer;
