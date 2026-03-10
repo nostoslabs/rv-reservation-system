@@ -8,12 +8,13 @@ describe('runMigrations', () => {
 		const db = createInMemoryDb();
 		const version = await runMigrations(db, allMigrations);
 
-		expect(version).toBe(2);
+		expect(version).toBe(3);
 		expect(db.tables.has('schema_migrations')).toBe(true);
 		expect(db.tables.has('parking_locations')).toBe(true);
 		expect(db.tables.has('reservations')).toBe(true);
 		expect(db.tables.has('app_metadata')).toBe(true);
 		expect(db.tables.has('admin_settings')).toBe(true);
+		expect(db.tables.has('customers')).toBe(true);
 	});
 
 	it('records the migration version in schema_migrations', async () => {
@@ -21,9 +22,10 @@ describe('runMigrations', () => {
 		await runMigrations(db, allMigrations);
 
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(2);
+		expect(rows).toHaveLength(3);
 		expect(rows[0].version).toBe(1);
 		expect(rows[1].version).toBe(2);
+		expect(rows[2].version).toBe(3);
 	});
 
 	it('is idempotent — re-running does not re-apply migrations', async () => {
@@ -31,9 +33,9 @@ describe('runMigrations', () => {
 		await runMigrations(db, allMigrations);
 		const version2 = await runMigrations(db, allMigrations);
 
-		expect(version2).toBe(2);
+		expect(version2).toBe(3);
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(2);
+		expect(rows).toHaveLength(3);
 	});
 
 	it('applies only new migrations when database is partially migrated', async () => {
@@ -41,8 +43,8 @@ describe('runMigrations', () => {
 		const firstMigration: Migration[] = [allMigrations[0]];
 		await runMigrations(db, firstMigration);
 
-		const fakeMigration3: Migration = {
-			version: 3,
+		const fakeMigration99: Migration = {
+			version: 99,
 			async up(d) {
 				await d.execute(
 					'CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY)'
@@ -50,8 +52,8 @@ describe('runMigrations', () => {
 			}
 		};
 
-		const version = await runMigrations(db, [...firstMigration, fakeMigration3]);
-		expect(version).toBe(3);
+		const version = await runMigrations(db, [...firstMigration, fakeMigration99]);
+		expect(version).toBe(99);
 		expect(db.tables.has('test_table')).toBe(true);
 
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
@@ -64,9 +66,10 @@ describe('runMigrations', () => {
 		expect(version).toBe(0);
 	});
 
-	it('creates the expected index', async () => {
+	it('creates the expected indexes', async () => {
 		const db = createInMemoryDb();
 		await runMigrations(db, allMigrations);
 		expect(db.indexes.has('idx_reservations_location_dates')).toBe(true);
+		expect(db.indexes.has('idx_customers_name')).toBe(true);
 	});
 });

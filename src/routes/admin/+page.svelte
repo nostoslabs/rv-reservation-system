@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { DEFAULT_SITE_NAME } from '$lib/storage';
   import { siteSettingsStore } from '$lib/site-settings';
+  import { customerStore } from '$lib/customer-state';
 
   const SITE_NAME_MAX_LENGTH = 80;
   const PASSCODE_MAX_LENGTH = 64;
@@ -15,12 +16,48 @@
   let errorMessage = '';
   let successMessage = '';
 
+  // CSV import state
+  let csvFile: File | null = null;
+  let csvImportResult: { imported: number; skipped: number; errors: string[] } | null = null;
+  let csvImporting = false;
+  let csvErrorsExpanded = false;
+
   $: hasPasscode = $siteSettingsStore.adminPasscode.length > 0;
 
   onMount(() => {
     siteSettingsStore.hydrate();
+    customerStore.hydrate();
     siteNameDraft = $siteSettingsStore.siteName;
   });
+
+  function handleCsvFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    csvFile = input.files?.[0] ?? null;
+    csvImportResult = null;
+    csvErrorsExpanded = false;
+  }
+
+  async function handleCsvImport(): Promise<void> {
+    if (!csvFile) return;
+    csvImporting = true;
+    clearMessages();
+
+    try {
+      const text = await csvFile.text();
+      csvImportResult = customerStore.importCsv(text);
+      csvErrorsExpanded = false;
+    } catch {
+      csvImportResult = { imported: 0, skipped: 0, errors: ['Failed to read file.'] };
+    } finally {
+      csvImporting = false;
+    }
+  }
+
+  function resetCsvImport(): void {
+    csvFile = null;
+    csvImportResult = null;
+    csvErrorsExpanded = false;
+  }
 
   function clearMessages(): void {
     errorMessage = '';
@@ -154,6 +191,49 @@
         <button type="submit">Update Passcode</button>
       </form>
     </section>
+
+    <section class="panel" data-testid="csv-import-panel">
+      <h2>Import Customers</h2>
+      <p>Upload a CSV file with columns: <strong>name</strong>, phone, email, notes. Only name is required.</p>
+
+      {#if csvImportResult}
+        <div class="import-result" data-testid="csv-import-result">
+          <p class="import-summary">
+            Imported <strong>{csvImportResult.imported}</strong> customer{csvImportResult.imported !== 1 ? 's' : ''},
+            skipped <strong>{csvImportResult.skipped}</strong> duplicate{csvImportResult.skipped !== 1 ? 's' : ''}{csvImportResult.errors.length > 0 ? `, ${csvImportResult.errors.length} error${csvImportResult.errors.length !== 1 ? 's' : ''}` : ''}.
+          </p>
+          {#if csvImportResult.errors.length > 0}
+            <button type="button" class="toggle-errors" on:click={() => csvErrorsExpanded = !csvErrorsExpanded}>
+              {csvErrorsExpanded ? 'Hide' : 'Show'} errors
+            </button>
+            {#if csvErrorsExpanded}
+              <ul class="error-list">
+                {#each csvImportResult.errors as err}
+                  <li>{err}</li>
+                {/each}
+              </ul>
+            {/if}
+          {/if}
+          <button type="button" on:click={resetCsvImport}>Import Another</button>
+        </div>
+      {:else}
+        <div class="stack">
+          <label>
+            <span>CSV File</span>
+            <input type="file" accept=".csv" on:change={handleCsvFileChange} data-testid="csv-file-input" />
+          </label>
+          <button
+            type="button"
+            class="primary"
+            disabled={!csvFile || csvImporting}
+            on:click={handleCsvImport}
+            data-testid="csv-import-btn"
+          >
+            {csvImporting ? 'Importing...' : 'Import'}
+          </button>
+        </div>
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -271,5 +351,47 @@
     background: #effaf2;
     border-color: #b8e0bf;
     color: #205d2a;
+  }
+
+  .import-result {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .import-summary {
+    margin: 0;
+    color: #263444;
+  }
+
+  .toggle-errors {
+    font-size: 0.85rem;
+    color: #0c5fdb;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    width: fit-content;
+  }
+
+  .error-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: #842828;
+    font-size: 0.85rem;
+    max-height: 12rem;
+    overflow-y: auto;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  input[type="file"] {
+    padding: 0.4rem;
+    border: 1px dashed #c8d1de;
+    border-radius: 10px;
+    background: #fafbfd;
   }
 </style>

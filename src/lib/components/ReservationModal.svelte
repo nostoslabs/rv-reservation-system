@@ -4,10 +4,13 @@
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import type { Customer } from '$lib/domain/customers';
+  import AutocompleteInput from './AutocompleteInput.svelte';
 
   export let open = false;
   export let mode: 'create' | 'edit' = 'create';
   export let parkingLocations: string[] = [];
+  export let customers: Customer[] = [];
   export let draft: ReservationFormValues = {
     name: '',
     phoneNumber: '',
@@ -31,8 +34,21 @@
   const emptyExtras = { phoneNumber: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
   let confirmingDelete = false;
-  let guestNameInput: HTMLInputElement | null = null;
+  let autocompleteRef: AutocompleteInput;
   let wasOpen = false;
+
+  $: customerSuggestions = customers.map((c) => ({
+    label: c.name,
+    sublabel: c.phone || c.email || undefined,
+    data: c
+  }));
+
+  function handleCustomerSelect(event: CustomEvent<{ suggestion: { label: string; sublabel?: string; data: unknown } }>): void {
+    const customer = event.detail.suggestion.data as Customer;
+    form.name = customer.name;
+    form.phoneNumber = customer.phone || form.phoneNumber;
+    form.customerId = customer.id;
+  }
 
   /** Computed nights display */
   $: nightsCount = (form.startDate && form.endDate)
@@ -49,8 +65,8 @@
 
   afterUpdate(() => {
     // Focus guest name input when modal just opened
-    if (open && !wasOpen && guestNameInput) {
-      guestNameInput.focus();
+    if (open && !wasOpen && autocompleteRef) {
+      autocompleteRef.focus();
     }
     wasOpen = open;
   });
@@ -132,16 +148,18 @@
       {/if}
 
       <form class="modal-form" on:submit|preventDefault={handleSubmit}>
-        <!-- 1. Guest Name (autofocused) -->
+        <!-- 1. Guest Name (autofocused, with autocomplete) -->
         <label>
           <span>Name</span>
-          <input
-            bind:this={guestNameInput}
+          <AutocompleteInput
+            bind:this={autocompleteRef}
             bind:value={form.name}
-            type="text"
+            suggestions={customerSuggestions}
             placeholder="Guest name"
             required
-            maxlength="80"
+            maxlength={80}
+            testid="guest-name-input"
+            on:select={handleCustomerSelect}
           />
         </label>
 

@@ -20,6 +20,7 @@
   } from '$lib/domain/reservations/status';
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
+  import { customerStore } from '$lib/customer-state';
   import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
 
   const DAYS_BEFORE_TODAY = 45;
@@ -247,6 +248,11 @@
       return;
     }
 
+    // Auto-create or link customer
+    if (!event.detail.customerId && event.detail.name.trim()) {
+      customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
+    }
+
     closeModal();
     showToast('Reservation saved');
   }
@@ -322,6 +328,7 @@
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
+    customerStore.hydrate();
 
     // Scroll to today immediately, then retry a few times to handle late layout.
     // The grid dimensions may not be final on the first tick, so we retry until the
@@ -445,6 +452,14 @@
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
       <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
       <button type="button" class="save-btn" on:click={saveNow}>Save</button>
+      <a href="/customers" class="settings-link" title="Customers" aria-label="Customers" data-testid="customers-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </a>
       <a href="/admin" class="settings-link" title="Settings" aria-label="Settings" data-testid="settings-link">
         <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
           <circle cx="12" cy="12" r="3" />
@@ -568,6 +583,7 @@
   draft={modalDraft}
   errors={modalErrors}
   parkingLocations={$rvReservationStore.parkingLocations}
+  customers={$customerStore}
   triggerElement={modalTriggerElement}
   on:save={handleModalSave}
   on:cancel={closeModal}
