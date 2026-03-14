@@ -4,7 +4,7 @@ import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, no
 import type { PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
 
 const STORAGE_KEY = 'rv-reservation-demo:v1';
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 const SETTINGS_STORAGE_KEY = 'rv-reservation-demo:settings:v1';
 
 export const DEFAULT_SITE_NAME = 'RV Reservation Schedule';
