@@ -1,4 +1,4 @@
-import type { Reservation } from '$lib/types';
+import type { Reservation } from '$lib/domain/models';
 
 export interface SearchResult {
 	reservation: Reservation;

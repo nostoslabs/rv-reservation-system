@@ -49,7 +49,7 @@ function sanitizeStringList(value: unknown): string[] {
   return output;
 }
 
-function sanitizeReservation(value: unknown): Reservation | null {
+export function sanitizeReservation(value: unknown): Reservation | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
 
@@ -61,7 +61,7 @@ function sanitizeReservation(value: unknown): Reservation | null {
   if (typeof raw.parkingLocation !== 'string' || !raw.parkingLocation.trim()) return null;
   if (typeof raw.color !== 'string' || !isReservationColor(raw.color)) return null;
 
-  // Migration: default status to 'reserved' for v2 data that lacks it
+  // Migration: default status to 'reserved' for pre-v4 data (missing or removed statuses like 'due-out')
   const status: ReservationStatus =
     typeof raw.status === 'string' && isReservationStatus(raw.status)
       ? raw.status

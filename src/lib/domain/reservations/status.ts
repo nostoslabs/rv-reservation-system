@@ -1,7 +1,7 @@
 import {
 	RESERVATION_STATUSES,
 	type ReservationStatus
-} from '$lib/types';
+} from '$lib/domain/models';
 
 export const DEFAULT_RESERVATION_STATUS: ReservationStatus = 'reserved';
 

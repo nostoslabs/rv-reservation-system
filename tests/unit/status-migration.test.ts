@@ -10,6 +10,7 @@ import {
 	getStatusLabel
 } from '$lib/domain/reservations/status';
 import { RESERVATION_STATUSES } from '$lib/types';
+import { sanitizeReservation } from '$lib/storage';
 
 describe('ReservationStatus type', () => {
 	it('defines exactly seven statuses', () => {
@@ -123,75 +124,40 @@ describe('getStatusLabel', () => {
 	});
 });
 
-describe('storage migration v2 → v3', () => {
-	it('existing reservations without status get default "reserved"', () => {
-		const v2Reservation = {
-			index: 1,
-			firstCellId: 'A-01::2026-03-01',
-			name: 'John Doe',
-			phoneNumber: '555-1234',
-			notes: '',
-			startDate: '2026-03-01',
-			endDate: '2026-03-05',
-			parkingLocation: 'A-01',
-			color: 'blue'
-		};
+describe('storage migration (sanitizeReservation)', () => {
+	const validBase = {
+		index: 1,
+		firstCellId: 'A-01::2026-03-01',
+		name: 'John Doe',
+		phoneNumber: '555-1234',
+		notes: '',
+		startDate: '2026-03-01',
+		endDate: '2026-03-05',
+		parkingLocation: 'A-01',
+		color: 'blue'
+	};
 
-		const status = typeof (v2Reservation as Record<string, unknown>).status === 'string' &&
-			isReservationStatus((v2Reservation as Record<string, unknown>).status as string)
-			? (v2Reservation as Record<string, unknown>).status
-			: DEFAULT_RESERVATION_STATUS;
-
-		expect(status).toBe('reserved');
+	it('defaults missing status to "reserved" (pre-v3 data)', () => {
+		const result = sanitizeReservation(validBase);
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe('reserved');
 	});
 
-	it('preserves existing status if it is valid', () => {
-		const v3Reservation = {
-			index: 1,
-			firstCellId: 'A-01::2026-03-01',
-			name: 'Jane Smith',
-			phoneNumber: '',
-			notes: '',
-			startDate: '2026-03-01',
-			endDate: '2026-03-05',
-			parkingLocation: 'A-01',
-			color: 'green',
-			status: 'checked-in'
-		};
-
-		const status = typeof v3Reservation.status === 'string' &&
-			isReservationStatus(v3Reservation.status)
-			? v3Reservation.status
-			: DEFAULT_RESERVATION_STATUS;
-
-		expect(status).toBe('checked-in');
+	it('preserves valid status', () => {
+		const result = sanitizeReservation({ ...validBase, status: 'checked-in' });
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe('checked-in');
 	});
 
 	it('falls back to default for invalid status values', () => {
-		const badReservation = {
-			index: 1,
-			status: 'invalid-status'
-		};
-
-		const status = typeof badReservation.status === 'string' &&
-			isReservationStatus(badReservation.status)
-			? badReservation.status
-			: DEFAULT_RESERVATION_STATUS;
-
-		expect(status).toBe('reserved');
+		const result = sanitizeReservation({ ...validBase, status: 'invalid-status' });
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe('reserved');
 	});
 
 	it('migrates removed due-out status to reserved', () => {
-		const oldReservation = {
-			index: 1,
-			status: 'due-out'
-		};
-
-		const status = typeof oldReservation.status === 'string' &&
-			isReservationStatus(oldReservation.status)
-			? oldReservation.status
-			: DEFAULT_RESERVATION_STATUS;
-
-		expect(status).toBe('reserved');
+		const result = sanitizeReservation({ ...validBase, status: 'due-out' });
+		expect(result).not.toBeNull();
+		expect(result!.status).toBe('reserved');
 	});
 });
