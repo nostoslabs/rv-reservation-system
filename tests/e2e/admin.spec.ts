@@ -13,12 +13,6 @@ async function resetApp(page: Page) {
 	await page.waitForTimeout(300);
 }
 
-async function unlockAdmin(page: Page, passcode: string) {
-	await page.goto('/admin');
-	await page.fill('input[type="password"]', passcode);
-	await page.click('button:has-text("Save Passcode")');
-}
-
 test.describe('Admin page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
@@ -65,17 +59,10 @@ test.describe('Admin page', () => {
 		expect(headerText?.toLowerCase()).not.toContain('not linked');
 	});
 
-	test('set initial passcode and change site name', async ({ page }) => {
+	test('change site name', async ({ page }) => {
 		await page.goto('/admin');
 
-		// No passcode set yet, should see "Set Admin Passcode"
-		await expect(page.locator('h2:has-text("Set Admin Passcode")')).toBeVisible();
-
-		// Set a passcode
-		await page.fill('input[type="password"]', 'test123');
-		await page.click('button:has-text("Save Passcode")');
-
-		// Should now be unlocked and see Site Name section
+		// Site Name section should be immediately visible (no passcode needed)
 		await expect(page.locator('h2:has-text("Site Name")')).toBeVisible();
 
 		// Change site name
@@ -85,55 +72,6 @@ test.describe('Admin page', () => {
 
 		// Should see success message
 		await expect(page.locator('.message.success')).toContainText('Site name updated');
-	});
-
-	test('passcode protection works on return visit', async ({ page }) => {
-		await page.goto('/admin');
-
-		// Set passcode
-		await page.fill('input[type="password"]', 'mypass');
-		await page.click('button:has-text("Save Passcode")');
-
-		// Navigate away and come back
-		await page.goto('/');
-		await page.goto('/admin');
-
-		// Should see passcode prompt
-		await expect(page.locator('h2:has-text("Enter Passcode")')).toBeVisible();
-
-		// Wrong passcode
-		await page.fill('input[type="password"]', 'wrong');
-		await page.click('button:has-text("Unlock")');
-		await expect(page.locator('.message.error')).toContainText('Incorrect passcode');
-
-		// Correct passcode
-		await page.fill('input[type="password"]', 'mypass');
-		await page.click('button:has-text("Unlock")');
-
-		// Should now be unlocked
-		await expect(page.locator('h2:has-text("Site Name")')).toBeVisible();
-	});
-
-	test('change passcode', async ({ page }) => {
-		await page.goto('/admin');
-
-		// Set initial passcode
-		await page.fill('input[type="password"]', 'old123');
-		await page.click('button:has-text("Save Passcode")');
-
-		// Change passcode
-		await expect(page.locator('h2:has-text("Change Passcode")')).toBeVisible();
-		const newPassInput = page.locator('label:has-text("New Passcode") input');
-		await newPassInput.fill('new456');
-		await page.click('button:has-text("Update Passcode")');
-		await expect(page.locator('.message.success')).toContainText('Passcode updated');
-
-		// Navigate away and verify new passcode works
-		await page.goto('/');
-		await page.goto('/admin');
-		await page.fill('input[type="password"]', 'new456');
-		await page.click('button:has-text("Unlock")');
-		await expect(page.locator('h2:has-text("Site Name")')).toBeVisible();
 	});
 });
 
@@ -148,7 +86,6 @@ test.describe('Main page has no sites panel', () => {
 		// The ParkingLocationsPanel should NOT be present on the main page
 		await expect(page.locator('#parking-locations-title')).not.toBeVisible();
 		await expect(page.locator('.add-form')).not.toBeVisible();
-		await expect(page.getByTestId('sites-unlock-form')).not.toBeVisible();
 	});
 
 	test('main page schedule uses full width without sidebar', async ({ page }) => {
@@ -168,33 +105,12 @@ test.describe('Site management on admin page', () => {
 		await clearStorage(page);
 	});
 
-	test('sites management panel is visible on admin page when no passcode', async ({ page }) => {
+	test('sites management panel is always visible on admin page', async ({ page }) => {
 		await page.goto('/admin');
 
-		// When no passcode is set, should see sites management
+		// Sites management should always be visible
 		await expect(page.locator('[data-testid="sites-management"]')).toBeVisible();
 		await expect(page.locator('h2:has-text("Sites")')).toBeVisible();
-	});
-
-	test('sites management panel is visible after unlock with passcode', async ({ page }) => {
-		await unlockAdmin(page, 'test123');
-
-		// Should see sites management section
-		await expect(page.locator('[data-testid="sites-management"]')).toBeVisible();
-		await expect(page.locator('h2:has-text("Sites")')).toBeVisible();
-	});
-
-	test('sites management is hidden when locked', async ({ page }) => {
-		// Set passcode
-		await unlockAdmin(page, 'secret');
-
-		// Navigate away and come back (now locked)
-		await page.goto('/');
-		await page.goto('/admin');
-
-		// Should see passcode prompt but NOT sites management
-		await expect(page.locator('h2:has-text("Enter Passcode")')).toBeVisible();
-		await expect(page.locator('[data-testid="sites-management"]')).not.toBeVisible();
 	});
 
 	test('add a new site from admin page', async ({ page }) => {
