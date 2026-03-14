@@ -27,12 +27,13 @@
   let locationPanelError = '';
 
   $: hasPasscode = $siteSettingsStore.adminPasscode.length > 0;
-  $: reservationCountsByLocation = Object.fromEntries(
-    $rvReservationStore.parkingLocations.map((location) => [
-      location,
-      $rvReservationStore.reservations.filter((r) => r.parkingLocation === location).length
-    ])
-  ) as Record<string, number>;
+  $: reservationCountsByLocation = $rvReservationStore.reservations.reduce<Record<string, number>>(
+    (counts, r) => {
+      counts[r.parkingLocation] = (counts[r.parkingLocation] ?? 0) + 1;
+      return counts;
+    },
+    Object.fromEntries($rvReservationStore.parkingLocations.map((loc) => [loc, 0]))
+  );
 
   onMount(() => {
     siteSettingsStore.hydrate();
@@ -185,19 +186,6 @@
         <button type="submit" class="primary">Save Passcode</button>
       </form>
     </section>
-
-    <div data-testid="sites-management">
-      <ParkingLocationsPanel
-        locations={$rvReservationStore.parkingLocations}
-        reservationCounts={reservationCountsByLocation}
-        errorMessage={locationPanelError}
-        adminPasscode=""
-        on:add={handleAddLocation}
-        on:rename={handleRenameLocation}
-        on:remove={handleDeleteLocation}
-        on:clearerror={() => (locationPanelError = '')}
-      />
-    </div>
   {:else if !unlocked}
     <section class="panel">
       <h2>Enter Passcode</h2>
@@ -235,19 +223,6 @@
         <button type="submit">Update Passcode</button>
       </form>
     </section>
-
-    <div data-testid="sites-management">
-      <ParkingLocationsPanel
-        locations={$rvReservationStore.parkingLocations}
-        reservationCounts={reservationCountsByLocation}
-        errorMessage={locationPanelError}
-        adminPasscode=""
-        on:add={handleAddLocation}
-        on:rename={handleRenameLocation}
-        on:remove={handleDeleteLocation}
-        on:clearerror={() => (locationPanelError = '')}
-      />
-    </div>
 
     <section class="panel" data-testid="csv-import-panel">
       <h2>Import Customers</h2>
@@ -291,6 +266,21 @@
         </div>
       {/if}
     </section>
+  {/if}
+
+  {#if !hasPasscode || unlocked}
+    <div data-testid="sites-management">
+      <ParkingLocationsPanel
+        locations={$rvReservationStore.parkingLocations}
+        reservationCounts={reservationCountsByLocation}
+        errorMessage={locationPanelError}
+        adminPasscode=""
+        on:add={handleAddLocation}
+        on:rename={handleRenameLocation}
+        on:remove={handleDeleteLocation}
+        on:clearerror={() => (locationPanelError = '')}
+      />
+    </div>
   {/if}
 </div>
 

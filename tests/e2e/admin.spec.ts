@@ -19,12 +19,6 @@ async function unlockAdmin(page: Page, passcode: string) {
 	await page.click('button:has-text("Save Passcode")');
 }
 
-async function goToAdminAndUnlock(page: Page, passcode: string) {
-	await page.goto('/admin');
-	await page.fill('input[type="password"]', passcode);
-	await page.click('button:has-text("Unlock")');
-}
-
 test.describe('Admin page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
