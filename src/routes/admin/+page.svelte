@@ -3,6 +3,8 @@
   import { DEFAULT_SITE_NAME } from '$lib/storage';
   import { siteSettingsStore } from '$lib/site-settings';
   import { customerStore } from '$lib/customer-state';
+  import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
+  import { rvReservationStore } from '$lib/state';
 
   const SITE_NAME_MAX_LENGTH = 80;
   const PASSCODE_MAX_LENGTH = 64;
@@ -22,11 +24,20 @@
   let csvImporting = false;
   let csvErrorsExpanded = false;
 
+  let locationPanelError = '';
+
   $: hasPasscode = $siteSettingsStore.adminPasscode.length > 0;
+  $: reservationCountsByLocation = Object.fromEntries(
+    $rvReservationStore.parkingLocations.map((location) => [
+      location,
+      $rvReservationStore.reservations.filter((r) => r.parkingLocation === location).length
+    ])
+  ) as Record<string, number>;
 
   onMount(() => {
     siteSettingsStore.hydrate();
     customerStore.hydrate();
+    rvReservationStore.hydrate();
     siteNameDraft = $siteSettingsStore.siteName;
   });
 
@@ -107,6 +118,26 @@
     successMessage = 'Site name updated.';
   }
 
+  function applyLocationMutation(result: { ok: boolean; errors?: string[] }): void {
+    if (result.ok) {
+      locationPanelError = '';
+      return;
+    }
+    locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
+  }
+
+  function handleAddLocation(event: CustomEvent<{ name: string }>): void {
+    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name));
+  }
+
+  function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
+    applyLocationMutation(rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
+  }
+
+  function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
+    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
+  }
+
   function handleChangePasscode(): void {
     clearMessages();
     const nextPasscode = newPasscodeDraft.trim();
@@ -154,6 +185,19 @@
         <button type="submit" class="primary">Save Passcode</button>
       </form>
     </section>
+
+    <div data-testid="sites-management">
+      <ParkingLocationsPanel
+        locations={$rvReservationStore.parkingLocations}
+        reservationCounts={reservationCountsByLocation}
+        errorMessage={locationPanelError}
+        adminPasscode=""
+        on:add={handleAddLocation}
+        on:rename={handleRenameLocation}
+        on:remove={handleDeleteLocation}
+        on:clearerror={() => (locationPanelError = '')}
+      />
+    </div>
   {:else if !unlocked}
     <section class="panel">
       <h2>Enter Passcode</h2>
@@ -191,6 +235,19 @@
         <button type="submit">Update Passcode</button>
       </form>
     </section>
+
+    <div data-testid="sites-management">
+      <ParkingLocationsPanel
+        locations={$rvReservationStore.parkingLocations}
+        reservationCounts={reservationCountsByLocation}
+        errorMessage={locationPanelError}
+        adminPasscode=""
+        on:add={handleAddLocation}
+        on:rename={handleRenameLocation}
+        on:remove={handleDeleteLocation}
+        on:clearerror={() => (locationPanelError = '')}
+      />
+    </div>
 
     <section class="panel" data-testid="csv-import-panel">
       <h2>Import Customers</h2>
