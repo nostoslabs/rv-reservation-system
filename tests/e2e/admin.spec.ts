@@ -13,6 +13,18 @@ async function resetApp(page: Page) {
 	await page.waitForTimeout(300);
 }
 
+async function unlockAdmin(page: Page, passcode: string) {
+	await page.goto('/admin');
+	await page.fill('input[type="password"]', passcode);
+	await page.click('button:has-text("Save Passcode")');
+}
+
+async function goToAdminAndUnlock(page: Page, passcode: string) {
+	await page.goto('/admin');
+	await page.fill('input[type="password"]', passcode);
+	await page.click('button:has-text("Unlock")');
+}
+
 test.describe('Admin page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
@@ -131,94 +143,123 @@ test.describe('Admin page', () => {
 	});
 });
 
-test.describe('Sites panel lock (issue #11)', () => {
+test.describe('Main page has no sites panel', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
 	});
 
-	test('sites panel shows full management UI when no passcode is set', async ({ page }) => {
+	test('main page does not show site management sidebar', async ({ page }) => {
 		await resetApp(page);
 
-		// Add form and kebab buttons should be visible when no passcode is set
-		await expect(page.locator('.add-form')).toBeVisible();
-	});
-
-	test('sites panel locks site management when passcode is set', async ({ page }) => {
-		// Set a passcode via the admin page
-		await page.goto('/admin');
-		await page.fill('input[type="password"]', 'secret123');
-		await page.click('button:has-text("Save Passcode")');
-
-		// Go back to main page
-		await page.goto('/');
-		await page.waitForSelector('.toolbar-title');
-		await page.waitForTimeout(300);
-
-		// The sites panel should show the unlock form, not the add form
-		await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
+		// The ParkingLocationsPanel should NOT be present on the main page
+		await expect(page.locator('#parking-locations-title')).not.toBeVisible();
 		await expect(page.locator('.add-form')).not.toBeVisible();
-	});
-
-	test('sites panel unlocks with correct passcode', async ({ page }) => {
-		// Set a passcode
-		await page.goto('/admin');
-		await page.fill('input[type="password"]', 'unlock123');
-		await page.click('button:has-text("Save Passcode")');
-
-		// Go back to main page
-		await page.goto('/');
-		await page.waitForSelector('.toolbar-title');
-		await page.waitForTimeout(300);
-
-		// Enter correct passcode in the panel
-		await page.getByTestId('sites-passcode-input').fill('unlock123');
-		await page.getByTestId('sites-unlock-btn').click();
-
-		// Management UI should now be visible
-		await expect(page.locator('.add-form')).toBeVisible();
 		await expect(page.getByTestId('sites-unlock-form')).not.toBeVisible();
 	});
 
-	test('sites panel rejects incorrect passcode', async ({ page }) => {
-		// Set a passcode
-		await page.goto('/admin');
-		await page.fill('input[type="password"]', 'correctpass');
-		await page.click('button:has-text("Save Passcode")');
+	test('main page schedule uses full width without sidebar', async ({ page }) => {
+		await resetApp(page);
 
-		// Go back to main page
-		await page.goto('/');
-		await page.waitForSelector('.toolbar-title');
-		await page.waitForTimeout(300);
+		// The layout should not have the two-column aside + section grid
+		const aside = page.locator('.layout-grid > aside');
+		await expect(aside).toHaveCount(0);
 
-		// Enter wrong passcode
-		await page.getByTestId('sites-passcode-input').fill('wrongpass');
-		await page.getByTestId('sites-unlock-btn').click();
+		// The sheet-panel should be directly in the layout
+		await expect(page.locator('.sheet-panel')).toBeVisible();
+	});
+});
 
-		// Should still show unlock form with an error
-		await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
-		await expect(page.locator('.unlock-error')).toContainText('Incorrect passcode');
-		await expect(page.locator('.add-form')).not.toBeVisible();
+test.describe('Site management on admin page', () => {
+	test.beforeEach(async ({ page }) => {
+		await clearStorage(page);
 	});
 
-	test('unlocked panel shows lock button to re-lock', async ({ page }) => {
-		// Set a passcode
+	test('sites management panel is visible on admin page when no passcode', async ({ page }) => {
 		await page.goto('/admin');
-		await page.fill('input[type="password"]', 'mypass');
-		await page.click('button:has-text("Save Passcode")');
 
-		// Go back to main page and unlock the panel
+		// When no passcode is set, should see sites management
+		await expect(page.locator('[data-testid="sites-management"]')).toBeVisible();
+		await expect(page.locator('h2:has-text("Sites")')).toBeVisible();
+	});
+
+	test('sites management panel is visible after unlock with passcode', async ({ page }) => {
+		await unlockAdmin(page, 'test123');
+
+		// Should see sites management section
+		await expect(page.locator('[data-testid="sites-management"]')).toBeVisible();
+		await expect(page.locator('h2:has-text("Sites")')).toBeVisible();
+	});
+
+	test('sites management is hidden when locked', async ({ page }) => {
+		// Set passcode
+		await unlockAdmin(page, 'secret');
+
+		// Navigate away and come back (now locked)
+		await page.goto('/');
+		await page.goto('/admin');
+
+		// Should see passcode prompt but NOT sites management
+		await expect(page.locator('h2:has-text("Enter Passcode")')).toBeVisible();
+		await expect(page.locator('[data-testid="sites-management"]')).not.toBeVisible();
+	});
+
+	test('add a new site from admin page', async ({ page }) => {
+		await page.goto('/admin');
+
+		// Add a site
+		const addInput = page.locator('[data-testid="sites-management"] input[placeholder="Add site"]');
+		await addInput.fill('A-01');
+		await page.locator('[data-testid="sites-management"] button:has-text("Add")').click();
+
+		// Site should appear in the list
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('A-01');
+
+		// Go to main page and verify the site appears as a row
 		await page.goto('/');
 		await page.waitForSelector('.toolbar-title');
-		await page.waitForTimeout(300);
-		await page.getByTestId('sites-passcode-input').fill('mypass');
-		await page.getByTestId('sites-unlock-btn').click();
+		await expect(page.locator('.location-cell:has-text("A-01")')).toBeVisible();
+	});
 
-		// Lock button should be visible
-		await expect(page.getByTestId('sites-lock-btn')).toBeVisible();
+	test('rename a site from admin page', async ({ page }) => {
+		await page.goto('/admin');
 
-		// Click lock button → returns to locked state
-		await page.getByTestId('sites-lock-btn').click();
-		await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
-		await expect(page.locator('.add-form')).not.toBeVisible();
+		// Add a site first
+		const addInput = page.locator('[data-testid="sites-management"] input[placeholder="Add site"]');
+		await addInput.fill('B-01');
+		await page.locator('[data-testid="sites-management"] button:has-text("Add")').click();
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('B-01');
+
+		// Click kebab menu for B-01
+		await page.locator('[data-testid="sites-management"] button[aria-label="Actions for B-01"]').click();
+		await page.locator('[data-testid="sites-management"] button:has-text("Rename")').click();
+
+		// Rename to B-02
+		const renameInput = page.locator('[data-testid="sites-management"] .location-row.editing input');
+		await renameInput.fill('B-02');
+		await page.locator('[data-testid="sites-management"] button.save-btn').click();
+
+		// Should show new name
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('B-02');
+		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('B-01');
+	});
+
+	test('delete a site from admin page', async ({ page }) => {
+		await page.goto('/admin');
+
+		// Add a site
+		const addInput = page.locator('[data-testid="sites-management"] input[placeholder="Add site"]');
+		await addInput.fill('C-01');
+		await page.locator('[data-testid="sites-management"] button:has-text("Add")').click();
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('C-01');
+
+		// Click kebab menu and delete
+		await page.locator('[data-testid="sites-management"] button[aria-label="Actions for C-01"]').click();
+		await page.locator('[data-testid="sites-management"] button:has-text("Delete")').click();
+
+		// Confirm deletion
+		await page.locator('[data-testid="sites-management"] button:has-text("Yes")').click();
+
+		// Site should be gone
+		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('C-01');
 	});
 });
