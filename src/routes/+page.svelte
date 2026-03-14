@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import ReservationModal from '$lib/components/ReservationModal.svelte';
   import {
     addDays,
@@ -32,7 +31,6 @@
 
   let gridScroller: HTMLDivElement | null = null;
   let nowMs = Date.now();
-  let locationPanelError = '';
   let occupancyMap: Map<string, Reservation> = new Map();
   let reservationCountsByLocation: Record<string, number> = {};
   let autosaveStatus = 'Autosave pending';
@@ -284,30 +282,6 @@
     modalErrors = [];
   }
 
-  function applyLocationMutation(result: { ok: boolean; errors?: string[] }, successMsg?: string): void {
-    if (result.ok) {
-      locationPanelError = '';
-      if (successMsg) showToast(successMsg);
-      return;
-    }
-    locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
-  }
-
-  function handleAddLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name), 'Site added');
-  }
-
-  function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
-    applyLocationMutation(
-      rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName),
-      'Site renamed'
-    );
-  }
-
-  function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name), 'Site deleted');
-  }
-
   function getReservationCellTitle(location: string, dateIso: string, reservation?: Reservation): string {
     if (!reservation) {
       return `Click to add reservation at ${location} on ${formatScheduleHeader(dateIso)}`;
@@ -499,19 +473,6 @@
   </div>
 
   <div class="layout-grid">
-    <aside>
-      <ParkingLocationsPanel
-        locations={$rvReservationStore.parkingLocations}
-        reservationCounts={reservationCountsByLocation}
-        errorMessage={locationPanelError}
-        adminPasscode={$siteSettingsStore.adminPasscode}
-        on:add={handleAddLocation}
-        on:rename={handleRenameLocation}
-        on:remove={handleDeleteLocation}
-        on:clearerror={() => (locationPanelError = '')}
-      />
-    </aside>
-
     <section class="sheet-panel" aria-labelledby="schedule-title">
       <h2 id="schedule-title" class="sr-only">Schedule</h2>
 
@@ -789,7 +750,7 @@
 
   .layout-grid {
     display: grid;
-    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 0.5rem;
     align-items: start;
   }
@@ -1204,10 +1165,6 @@
   }
 
   @media (max-width: 1100px) {
-    .layout-grid {
-      grid-template-columns: 1fr;
-    }
-
     .toolbar {
       gap: 0.5rem;
     }

@@ -13,7 +13,8 @@
     "test:e2e": "npx playwright test",
     "tauri": "tauri",
     "tauri:dev": "npx tauri dev",
-    "tauri:build": "npx tauri build"
+    "tauri:build": "npx tauri build",
+    "deploy": "npx vercel --prod"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

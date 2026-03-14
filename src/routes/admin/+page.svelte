@@ -3,6 +3,8 @@
   import { DEFAULT_SITE_NAME } from '$lib/storage';
   import { siteSettingsStore } from '$lib/site-settings';
   import { customerStore } from '$lib/customer-state';
+  import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
+  import { rvReservationStore } from '$lib/state';
 
   const SITE_NAME_MAX_LENGTH = 80;
   const PASSCODE_MAX_LENGTH = 64;
@@ -22,11 +24,21 @@
   let csvImporting = false;
   let csvErrorsExpanded = false;
 
+  let locationPanelError = '';
+
   $: hasPasscode = $siteSettingsStore.adminPasscode.length > 0;
+  $: reservationCountsByLocation = $rvReservationStore.reservations.reduce<Record<string, number>>(
+    (counts, r) => {
+      counts[r.parkingLocation] = (counts[r.parkingLocation] ?? 0) + 1;
+      return counts;
+    },
+    Object.fromEntries($rvReservationStore.parkingLocations.map((loc) => [loc, 0]))
+  );
 
   onMount(() => {
     siteSettingsStore.hydrate();
     customerStore.hydrate();
+    rvReservationStore.hydrate();
     siteNameDraft = $siteSettingsStore.siteName;
   });
 
@@ -105,6 +117,26 @@
     const saved = siteSettingsStore.setSiteName(nextSiteName);
     siteNameDraft = saved.siteName;
     successMessage = 'Site name updated.';
+  }
+
+  function applyLocationMutation(result: { ok: boolean; errors?: string[] }): void {
+    if (result.ok) {
+      locationPanelError = '';
+      return;
+    }
+    locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
+  }
+
+  function handleAddLocation(event: CustomEvent<{ name: string }>): void {
+    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name));
+  }
+
+  function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
+    applyLocationMutation(rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
+  }
+
+  function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
+    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
   }
 
   function handleChangePasscode(): void {
@@ -234,6 +266,21 @@
         </div>
       {/if}
     </section>
+  {/if}
+
+  {#if !hasPasscode || unlocked}
+    <div data-testid="sites-management">
+      <ParkingLocationsPanel
+        locations={$rvReservationStore.parkingLocations}
+        reservationCounts={reservationCountsByLocation}
+        errorMessage={locationPanelError}
+        adminPasscode=""
+        on:add={handleAddLocation}
+        on:rename={handleRenameLocation}
+        on:remove={handleDeleteLocation}
+        on:clearerror={() => (locationPanelError = '')}
+      />
+    </div>
   {/if}
 </div>
 
