@@ -739,6 +739,23 @@
     white-space: nowrap;
   }
 
+  .new-reservation-btn {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.3rem 0.65rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  .new-reservation-btn:hover {
+    background: #edf3fd;
+  }
+
   .save-badge {
     color: #3d5a78;
   }
