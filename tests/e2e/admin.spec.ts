@@ -132,93 +132,93 @@ test.describe('Admin page', () => {
 });
 
 test.describe('Sites panel lock (issue #11)', () => {
-test.beforeEach(async ({ page }) => {
-await clearStorage(page);
-});
+	test.beforeEach(async ({ page }) => {
+		await clearStorage(page);
+	});
 
-test('sites panel shows full management UI when no passcode is set', async ({ page }) => {
-await resetApp(page);
+	test('sites panel shows full management UI when no passcode is set', async ({ page }) => {
+		await resetApp(page);
 
-// Add form and kebab buttons should be visible when no passcode is set
-await expect(page.locator('.add-form')).toBeVisible();
-});
+		// Add form and kebab buttons should be visible when no passcode is set
+		await expect(page.locator('.add-form')).toBeVisible();
+	});
 
-test('sites panel locks site management when passcode is set', async ({ page }) => {
-// Set a passcode via the admin page
-await page.goto('/admin');
-await page.fill('input[type="password"]', 'secret123');
-await page.click('button:has-text("Save Passcode")');
+	test('sites panel locks site management when passcode is set', async ({ page }) => {
+		// Set a passcode via the admin page
+		await page.goto('/admin');
+		await page.fill('input[type="password"]', 'secret123');
+		await page.click('button:has-text("Save Passcode")');
 
-// Go back to main page
-await page.goto('/');
-await page.waitForSelector('.toolbar-title');
-await page.waitForTimeout(300);
+		// Go back to main page
+		await page.goto('/');
+		await page.waitForSelector('.toolbar-title');
+		await page.waitForTimeout(300);
 
-// The sites panel should show the unlock form, not the add form
-await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
-await expect(page.locator('.add-form')).not.toBeVisible();
-});
+		// The sites panel should show the unlock form, not the add form
+		await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
+		await expect(page.locator('.add-form')).not.toBeVisible();
+	});
 
-test('sites panel unlocks with correct passcode', async ({ page }) => {
-// Set a passcode
-await page.goto('/admin');
-await page.fill('input[type="password"]', 'unlock123');
-await page.click('button:has-text("Save Passcode")');
+	test('sites panel unlocks with correct passcode', async ({ page }) => {
+		// Set a passcode
+		await page.goto('/admin');
+		await page.fill('input[type="password"]', 'unlock123');
+		await page.click('button:has-text("Save Passcode")');
 
-// Go back to main page
-await page.goto('/');
-await page.waitForSelector('.toolbar-title');
-await page.waitForTimeout(300);
+		// Go back to main page
+		await page.goto('/');
+		await page.waitForSelector('.toolbar-title');
+		await page.waitForTimeout(300);
 
-// Enter correct passcode in the panel
-await page.getByTestId('sites-passcode-input').fill('unlock123');
-await page.getByTestId('sites-unlock-btn').click();
+		// Enter correct passcode in the panel
+		await page.getByTestId('sites-passcode-input').fill('unlock123');
+		await page.getByTestId('sites-unlock-btn').click();
 
-// Management UI should now be visible
-await expect(page.locator('.add-form')).toBeVisible();
-await expect(page.getByTestId('sites-unlock-form')).not.toBeVisible();
-});
+		// Management UI should now be visible
+		await expect(page.locator('.add-form')).toBeVisible();
+		await expect(page.getByTestId('sites-unlock-form')).not.toBeVisible();
+	});
 
-test('sites panel rejects incorrect passcode', async ({ page }) => {
-// Set a passcode
-await page.goto('/admin');
-await page.fill('input[type="password"]', 'correctpass');
-await page.click('button:has-text("Save Passcode")');
+	test('sites panel rejects incorrect passcode', async ({ page }) => {
+		// Set a passcode
+		await page.goto('/admin');
+		await page.fill('input[type="password"]', 'correctpass');
+		await page.click('button:has-text("Save Passcode")');
 
-// Go back to main page
-await page.goto('/');
-await page.waitForSelector('.toolbar-title');
-await page.waitForTimeout(300);
+		// Go back to main page
+		await page.goto('/');
+		await page.waitForSelector('.toolbar-title');
+		await page.waitForTimeout(300);
 
-// Enter wrong passcode
-await page.getByTestId('sites-passcode-input').fill('wrongpass');
-await page.getByTestId('sites-unlock-btn').click();
+		// Enter wrong passcode
+		await page.getByTestId('sites-passcode-input').fill('wrongpass');
+		await page.getByTestId('sites-unlock-btn').click();
 
-// Should still show unlock form with an error
-await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
-await expect(page.locator('.unlock-error')).toContainText('Incorrect passcode');
-await expect(page.locator('.add-form')).not.toBeVisible();
-});
+		// Should still show unlock form with an error
+		await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
+		await expect(page.locator('.unlock-error')).toContainText('Incorrect passcode');
+		await expect(page.locator('.add-form')).not.toBeVisible();
+	});
 
-test('unlocked panel shows lock button to re-lock', async ({ page }) => {
-// Set a passcode
-await page.goto('/admin');
-await page.fill('input[type="password"]', 'mypass');
-await page.click('button:has-text("Save Passcode")');
+	test('unlocked panel shows lock button to re-lock', async ({ page }) => {
+		// Set a passcode
+		await page.goto('/admin');
+		await page.fill('input[type="password"]', 'mypass');
+		await page.click('button:has-text("Save Passcode")');
 
-// Go back to main page and unlock the panel
-await page.goto('/');
-await page.waitForSelector('.toolbar-title');
-await page.waitForTimeout(300);
-await page.getByTestId('sites-passcode-input').fill('mypass');
-await page.getByTestId('sites-unlock-btn').click();
+		// Go back to main page and unlock the panel
+		await page.goto('/');
+		await page.waitForSelector('.toolbar-title');
+		await page.waitForTimeout(300);
+		await page.getByTestId('sites-passcode-input').fill('mypass');
+		await page.getByTestId('sites-unlock-btn').click();
 
-// Lock button should be visible
-await expect(page.getByTestId('sites-lock-btn')).toBeVisible();
+		// Lock button should be visible
+		await expect(page.getByTestId('sites-lock-btn')).toBeVisible();
 
-// Click lock button → returns to locked state
-await page.getByTestId('sites-lock-btn').click();
-await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
-await expect(page.locator('.add-form')).not.toBeVisible();
-});
+		// Click lock button → returns to locked state
+		await page.getByTestId('sites-lock-btn').click();
+		await expect(page.getByTestId('sites-unlock-form')).toBeVisible();
+		await expect(page.locator('.add-form')).not.toBeVisible();
+	});
 });
