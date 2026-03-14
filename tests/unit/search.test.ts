@@ -125,4 +125,52 @@ describe('filterReservations', () => {
 		expect(results).toHaveLength(1);
 		expect(results[0].reservation.name).toBe('Bob Smith');
 	});
+
+	describe('phone number search', () => {
+		const phoneReservations: Reservation[] = [
+			makeReservation({ index: 1, name: 'Guest A', phoneNumber: '(555) 123-4567' }),
+			makeReservation({ index: 2, name: 'Guest B', phoneNumber: '555-987-6543' }),
+			makeReservation({ index: 3, name: 'Guest C', phoneNumber: '1234567890' }),
+			makeReservation({ index: 4, name: 'Guest D', phoneNumber: '' })
+		];
+
+		it('matches phone number by partial digits', () => {
+			const results = filterReservations(phoneReservations, '555');
+			const names = results.map((r) => r.reservation.name);
+			expect(names).toContain('Guest A');
+			expect(names).toContain('Guest B');
+		});
+
+		it('matches phone number ignoring formatting', () => {
+			const results = filterReservations(phoneReservations, '5551234567');
+			expect(results).toHaveLength(1);
+			expect(results[0].reservation.name).toBe('Guest A');
+			expect(results[0].score).toBe(0);
+		});
+
+		it('matches phone with formatted query', () => {
+			const results = filterReservations(phoneReservations, '(555) 123');
+			const names = results.map((r) => r.reservation.name);
+			expect(names).toContain('Guest A');
+		});
+
+		it('does not match reservations with empty phone number', () => {
+			const results = filterReservations(phoneReservations, '999');
+			const names = results.map((r) => r.reservation.name);
+			expect(names).not.toContain('Guest D');
+		});
+
+		it('ranks exact phone match above partial', () => {
+			const results = filterReservations(phoneReservations, '1234567890');
+			expect(results[0].reservation.name).toBe('Guest C');
+			expect(results[0].score).toBe(0);
+		});
+
+		it('matches phone with contains scoring', () => {
+			const results = filterReservations(phoneReservations, '9876');
+			expect(results).toHaveLength(1);
+			expect(results[0].reservation.name).toBe('Guest B');
+			expect(results[0].score).toBe(2);
+		});
+	});
 });
