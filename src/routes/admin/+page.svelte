@@ -113,7 +113,7 @@
     <a href="/" class="back-link" data-testid="back-to-schedule">&larr; Back to Schedule</a>
     <h1>Park Settings</h1>
     <p>
-      Manage your park name and sites.
+      Manage your park name, sites, and customer data.
     </p>
   </header>
 

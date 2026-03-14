@@ -87,7 +87,7 @@
   {/if}
 
   <form class="add-form" on:submit|preventDefault={submitAdd}>
-    <input bind:value={newLocationName} type="text" placeholder="Add site" maxlength="40" />
+    <input bind:value={newLocationName} type="text" placeholder="Add site" aria-label="Add site" maxlength="40" />
     <button type="submit">Add</button>
   </form>
 
