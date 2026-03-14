@@ -452,6 +452,9 @@
                 <span class="search-result-name">{result.reservation.name}</span>
                 <span class="search-result-meta">
                   <span class="search-result-location">{result.reservation.parkingLocation}</span>
+                  {#if result.reservation.phoneNumber}
+                    <span class="search-result-phone">{result.reservation.phoneNumber}</span>
+                  {/if}
                   <span class="search-result-dates">{formatReservationDetail(result.reservation.startDate)} - {formatReservationDetail(result.reservation.endDate)}</span>
                 </span>
               </li>
