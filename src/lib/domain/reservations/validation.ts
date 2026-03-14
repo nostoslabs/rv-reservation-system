@@ -82,7 +82,7 @@ export function validateReservationForm(
 	}
 
 	if (!isReservationStatus(form.status)) {
-		errors.push('Status must be one of: reserved, checked-in, due-out, maintenance.');
+		errors.push('Status must be one of: reserved, checked-in, group-one, group-two, special, alert, maintenance.');
 	}
 
 	if (errors.length > 0) {
