@@ -1,4 +1,4 @@
-import type { Reservation } from '$lib/types';
+import type { Reservation } from '$lib/domain/models';
 
 export interface SearchResult {
 	reservation: Reservation;
@@ -7,7 +7,15 @@ export interface SearchResult {
 }
 
 /**
- * Filter reservations by a search query, matching against guest name and parking location.
+ * Strip all non-digit characters from a string for flexible phone number matching.
+ */
+function stripNonDigits(value: string): string {
+	return value.replace(/\D/g, '');
+}
+
+/**
+ * Filter reservations by a search query, matching against guest name, parking location,
+ * and phone number.
  * Returns results sorted by relevance: exact match first, then startsWith, then contains.
  * Within the same relevance tier, results are sorted alphabetically by guest name.
  *
@@ -21,6 +29,7 @@ export function filterReservations(
 	if (trimmed === '') return [];
 
 	const lowerQuery = trimmed.toLowerCase();
+	const digitsQuery = stripNonDigits(trimmed);
 	const results: SearchResult[] = [];
 
 	for (const reservation of reservations) {
@@ -45,6 +54,18 @@ export function filterReservations(
 			bestScore = Math.min(bestScore, 1);
 		} else if (lowerLocation.includes(lowerQuery)) {
 			bestScore = Math.min(bestScore, 2);
+		}
+
+		// Check phone number (digits-only comparison for flexible matching)
+		if (digitsQuery.length > 0 && reservation.phoneNumber) {
+			const digitsPhone = stripNonDigits(reservation.phoneNumber);
+			if (digitsPhone === digitsQuery) {
+				bestScore = Math.min(bestScore, 0);
+			} else if (digitsPhone.startsWith(digitsQuery)) {
+				bestScore = Math.min(bestScore, 1);
+			} else if (digitsPhone.includes(digitsQuery)) {
+				bestScore = Math.min(bestScore, 2);
+			}
 		}
 
 		if (bestScore !== Infinity) {

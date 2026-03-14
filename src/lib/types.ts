@@ -10,7 +10,7 @@ export const RESERVATION_COLORS = [
 
 export type ReservationColor = (typeof RESERVATION_COLORS)[number];
 
-export const RESERVATION_STATUSES = ['reserved', 'checked-in', 'due-out', 'maintenance'] as const;
+export const RESERVATION_STATUSES = ['reserved', 'checked-in', 'group-one', 'group-two', 'special', 'alert', 'maintenance'] as const;
 
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 

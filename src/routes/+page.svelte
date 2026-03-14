@@ -452,6 +452,9 @@
                 <span class="search-result-name">{result.reservation.name}</span>
                 <span class="search-result-meta">
                   <span class="search-result-location">{result.reservation.parkingLocation}</span>
+                  {#if result.reservation.phoneNumber}
+                    <span class="search-result-phone">{result.reservation.phoneNumber}</span>
+                  {/if}
                   <span class="search-result-dates">{formatReservationDetail(result.reservation.startDate)} - {formatReservationDetail(result.reservation.endDate)}</span>
                 </span>
               </li>
@@ -734,6 +737,23 @@
     border-radius: 999px;
     padding: 0.2rem 0.5rem;
     white-space: nowrap;
+  }
+
+  .new-reservation-btn {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.3rem 0.65rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    min-height: 36px;
+    white-space: nowrap;
+  }
+
+  .new-reservation-btn:hover {
+    background: #edf3fd;
   }
 
   .save-badge {
@@ -1149,6 +1169,11 @@
 
   .search-result-location {
     font-weight: 600;
+  }
+
+  .search-result-phone {
+    color: #7a8da3;
+    font-style: italic;
   }
 
   /* Toast notifications */

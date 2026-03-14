@@ -1,6 +1,7 @@
 import { compareIsoDates, formatReservationDetail, isIsoDateString } from '$lib/date';
 import {
 	RESERVATION_COLORS,
+	RESERVATION_STATUSES,
 	type Reservation,
 	type ReservationColor,
 	type ReservationFormValues
@@ -82,7 +83,7 @@ export function validateReservationForm(
 	}
 
 	if (!isReservationStatus(form.status)) {
-		errors.push('Status must be one of: reserved, checked-in, due-out, maintenance.');
+		errors.push(`Status must be one of: ${RESERVATION_STATUSES.join(', ')}.`);
 	}
 
 	if (errors.length > 0) {

@@ -442,3 +442,57 @@ test.describe('Book Again (issue #15)', () => {
 		await expect(startDateInput).toHaveValue(today);
 	});
 });
+
+test.describe('Status legend (7 statuses)', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('status legend shows all 7 statuses', async ({ page }) => {
+		const legend = page.locator('.status-legend');
+		await expect(legend).toBeVisible();
+
+		const expectedLabels = ['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance'];
+		for (const label of expectedLabels) {
+			await expect(legend.getByText(label, { exact: true })).toBeVisible();
+		}
+	});
+
+	test('reservation modal shows all 7 status options', async ({ page }) => {
+		await page.getByTestId('new-reservation-btn').click();
+		await expect(modal(page)).toBeVisible();
+
+		const statusSelect = modal(page).locator('select[aria-label="Reservation status"]');
+		const options = await statusSelect.locator('option').allTextContents();
+		expect(options).toEqual(['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance']);
+	});
+});
+
+test.describe('Phone number search', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('searching by phone number finds matching reservation', async ({ page }) => {
+		const today = getTodayIso();
+		const endDate = offsetDate(3);
+
+		// Create a reservation with a phone number
+		await page.getByTestId('new-reservation-btn').click();
+		await modal(page).locator('input[placeholder="Guest name"]').fill('Phone Test');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+		await modal(page).locator('input[type="tel"]').fill('555-867-5309');
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		// Search by partial phone digits
+		const searchInput = page.locator('input[placeholder="Search guests..."], input[aria-label="Search reservations"]');
+		await searchInput.fill('8675');
+
+		// Should see the matching reservation in results
+		const dropdown = page.locator('.search-dropdown');
+		await expect(dropdown).toBeVisible();
+		await expect(dropdown.locator('.search-result-name')).toHaveText('Phone Test');
+	});
+});
