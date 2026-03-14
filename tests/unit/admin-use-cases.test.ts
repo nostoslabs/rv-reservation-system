@@ -4,7 +4,7 @@ import type { SiteSettingsRepository } from '$lib/application/ports';
 import type { SiteSettings } from '$lib/types';
 
 function createFakeRepo(): SiteSettingsRepository & { data: SiteSettings } {
-	const state: SiteSettings = { siteName: 'Default', adminPasscode: '' };
+	const state: SiteSettings = { siteName: 'Default' };
 	return {
 		data: state,
 		load(): SiteSettings {
@@ -23,7 +23,6 @@ describe('AdminSettingsUseCases', () => {
 		const useCases = createAdminSettingsUseCases(repo);
 		const settings = useCases.loadSettings();
 		expect(settings.siteName).toBe('Default');
-		expect(settings.adminPasscode).toBe('');
 	});
 
 	it('updateSiteName saves and returns updated settings', () => {
@@ -45,28 +44,6 @@ describe('AdminSettingsUseCases', () => {
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
 			expect(result.errors).toContain('Site name is required.');
-		}
-	});
-
-	it('updatePasscode saves and returns updated settings', () => {
-		const repo = createFakeRepo();
-		const useCases = createAdminSettingsUseCases(repo);
-		const current = repo.load();
-		const result = useCases.updatePasscode('secret123', current);
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.settings?.adminPasscode).toBe('secret123');
-		}
-	});
-
-	it('updatePasscode rejects empty passcode', () => {
-		const repo = createFakeRepo();
-		const useCases = createAdminSettingsUseCases(repo);
-		const current = repo.load();
-		const result = useCases.updatePasscode('', current);
-		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.errors).toContain('Passcode is required.');
 		}
 	});
 

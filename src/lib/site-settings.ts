@@ -6,8 +6,7 @@ import type { SiteSettings } from '$lib/types';
 
 function getDefaultSettings(): SiteSettings {
 	return {
-		siteName: DEFAULT_SITE_NAME,
-		adminPasscode: ''
+		siteName: DEFAULT_SITE_NAME
 	};
 }
 
@@ -32,16 +31,6 @@ function createSiteSettingsStore() {
 		return current;
 	}
 
-	function setAdminPasscode(adminPasscode: string): SiteSettings {
-		const current = get(internal);
-		const result = adminSettingsUseCases.updatePasscode(adminPasscode, current);
-		if (result.ok && result.settings) {
-			internal.set(result.settings);
-			return result.settings;
-		}
-		return current;
-	}
-
 	function setCompactView(compact: boolean): SiteSettings {
 		const current = get(internal);
 		const result = adminSettingsUseCases.setCompactView(compact, current);
@@ -53,7 +42,6 @@ function createSiteSettingsStore() {
 		subscribe: internal.subscribe,
 		hydrate,
 		setSiteName,
-		setAdminPasscode,
 		setCompactView
 	};
 }

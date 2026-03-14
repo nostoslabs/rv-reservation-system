@@ -39,9 +39,9 @@ CREATE TABLE IF NOT EXISTS app_metadata (
 );
 -- Expected keys: 'next_reservation_index', 'last_saved_at'
 
--- Site-wide settings (admin passcode, display name, etc.).
+-- Site-wide settings (display name, etc.).
 CREATE TABLE IF NOT EXISTS admin_settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
--- Expected keys: 'site_name', 'admin_passcode'
+-- Expected keys: 'site_name'

@@ -9,23 +9,20 @@ interface SettingRow {
 }
 
 function defaultSettings(): SiteSettings {
-	return { siteName: DEFAULT_SITE_NAME, adminPasscode: '' };
+	return { siteName: DEFAULT_SITE_NAME };
 }
 
 function sanitize(settings: SiteSettings): SiteSettings {
 	const siteName =
 		settings.siteName?.trim().slice(0, 80) || DEFAULT_SITE_NAME;
-	const adminPasscode =
-		(settings.adminPasscode ?? '').trim().slice(0, 64);
-	return { siteName, adminPasscode };
+	return { siteName, compactView: settings.compactView };
 }
 
 async function loadFromDb(db: Database): Promise<SiteSettings> {
 	const rows = await db.select<SettingRow>('SELECT * FROM admin_settings');
 	const map = new Map(rows.map((r) => [r.key, r.value]));
 	return sanitize({
-		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME,
-		adminPasscode: map.get('admin_passcode') ?? ''
+		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME
 	});
 }
 
@@ -33,10 +30,6 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
 	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
 		'site_name',
 		settings.siteName
-	]);
-	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
-		'admin_passcode',
-		settings.adminPasscode
 	]);
 }
 
