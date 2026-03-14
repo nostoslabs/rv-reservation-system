@@ -206,60 +206,60 @@ test.describe('Site management on admin page', () => {
 	test('add a new site from admin page', async ({ page }) => {
 		await page.goto('/admin');
 
-		// Add a site
+		// Add a site with a unique name
 		const addInput = page.locator('[data-testid="sites-management"] input[placeholder="Add site"]');
-		await addInput.fill('A-01');
+		await addInput.fill('New-Test-Site');
 		await page.locator('[data-testid="sites-management"] button:has-text("Add")').click();
 
 		// Site should appear in the list
-		await expect(page.locator('[data-testid="sites-management"]')).toContainText('A-01');
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('New-Test-Site');
 
 		// Go to main page and verify the site appears as a row
 		await page.goto('/');
 		await page.waitForSelector('.toolbar-title');
-		await expect(page.locator('.location-cell:has-text("A-01")')).toBeVisible();
+		await expect(page.locator('.location-cell:has-text("New-Test-Site")')).toBeVisible();
 	});
 
 	test('rename a site from admin page', async ({ page }) => {
 		await page.goto('/admin');
 
-		// Add a site first
+		// Add a site with a unique name
 		const addInput = page.locator('[data-testid="sites-management"] input[placeholder="Add site"]');
-		await addInput.fill('B-01');
+		await addInput.fill('Rename-Test');
 		await page.locator('[data-testid="sites-management"] button:has-text("Add")').click();
-		await expect(page.locator('[data-testid="sites-management"]')).toContainText('B-01');
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('Rename-Test');
 
-		// Click kebab menu for B-01
-		await page.locator('[data-testid="sites-management"] button[aria-label="Actions for B-01"]').click();
+		// Click kebab menu for Rename-Test
+		await page.locator('[data-testid="sites-management"] button[aria-label="Actions for Rename-Test"]').click();
 		await page.locator('[data-testid="sites-management"] button:has-text("Rename")').click();
 
-		// Rename to B-02
+		// Rename to Renamed-Site
 		const renameInput = page.locator('[data-testid="sites-management"] .location-row.editing input');
-		await renameInput.fill('B-02');
+		await renameInput.fill('Renamed-Site');
 		await page.locator('[data-testid="sites-management"] button.save-btn').click();
 
 		// Should show new name
-		await expect(page.locator('[data-testid="sites-management"]')).toContainText('B-02');
-		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('B-01');
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('Renamed-Site');
+		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('Rename-Test');
 	});
 
 	test('delete a site from admin page', async ({ page }) => {
 		await page.goto('/admin');
 
-		// Add a site
+		// Add a site with a unique name
 		const addInput = page.locator('[data-testid="sites-management"] input[placeholder="Add site"]');
-		await addInput.fill('C-01');
+		await addInput.fill('Delete-Me');
 		await page.locator('[data-testid="sites-management"] button:has-text("Add")').click();
-		await expect(page.locator('[data-testid="sites-management"]')).toContainText('C-01');
+		await expect(page.locator('[data-testid="sites-management"]')).toContainText('Delete-Me');
 
 		// Click kebab menu and delete
-		await page.locator('[data-testid="sites-management"] button[aria-label="Actions for C-01"]').click();
+		await page.locator('[data-testid="sites-management"] button[aria-label="Actions for Delete-Me"]').click();
 		await page.locator('[data-testid="sites-management"] button:has-text("Delete")').click();
 
 		// Confirm deletion
 		await page.locator('[data-testid="sites-management"] button:has-text("Yes")').click();
 
 		// Site should be gone
-		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('C-01');
+		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('Delete-Me');
 	});
 });
