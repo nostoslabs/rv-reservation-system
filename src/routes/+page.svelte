@@ -1154,6 +1154,11 @@
     font-weight: 600;
   }
 
+  .search-result-phone {
+    color: #7a8da3;
+    font-style: italic;
+  }
+
   /* Toast notifications */
   .toast {
     position: fixed;
