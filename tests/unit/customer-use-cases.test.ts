@@ -23,6 +23,9 @@ function createInMemoryCustomerRepository(): CustomerRepository {
 		},
 		remove(id: string) {
 			customers = customers.filter((c) => c.id !== id);
+		},
+		replaceAll(newCustomers: Customer[]) {
+			customers = [...newCustomers];
 		}
 	};
 }

@@ -82,6 +82,11 @@ export function createLocalStorageCustomerRepository(): CustomerRepository {
 		remove(id: string): void {
 			customers = customers.filter((c) => c.id !== id);
 			persist();
+		},
+
+		replaceAll(newCustomers: Customer[]): void {
+			customers = [...newCustomers];
+			persist();
 		}
 	};
 }

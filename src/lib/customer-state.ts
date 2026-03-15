@@ -60,6 +60,11 @@ function createCustomerStore() {
 		return result;
 	}
 
+	function replaceAll(customers: Customer[]): void {
+		customerUseCases.replaceAll(customers);
+		internal.set(customerUseCases.getAll());
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
@@ -70,7 +75,8 @@ function createCustomerStore() {
 		getAll,
 		getById,
 		findOrCreateFromReservation,
-		importCsv
+		importCsv,
+		replaceAll
 	};
 }
 

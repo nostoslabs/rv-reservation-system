@@ -86,6 +86,20 @@ export function createSqliteCustomerRepository(db: Database): CustomerRepository
 			deleteFromDb(db, id).catch((err) =>
 				console.error('SQLite customer delete failed:', err)
 			);
+		},
+
+		replaceAll(customers: Customer[]): void {
+			cache = [...customers];
+			(async () => {
+				try {
+					await db.execute('DELETE FROM customers');
+					for (const c of customers) {
+						await upsertToDb(db, c);
+					}
+				} catch (err) {
+					console.error('SQLite customer replaceAll failed:', err);
+				}
+			})();
 		}
 	};
 }
