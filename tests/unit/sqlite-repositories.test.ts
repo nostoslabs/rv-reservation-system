@@ -145,14 +145,13 @@ describe('SQLite SiteSettingsRepository', () => {
 		const settings = repo.load();
 
 		expect(settings.siteName).toBe('RV Reservation Schedule');
-		expect(settings.adminPasscode).toBe('');
 	});
 
 	it('round-trips settings through save and reload', async () => {
 		const repo = createSqliteSiteSettingsRepository(db);
 		await repo.init();
 
-		repo.save({ siteName: 'My Park', adminPasscode: '1234' });
+		repo.save({ siteName: 'My Park' });
 		await new Promise((r) => setTimeout(r, 10));
 
 		const repo2 = createSqliteSiteSettingsRepository(db);
@@ -160,16 +159,14 @@ describe('SQLite SiteSettingsRepository', () => {
 		const loaded = repo2.load();
 
 		expect(loaded.siteName).toBe('My Park');
-		expect(loaded.adminPasscode).toBe('1234');
 	});
 
 	it('sanitizes settings on save', async () => {
 		const repo = createSqliteSiteSettingsRepository(db);
 		await repo.init();
 
-		const result = repo.save({ siteName: '  Padded Name  ', adminPasscode: '  pass  ' });
+		const result = repo.save({ siteName: '  Padded Name  ' });
 		expect(result.siteName).toBe('Padded Name');
-		expect(result.adminPasscode).toBe('pass');
 	});
 
 	it('enforces max lengths', async () => {
@@ -177,11 +174,9 @@ describe('SQLite SiteSettingsRepository', () => {
 		await repo.init();
 
 		const result = repo.save({
-			siteName: 'A'.repeat(100),
-			adminPasscode: 'B'.repeat(100)
+			siteName: 'A'.repeat(100)
 		});
 
 		expect(result.siteName).toHaveLength(80);
-		expect(result.adminPasscode).toHaveLength(64);
 	});
 });

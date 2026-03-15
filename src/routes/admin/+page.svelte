@@ -7,14 +7,8 @@
   import { rvReservationStore } from '$lib/state';
 
   const SITE_NAME_MAX_LENGTH = 80;
-  const PASSCODE_MAX_LENGTH = 64;
 
-  let unlocked = false;
-  let unlockPasscode = '';
-  let firstPasscode = '';
   let siteNameDraft = DEFAULT_SITE_NAME;
-  let newPasscodeDraft = '';
-  let hasPasscode = false;
   let errorMessage = '';
   let successMessage = '';
 
@@ -26,7 +20,6 @@
 
   let locationPanelError = '';
 
-  $: hasPasscode = $siteSettingsStore.adminPasscode.length > 0;
   $: reservationCountsByLocation = $rvReservationStore.reservations.reduce<Record<string, number>>(
     (counts, r) => {
       counts[r.parkingLocation] = (counts[r.parkingLocation] ?? 0) + 1;
@@ -76,36 +69,6 @@
     successMessage = '';
   }
 
-  function handleUnlock(): void {
-    clearMessages();
-    if (!hasPasscode) {
-      unlocked = true;
-      return;
-    }
-
-    if (unlockPasscode.trim() !== $siteSettingsStore.adminPasscode) {
-      errorMessage = 'Incorrect passcode.';
-      return;
-    }
-
-    unlocked = true;
-    unlockPasscode = '';
-  }
-
-  function handleSetInitialPasscode(): void {
-    clearMessages();
-    const passcode = firstPasscode.trim();
-    if (!passcode) {
-      errorMessage = 'Passcode is required.';
-      return;
-    }
-
-    siteSettingsStore.setAdminPasscode(passcode);
-    firstPasscode = '';
-    unlocked = true;
-    successMessage = 'Admin passcode saved.';
-  }
-
   function handleSaveSiteName(): void {
     clearMessages();
     const nextSiteName = siteNameDraft.trim();
@@ -138,19 +101,6 @@
   function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
     applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
   }
-
-  function handleChangePasscode(): void {
-    clearMessages();
-    const nextPasscode = newPasscodeDraft.trim();
-    if (!nextPasscode) {
-      errorMessage = 'New passcode is required.';
-      return;
-    }
-
-    siteSettingsStore.setAdminPasscode(nextPasscode);
-    newPasscodeDraft = '';
-    successMessage = 'Passcode updated.';
-  }
 </script>
 
 <svelte:head>
@@ -163,7 +113,7 @@
     <a href="/" class="back-link" data-testid="back-to-schedule">&larr; Back to Schedule</a>
     <h1>Park Settings</h1>
     <p>
-      Manage your park name and admin passcode. Protected settings require a passcode.
+      Manage your park name, sites, and customer data.
     </p>
   </header>
 
@@ -174,114 +124,73 @@
     <p class="message success" aria-live="polite">{successMessage}</p>
   {/if}
 
-  {#if !hasPasscode}
-    <section class="panel">
-      <h2>Set Admin Passcode</h2>
-      <p>No admin passcode is set yet. Create one to protect this page on future visits.</p>
-      <form class="stack" on:submit|preventDefault={handleSetInitialPasscode}>
-        <label>
-          <span>Passcode</span>
-          <input bind:value={firstPasscode} type="password" maxlength={PASSCODE_MAX_LENGTH} required />
-        </label>
-        <button type="submit" class="primary">Save Passcode</button>
-      </form>
-    </section>
-  {:else if !unlocked}
-    <section class="panel">
-      <h2>Enter Passcode</h2>
-      <form class="stack" on:submit|preventDefault={handleUnlock}>
-        <label>
-          <span>Passcode</span>
-          <input bind:value={unlockPasscode} type="password" maxlength={PASSCODE_MAX_LENGTH} required />
-        </label>
-        <button type="submit" class="primary">Unlock</button>
-      </form>
-    </section>
-  {/if}
+  <section class="panel">
+    <h2>Site Name</h2>
+    <p>This value appears in the main page header and persists locally.</p>
+    <form class="stack" on:submit|preventDefault={handleSaveSiteName}>
+      <label>
+        <span>Site Name</span>
+        <input bind:value={siteNameDraft} type="text" maxlength={SITE_NAME_MAX_LENGTH} required />
+      </label>
+      <div class="meta">{siteNameDraft.trim().length}/{SITE_NAME_MAX_LENGTH}</div>
+      <button type="submit" class="primary">Save Site Name</button>
+    </form>
+  </section>
 
-  {#if unlocked}
-    <section class="panel">
-      <h2>Site Name</h2>
-      <p>This value appears in the main page header and persists locally.</p>
-      <form class="stack" on:submit|preventDefault={handleSaveSiteName}>
-        <label>
-          <span>Site Name</span>
-          <input bind:value={siteNameDraft} type="text" maxlength={SITE_NAME_MAX_LENGTH} required />
-        </label>
-        <div class="meta">{siteNameDraft.trim().length}/{SITE_NAME_MAX_LENGTH}</div>
-        <button type="submit" class="primary">Save Site Name</button>
-      </form>
-    </section>
+  <section class="panel" data-testid="csv-import-panel">
+    <h2>Import Customers</h2>
+    <p>Upload a CSV file with columns: <strong>name</strong>, phone, email, notes. Only name is required.</p>
 
-    <section class="panel">
-      <h2>Change Passcode</h2>
-      <form class="stack" on:submit|preventDefault={handleChangePasscode}>
-        <label>
-          <span>New Passcode</span>
-          <input bind:value={newPasscodeDraft} type="password" maxlength={PASSCODE_MAX_LENGTH} required />
-        </label>
-        <button type="submit">Update Passcode</button>
-      </form>
-    </section>
-
-    <section class="panel" data-testid="csv-import-panel">
-      <h2>Import Customers</h2>
-      <p>Upload a CSV file with columns: <strong>name</strong>, phone, email, notes. Only name is required.</p>
-
-      {#if csvImportResult}
-        <div class="import-result" data-testid="csv-import-result">
-          <p class="import-summary">
-            Imported <strong>{csvImportResult.imported}</strong> customer{csvImportResult.imported !== 1 ? 's' : ''},
-            skipped <strong>{csvImportResult.skipped}</strong> duplicate{csvImportResult.skipped !== 1 ? 's' : ''}{csvImportResult.errors.length > 0 ? `, ${csvImportResult.errors.length} error${csvImportResult.errors.length !== 1 ? 's' : ''}` : ''}.
-          </p>
-          {#if csvImportResult.errors.length > 0}
-            <button type="button" class="toggle-errors" on:click={() => csvErrorsExpanded = !csvErrorsExpanded}>
-              {csvErrorsExpanded ? 'Hide' : 'Show'} errors
-            </button>
-            {#if csvErrorsExpanded}
-              <ul class="error-list">
-                {#each csvImportResult.errors as err}
-                  <li>{err}</li>
-                {/each}
-              </ul>
-            {/if}
-          {/if}
-          <button type="button" on:click={resetCsvImport}>Import Another</button>
-        </div>
-      {:else}
-        <div class="stack">
-          <label>
-            <span>CSV File</span>
-            <input type="file" accept=".csv" on:change={handleCsvFileChange} data-testid="csv-file-input" />
-          </label>
-          <button
-            type="button"
-            class="primary"
-            disabled={!csvFile || csvImporting}
-            on:click={handleCsvImport}
-            data-testid="csv-import-btn"
-          >
-            {csvImporting ? 'Importing...' : 'Import'}
+    {#if csvImportResult}
+      <div class="import-result" data-testid="csv-import-result">
+        <p class="import-summary">
+          Imported <strong>{csvImportResult.imported}</strong> customer{csvImportResult.imported !== 1 ? 's' : ''},
+          skipped <strong>{csvImportResult.skipped}</strong> duplicate{csvImportResult.skipped !== 1 ? 's' : ''}{csvImportResult.errors.length > 0 ? `, ${csvImportResult.errors.length} error${csvImportResult.errors.length !== 1 ? 's' : ''}` : ''}.
+        </p>
+        {#if csvImportResult.errors.length > 0}
+          <button type="button" class="toggle-errors" on:click={() => csvErrorsExpanded = !csvErrorsExpanded}>
+            {csvErrorsExpanded ? 'Hide' : 'Show'} errors
           </button>
-        </div>
-      {/if}
-    </section>
-  {/if}
+          {#if csvErrorsExpanded}
+            <ul class="error-list">
+              {#each csvImportResult.errors as err}
+                <li>{err}</li>
+              {/each}
+            </ul>
+          {/if}
+        {/if}
+        <button type="button" on:click={resetCsvImport}>Import Another</button>
+      </div>
+    {:else}
+      <div class="stack">
+        <label>
+          <span>CSV File</span>
+          <input type="file" accept=".csv" on:change={handleCsvFileChange} data-testid="csv-file-input" />
+        </label>
+        <button
+          type="button"
+          class="primary"
+          disabled={!csvFile || csvImporting}
+          on:click={handleCsvImport}
+          data-testid="csv-import-btn"
+        >
+          {csvImporting ? 'Importing...' : 'Import'}
+        </button>
+      </div>
+    {/if}
+  </section>
 
-  {#if !hasPasscode || unlocked}
-    <div data-testid="sites-management">
-      <ParkingLocationsPanel
-        locations={$rvReservationStore.parkingLocations}
-        reservationCounts={reservationCountsByLocation}
-        errorMessage={locationPanelError}
-        adminPasscode=""
-        on:add={handleAddLocation}
-        on:rename={handleRenameLocation}
-        on:remove={handleDeleteLocation}
-        on:clearerror={() => (locationPanelError = '')}
-      />
-    </div>
-  {/if}
+  <div data-testid="sites-management">
+    <ParkingLocationsPanel
+      locations={$rvReservationStore.parkingLocations}
+      reservationCounts={reservationCountsByLocation}
+      errorMessage={locationPanelError}
+      on:add={handleAddLocation}
+      on:rename={handleRenameLocation}
+      on:remove={handleDeleteLocation}
+      on:clearerror={() => (locationPanelError = '')}
+    />
+  </div>
 </div>
 
 <style>

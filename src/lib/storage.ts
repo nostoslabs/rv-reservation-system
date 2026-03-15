@@ -153,8 +153,7 @@ export function clearPersistedAppData(): void {
 function sanitizeSiteSettings(value: unknown): SiteSettings {
   if (!value || typeof value !== 'object') {
     return {
-      siteName: DEFAULT_SITE_NAME,
-      adminPasscode: ''
+      siteName: DEFAULT_SITE_NAME
     };
   }
 
@@ -163,14 +162,11 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
     typeof raw.siteName === 'string' && raw.siteName.trim()
       ? raw.siteName.trim().slice(0, 80)
       : DEFAULT_SITE_NAME;
-  const adminPasscode =
-    typeof raw.adminPasscode === 'string' ? raw.adminPasscode.trim().slice(0, 64) : '';
 
   const compactView = typeof raw.compactView === 'boolean' ? raw.compactView : false;
 
   return {
     siteName,
-    adminPasscode,
     compactView
   };
 }
@@ -178,8 +174,7 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
 export function loadSiteSettings(): SiteSettings {
   if (!browser) {
     return {
-      siteName: DEFAULT_SITE_NAME,
-      adminPasscode: ''
+      siteName: DEFAULT_SITE_NAME
     };
   }
 
@@ -187,16 +182,14 @@ export function loadSiteSettings(): SiteSettings {
     const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) {
       return {
-        siteName: DEFAULT_SITE_NAME,
-        adminPasscode: ''
+        siteName: DEFAULT_SITE_NAME
       };
     }
 
     return sanitizeSiteSettings(JSON.parse(raw));
   } catch {
     return {
-      siteName: DEFAULT_SITE_NAME,
-      adminPasscode: ''
+      siteName: DEFAULT_SITE_NAME
     };
   }
 }

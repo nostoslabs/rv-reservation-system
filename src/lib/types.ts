@@ -55,7 +55,6 @@ export interface ReservationFormValues {
 
 export interface SiteSettings {
   siteName: string;
-  adminPasscode: string;
   compactView?: boolean;
 }
 
