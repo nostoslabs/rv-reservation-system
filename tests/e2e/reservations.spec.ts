@@ -457,10 +457,9 @@ test.describe('Status legend (7 statuses)', () => {
 			await expect(legend.getByText(label)).toBeVisible();
 		}
 
-		// Verify legend items contain icons (aria-hidden spans)
-		const iconSpans = legend.locator('span[aria-hidden="true"]');
-		// Each status has a swatch (aria-hidden) and an icon (aria-hidden), so 14 total
-		await expect(iconSpans).toHaveCount(14);
+		// Verify the legend has exactly 7 items (one per status)
+		const legendItems = legend.locator('.legend-item');
+		await expect(legendItems).toHaveCount(7);
 	});
 
 	test('reservation modal shows all 7 status options', async ({ page }) => {

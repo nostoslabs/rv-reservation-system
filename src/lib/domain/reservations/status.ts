@@ -29,7 +29,7 @@ export const STATUS_ICONS: Record<ReservationStatus, string> = {
 	'reserved': '\u{1F4CB}',
 	'checked-in': '\u2705',
 	'group-one': '\u{1F465}',
-	'group-two': '\u{1F465}',
+	'group-two': '\u{1F46A}',
 	'special': '\u2B50',
 	'alert': '\u26A0\uFE0F',
 	'maintenance': '\u{1F527}'
