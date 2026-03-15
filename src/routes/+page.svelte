@@ -376,19 +376,18 @@
       <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
       <button
         type="button"
+        class="compact-toggle-btn"
         class:primary={compactView}
         data-testid="compact-toggle"
         on:click={toggleCompactView}
-        aria-label={compactView ? 'Switch to normal view' : 'Switch to compact view'}
         aria-pressed={compactView}
-        title={compactView ? 'Normal view' : 'Compact view'}
       >
-        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="16" height="16">
-          <rect x="2" y="3" width="16" height="2" rx="1" />
-          <rect x="2" y="7.5" width="16" height="2" rx="1" />
-          <rect x="2" y="12" width="16" height="2" rx="1" />
-          <rect x="2" y="16.5" width="16" height="2" rx="1" />
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="14" height="14">
+          <rect x="2" y="4" width="16" height="2" rx="1" />
+          <rect x="2" y="9" width="16" height="2" rx="1" />
+          <rect x="2" y="14" width="16" height="2" rx="1" />
         </svg>
+        {compactView ? 'Normal' : 'Compact'}
       </button>
     </nav>
 
@@ -680,6 +679,28 @@
   }
 
   .toolbar-nav button.primary:hover {
+    background: #0757c8;
+  }
+
+  .toolbar-nav .compact-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  .toolbar-nav .compact-toggle-btn:hover {
+    background: #edf3fd;
+  }
+
+  .toolbar-nav .compact-toggle-btn.primary {
+    background: #0a63e0;
+    border-color: #0a63e0;
+    color: white;
+  }
+
+  .toolbar-nav .compact-toggle-btn.primary:hover {
     background: #0757c8;
   }
 

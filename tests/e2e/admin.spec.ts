@@ -13,7 +13,7 @@ async function resetApp(page: Page) {
 	await page.waitForTimeout(300);
 }
 
-test.describe('Admin page', () => {
+test.describe('Settings page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
 	});
@@ -33,7 +33,7 @@ test.describe('Admin page', () => {
 		await expect(page.locator('h1')).toHaveText('Park Settings');
 	});
 
-	test('admin page has back link to main schedule', async ({ page }) => {
+	test('settings page has back link to main schedule', async ({ page }) => {
 		await page.goto('/admin');
 
 		const backLink = page.locator('[data-testid="back-to-schedule"]');
@@ -46,7 +46,7 @@ test.describe('Admin page', () => {
 		await expect(page.locator('.toolbar-title')).toBeVisible();
 	});
 
-	test('admin page does not describe itself as hidden', async ({ page }) => {
+	test('settings page does not describe itself as hidden', async ({ page }) => {
 		await page.goto('/admin');
 
 		// Should say "Park Settings", not "Admin"
@@ -100,19 +100,19 @@ test.describe('Main page has no sites panel', () => {
 	});
 });
 
-test.describe('Backup & Restore section on admin page', () => {
+test.describe('Backup & Restore section on settings page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
 	});
 
-	test('export button is visible on admin page', async ({ page }) => {
+	test('export button is visible on settings page', async ({ page }) => {
 		await page.goto('/admin');
 		const exportBtn = page.locator('[data-testid="backup-export-btn"]');
 		await expect(exportBtn).toBeVisible();
 		await expect(exportBtn).toContainText('Export');
 	});
 
-	test('import section is visible on admin page', async ({ page }) => {
+	test('import section is visible on settings page', async ({ page }) => {
 		await page.goto('/admin');
 		const importSection = page.locator('[data-testid="backup-import-section"]');
 		await expect(importSection).toBeVisible();
@@ -133,12 +133,12 @@ test.describe('Backup & Restore section on admin page', () => {
 	});
 });
 
-test.describe('Site management on admin page', () => {
+test.describe('Site management on settings page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
 	});
 
-	test('sites management panel is always visible on admin page', async ({ page }) => {
+	test('sites management panel is always visible on settings page', async ({ page }) => {
 		await page.goto('/admin');
 
 		// Sites management should always be visible
@@ -146,7 +146,7 @@ test.describe('Site management on admin page', () => {
 		await expect(page.locator('h2:has-text("Sites")')).toBeVisible();
 	});
 
-	test('add a new site from admin page', async ({ page }) => {
+	test('add a new site from settings page', async ({ page }) => {
 		await page.goto('/admin');
 
 		// Add a site with a unique name
@@ -163,7 +163,7 @@ test.describe('Site management on admin page', () => {
 		await expect(page.locator('.location-cell:has-text("New-Test-Site")')).toBeVisible();
 	});
 
-	test('rename a site from admin page', async ({ page }) => {
+	test('rename a site from settings page', async ({ page }) => {
 		await page.goto('/admin');
 
 		// Add a site with a unique name
@@ -186,7 +186,7 @@ test.describe('Site management on admin page', () => {
 		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('Rename-Test');
 	});
 
-	test('delete a site from admin page', async ({ page }) => {
+	test('delete a site from settings page', async ({ page }) => {
 		await page.goto('/admin');
 
 		// Add a site with a unique name
