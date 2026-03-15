@@ -69,7 +69,7 @@ test.describe('Reservation CRUD', () => {
 		// Scroll the first occupied cell into view and verify it shows
 		const occupied = page.locator('.grid-cell.occupied').first();
 		await occupied.scrollIntoViewIfNeeded();
-		await expect(occupied.locator('.reservation-label')).toHaveText('John Doe');
+		await expect(occupied.locator('.reservation-label')).toContainText('John Doe');
 	});
 
 	test('edit an existing reservation', async ({ page }) => {
@@ -91,7 +91,7 @@ test.describe('Reservation CRUD', () => {
 
 		const updated = page.locator('.grid-cell.occupied').first();
 		await updated.scrollIntoViewIfNeeded();
-		await expect(updated.locator('.reservation-label')).toHaveText('Jane Updated');
+		await expect(updated.locator('.reservation-label')).toContainText('Jane Updated');
 	});
 
 	test('delete a reservation', async ({ page }) => {
@@ -235,7 +235,7 @@ test.describe('New Reservation button', () => {
 		// Verify reservation appears in the grid
 		const occupied = page.locator('.grid-cell.occupied').first();
 		await occupied.scrollIntoViewIfNeeded();
-		await expect(occupied.locator('.reservation-label')).toHaveText('Button Guest');
+		await expect(occupied.locator('.reservation-label')).toContainText('Button Guest');
 	});
 
 	test('empty state prompt is shown when no reservations exist', async ({ page }) => {
@@ -448,14 +448,19 @@ test.describe('Status legend (7 statuses)', () => {
 		await resetApp(page);
 	});
 
-	test('status legend shows all 7 statuses', async ({ page }) => {
+	test('status legend shows all 7 statuses with icons', async ({ page }) => {
 		const legend = page.locator('.status-legend');
 		await expect(legend).toBeVisible();
 
 		const expectedLabels = ['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance'];
 		for (const label of expectedLabels) {
-			await expect(legend.getByText(label, { exact: true })).toBeVisible();
+			await expect(legend.getByText(label)).toBeVisible();
 		}
+
+		// Verify legend items contain icons (aria-hidden spans)
+		const iconSpans = legend.locator('span[aria-hidden="true"]');
+		// Each status has a swatch (aria-hidden) and an icon (aria-hidden), so 14 total
+		await expect(iconSpans).toHaveCount(14);
 	});
 
 	test('reservation modal shows all 7 status options', async ({ page }) => {

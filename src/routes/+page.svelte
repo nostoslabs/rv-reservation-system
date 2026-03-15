@@ -15,6 +15,7 @@
   import {
     STATUS_BACKGROUND_COLORS,
     STATUS_COLORS,
+    STATUS_ICONS,
     STATUS_LABELS
   } from '$lib/domain/reservations/status';
   import { siteSettingsStore } from '$lib/site-settings';
@@ -484,7 +485,7 @@
               style="background: {STATUS_BACKGROUND_COLORS[statusKey]}; border-left: 3px solid {STATUS_COLORS[statusKey]};"
               aria-hidden="true"
             ></span>
-            {STATUS_LABELS[statusKey]}
+            <span aria-hidden="true">{STATUS_ICONS[statusKey]}</span> {STATUS_LABELS[statusKey]}
           </span>
         {/each}
       </div>
@@ -539,7 +540,7 @@
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
                     {#if reservation}
-                      <span class="reservation-label">{reservation.name}</span>
+                      <span class="reservation-label"><span class="status-icon" aria-hidden="true">{STATUS_ICONS[reservation.status]}</span>{reservation.name}</span>
                     {:else}
                       <span class="empty-hint" aria-hidden="true">+</span>
                     {/if}
@@ -1017,6 +1018,11 @@
 
   .grid-cell.occupied {
     font-weight: 600;
+  }
+
+  .status-icon {
+    margin-right: 2px;
+    font-size: 0.75em;
   }
 
   .reservation-label {
