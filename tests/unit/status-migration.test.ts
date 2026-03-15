@@ -4,10 +4,12 @@ import {
 	STATUS_COLORS,
 	STATUS_BACKGROUND_COLORS,
 	STATUS_LABELS,
+	STATUS_ICONS,
 	isReservationStatus,
 	getStatusColor,
 	getStatusBackgroundColor,
-	getStatusLabel
+	getStatusLabel,
+	getStatusIcon
 } from '$lib/domain/reservations/status';
 import { RESERVATION_STATUSES } from '$lib/types';
 import { sanitizeReservation } from '$lib/storage';
@@ -45,33 +47,33 @@ describe('isReservationStatus', () => {
 	});
 });
 
-describe('STATUS_COLORS', () => {
-	it('maps reserved to blue (#3b82f6)', () => {
-		expect(STATUS_COLORS['reserved']).toBe('#3b82f6');
+describe('STATUS_COLORS (Wong colorblind-safe palette)', () => {
+	it('maps reserved to blue (#0072B2)', () => {
+		expect(STATUS_COLORS['reserved']).toBe('#0072B2');
 	});
 
-	it('maps checked-in to green (#22c55e)', () => {
-		expect(STATUS_COLORS['checked-in']).toBe('#22c55e');
+	it('maps checked-in to teal (#009E73)', () => {
+		expect(STATUS_COLORS['checked-in']).toBe('#009E73');
 	});
 
-	it('maps group-one to purple (#8b5cf6)', () => {
-		expect(STATUS_COLORS['group-one']).toBe('#8b5cf6');
+	it('maps group-one to orange (#E69F00)', () => {
+		expect(STATUS_COLORS['group-one']).toBe('#E69F00');
 	});
 
-	it('maps group-two to amber (#f59e0b)', () => {
-		expect(STATUS_COLORS['group-two']).toBe('#f59e0b');
+	it('maps group-two to yellow (#F0E442)', () => {
+		expect(STATUS_COLORS['group-two']).toBe('#F0E442');
 	});
 
-	it('maps special to pink (#ec4899)', () => {
-		expect(STATUS_COLORS['special']).toBe('#ec4899');
+	it('maps special to rose (#CC79A7)', () => {
+		expect(STATUS_COLORS['special']).toBe('#CC79A7');
 	});
 
-	it('maps alert to red (#ef4444)', () => {
-		expect(STATUS_COLORS['alert']).toBe('#ef4444');
+	it('maps alert to vermillion (#D55E00)', () => {
+		expect(STATUS_COLORS['alert']).toBe('#D55E00');
 	});
 
-	it('maps maintenance to gray (#6b7280)', () => {
-		expect(STATUS_COLORS['maintenance']).toBe('#6b7280');
+	it('maps maintenance to sky blue (#56B4E9)', () => {
+		expect(STATUS_COLORS['maintenance']).toBe('#56B4E9');
 	});
 });
 
@@ -98,13 +100,13 @@ describe('STATUS_LABELS', () => {
 
 describe('getStatusColor', () => {
 	it('returns the correct color for each status', () => {
-		expect(getStatusColor('reserved')).toBe('#3b82f6');
-		expect(getStatusColor('checked-in')).toBe('#22c55e');
-		expect(getStatusColor('group-one')).toBe('#8b5cf6');
-		expect(getStatusColor('group-two')).toBe('#f59e0b');
-		expect(getStatusColor('special')).toBe('#ec4899');
-		expect(getStatusColor('alert')).toBe('#ef4444');
-		expect(getStatusColor('maintenance')).toBe('#6b7280');
+		expect(getStatusColor('reserved')).toBe('#0072B2');
+		expect(getStatusColor('checked-in')).toBe('#009E73');
+		expect(getStatusColor('group-one')).toBe('#E69F00');
+		expect(getStatusColor('group-two')).toBe('#F0E442');
+		expect(getStatusColor('special')).toBe('#CC79A7');
+		expect(getStatusColor('alert')).toBe('#D55E00');
+		expect(getStatusColor('maintenance')).toBe('#56B4E9');
 	});
 });
 
@@ -120,6 +122,24 @@ describe('getStatusLabel', () => {
 	it('returns the label for each status', () => {
 		for (const status of RESERVATION_STATUSES) {
 			expect(getStatusLabel(status)).toBe(STATUS_LABELS[status]);
+		}
+	});
+});
+
+describe('STATUS_ICONS', () => {
+	it('has an icon for every status', () => {
+		for (const status of RESERVATION_STATUSES) {
+			expect(STATUS_ICONS[status]).toBeDefined();
+			expect(typeof STATUS_ICONS[status]).toBe('string');
+			expect(STATUS_ICONS[status].length).toBeGreaterThan(0);
+		}
+	});
+});
+
+describe('getStatusIcon', () => {
+	it('returns the icon for each status', () => {
+		for (const status of RESERVATION_STATUSES) {
+			expect(getStatusIcon(status)).toBe(STATUS_ICONS[status]);
 		}
 	});
 });
