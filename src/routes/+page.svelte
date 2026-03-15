@@ -380,7 +380,6 @@
         class:primary={compactView}
         data-testid="compact-toggle"
         on:click={toggleCompactView}
-        aria-label={compactView ? 'Switch to normal view' : 'Switch to compact view'}
         aria-pressed={compactView}
       >
         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="14" height="14">
@@ -683,33 +682,25 @@
     background: #0757c8;
   }
 
-  .compact-toggle-btn {
-    border-radius: 8px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    color: #223349;
-    padding: 0.3rem 0.65rem;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.8rem;
-    min-height: 36px;
+  .toolbar-nav .compact-toggle-btn {
     display: flex;
     align-items: center;
     gap: 0.3rem;
     white-space: nowrap;
+    font-size: 0.8rem;
   }
 
-  .compact-toggle-btn:hover {
+  .toolbar-nav .compact-toggle-btn:hover {
     background: #edf3fd;
   }
 
-  .compact-toggle-btn.primary {
+  .toolbar-nav .compact-toggle-btn.primary {
     background: #0a63e0;
     border-color: #0a63e0;
     color: white;
   }
 
-  .compact-toggle-btn.primary:hover {
+  .toolbar-nav .compact-toggle-btn.primary:hover {
     background: #0757c8;
   }
 
