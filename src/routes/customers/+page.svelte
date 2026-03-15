@@ -191,7 +191,7 @@
         Customers are created automatically when you save reservations, or you can
         <button type="button" class="inline-action" on:click={openCreateModal}>add one manually</button>.
         You can also import customers from a CSV file on the
-        <a href="/admin">admin page</a>.
+        <a href="/admin">settings page</a>.
       </p>
     </div>
   {:else}
