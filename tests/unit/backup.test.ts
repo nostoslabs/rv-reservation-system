@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createBackup, validateBackup, BACKUP_APP_NAME, BACKUP_SCHEMA_VERSION } from '$lib/domain/backup';
-import type { Reservation, SiteSettings } from '$lib/types';
-import type { Customer } from '$lib/domain/customers';
+import type { Reservation, SiteSettings, Customer } from '$lib/domain/models';
 
 function makeFakeReservation(overrides: Partial<Reservation> = {}): Reservation {
 	return {
@@ -103,6 +102,29 @@ describe('validateBackup', () => {
 		expect(result.errors.some((e) => e.includes('version'))).toBe(true);
 	});
 
+	it('rejects schema version newer than supported', () => {
+		const data = makeValidBackup();
+		(data.schema as Record<string, unknown>).version = BACKUP_SCHEMA_VERSION + 1;
+		const result = validateBackup(data);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes('newer than supported'))).toBe(true);
+	});
+
+	it('accepts schema version equal to current', () => {
+		const data = makeValidBackup();
+		(data.schema as Record<string, unknown>).version = BACKUP_SCHEMA_VERSION;
+		const result = validateBackup(data);
+		expect(result.valid).toBe(true);
+	});
+
+	it('rejects missing exportedAt', () => {
+		const data = makeValidBackup();
+		delete (data.schema as Record<string, unknown>).exportedAt;
+		const result = validateBackup(data);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes('exportedAt'))).toBe(true);
+	});
+
 	it('rejects wrong appName', () => {
 		const data = makeValidBackup();
 		(data.schema as Record<string, unknown>).appName = 'wrong-app';
@@ -141,6 +163,22 @@ describe('validateBackup', () => {
 		const result = validateBackup(data);
 		expect(result.valid).toBe(false);
 		expect(result.errors.some((e) => e.includes('siteSettings'))).toBe(true);
+	});
+
+	it('rejects non-string siteSettings.siteName', () => {
+		const data = makeValidBackup();
+		((data.data as Record<string, unknown>).siteSettings as Record<string, unknown>).siteName = 123;
+		const result = validateBackup(data);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes('siteName'))).toBe(true);
+	});
+
+	it('rejects non-boolean siteSettings.compactView', () => {
+		const data = makeValidBackup();
+		((data.data as Record<string, unknown>).siteSettings as Record<string, unknown>).compactView = 'yes';
+		const result = validateBackup(data);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes('compactView'))).toBe(true);
 	});
 
 	it('rejects non-array customers', () => {

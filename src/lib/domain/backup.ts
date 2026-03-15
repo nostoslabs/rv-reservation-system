@@ -1,5 +1,4 @@
-import type { Reservation, SiteSettings } from '$lib/types';
-import type { Customer } from '$lib/domain/customers';
+import type { Reservation, SiteSettings, Customer } from '$lib/domain/models';
 
 export interface BackupSchema {
 	version: number;
@@ -65,6 +64,11 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
 		const schema = raw.schema as Record<string, unknown>;
 		if (typeof schema.version !== 'number') {
 			errors.push('schema.version must be a number.');
+		} else if (schema.version > BACKUP_SCHEMA_VERSION) {
+			errors.push(`schema.version ${schema.version} is newer than supported version ${BACKUP_SCHEMA_VERSION}.`);
+		}
+		if (typeof schema.exportedAt !== 'string') {
+			errors.push('schema.exportedAt must be a string.');
 		}
 		if (schema.appName !== BACKUP_APP_NAME) {
 			errors.push(`schema.appName must be "${BACKUP_APP_NAME}".`);
@@ -84,6 +88,14 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
 		}
 		if (!d.siteSettings || typeof d.siteSettings !== 'object') {
 			errors.push('data.siteSettings must be an object.');
+		} else {
+			const ss = d.siteSettings as Record<string, unknown>;
+			if (typeof ss.siteName !== 'string') {
+				errors.push('data.siteSettings.siteName must be a string.');
+			}
+			if (typeof ss.compactView !== 'boolean') {
+				errors.push('data.siteSettings.compactView must be a boolean.');
+			}
 		}
 		if (!Array.isArray(d.customers)) {
 			errors.push('data.customers must be an array.');

@@ -22,6 +22,7 @@
 
   // Backup import state
   let backupFile: File | null = null;
+  let backupFileInput: HTMLInputElement | null = null;
   let backupImporting = false;
 
   let locationPanelError = '';
@@ -130,7 +131,7 @@
     a.href = url;
     a.download = filename;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     successMessage = `Backup exported as ${filename}.`;
   }
@@ -199,6 +200,7 @@
       }
 
       backupFile = null;
+      if (backupFileInput) backupFileInput.value = '';
       successMessage = `Backup restored successfully (${backup.data.reservations.length} reservations, ${backup.data.customers.length} customers).`;
     } catch {
       errorMessage = 'Failed to import backup file.';
@@ -303,6 +305,7 @@
         <label>
           <span>Restore from JSON backup</span>
           <input
+            bind:this={backupFileInput}
             type="file"
             accept=".json"
             on:change={handleBackupFileChange}
