@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { DEFAULT_SITE_NAME } from '$lib/storage';
   import { siteSettingsStore } from '$lib/site-settings';
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
+  import { createBackup, validateBackup, type AppBackup } from '$lib/domain/backup';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -17,6 +19,10 @@
   let csvImportResult: { imported: number; skipped: number; errors: string[] } | null = null;
   let csvImporting = false;
   let csvErrorsExpanded = false;
+
+  // Backup import state
+  let backupFile: File | null = null;
+  let backupImporting = false;
 
   let locationPanelError = '';
 
@@ -101,6 +107,105 @@
   function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
     applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
   }
+
+  function handleExportBackup(): void {
+    clearMessages();
+
+    const state = get(rvReservationStore);
+    const settings = get(siteSettingsStore);
+    const customers = customerStore.getAll();
+
+    const backup = createBackup(
+      state.reservations,
+      state.parkingLocations,
+      settings,
+      customers
+    );
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `rv-backup-${dateStr}.json`;
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    successMessage = `Backup exported as ${filename}.`;
+  }
+
+  function handleBackupFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    backupFile = input.files?.[0] ?? null;
+    clearMessages();
+  }
+
+  async function handleBackupImport(): Promise<void> {
+    if (!backupFile) return;
+    backupImporting = true;
+    clearMessages();
+
+    try {
+      const text = await backupFile.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        errorMessage = 'Invalid JSON file.';
+        backupImporting = false;
+        return;
+      }
+
+      const validation = validateBackup(parsed);
+      if (!validation.valid) {
+        errorMessage = 'Invalid backup file: ' + validation.errors.join('; ');
+        backupImporting = false;
+        return;
+      }
+
+      const confirmed = confirm('This will replace all current data with the backup. Continue?');
+      if (!confirmed) {
+        backupImporting = false;
+        return;
+      }
+
+      const backup = parsed as AppBackup;
+
+      // Import reservation data (reservations + parking locations)
+      const currentState = get(rvReservationStore);
+      const maxIndex = backup.data.reservations.reduce(
+        (max, r) => Math.max(max, r.index),
+        0
+      );
+      rvReservationStore.importData({
+        version: currentState.version,
+        reservations: backup.data.reservations,
+        parkingLocations: backup.data.parkingLocations,
+        nextReservationIndex: Math.max(maxIndex + 1, 1),
+        lastSavedAt: currentState.lastSavedAt
+      });
+
+      // Import customers
+      customerStore.replaceAll(backup.data.customers);
+
+      // Import site settings
+      if (backup.data.siteSettings) {
+        siteSettingsStore.setSiteName(backup.data.siteSettings.siteName);
+        if (typeof backup.data.siteSettings.compactView === 'boolean') {
+          siteSettingsStore.setCompactView(backup.data.siteSettings.compactView);
+        }
+        siteNameDraft = backup.data.siteSettings.siteName;
+      }
+
+      backupFile = null;
+      successMessage = `Backup restored successfully (${backup.data.reservations.length} reservations, ${backup.data.customers.length} customers).`;
+    } catch {
+      errorMessage = 'Failed to import backup file.';
+    } finally {
+      backupImporting = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -178,6 +283,43 @@
         </button>
       </div>
     {/if}
+  </section>
+
+  <section class="panel" data-testid="backup-panel">
+    <h2>Backup &amp; Restore</h2>
+    <p>Export all app data as JSON, or restore from a previous backup.</p>
+
+    <div class="stack">
+      <button
+        type="button"
+        class="primary"
+        on:click={handleExportBackup}
+        data-testid="backup-export-btn"
+      >
+        Export Backup
+      </button>
+
+      <div data-testid="backup-import-section">
+        <label>
+          <span>Restore from JSON backup</span>
+          <input
+            type="file"
+            accept=".json"
+            on:change={handleBackupFileChange}
+            data-testid="backup-file-input"
+          />
+        </label>
+        <button
+          type="button"
+          class="import-btn"
+          disabled={!backupFile || backupImporting}
+          on:click={handleBackupImport}
+          data-testid="backup-import-btn"
+        >
+          {backupImporting ? 'Restoring...' : 'Restore Backup'}
+        </button>
+      </div>
+    </div>
   </section>
 
   <div data-testid="sites-management">
@@ -349,5 +491,9 @@
     border: 1px dashed #c8d1de;
     border-radius: 10px;
     background: #fafbfd;
+  }
+
+  .import-btn {
+    margin-top: 0.5rem;
   }
 </style>

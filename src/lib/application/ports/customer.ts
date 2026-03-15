@@ -5,4 +5,5 @@ export interface CustomerRepository {
 	getById(id: string): Customer | null;
 	save(customer: Customer): void;
 	remove(id: string): void;
+	replaceAll(customers: Customer[]): void;
 }

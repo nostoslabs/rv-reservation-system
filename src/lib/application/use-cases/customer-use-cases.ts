@@ -19,6 +19,7 @@ export interface CustomerUseCases {
 	search(query: string): CustomerSearchResult[];
 	findOrCreateFromReservation(name: string, phone: string): Customer | null;
 	importCsv(csvText: string): { imported: number; skipped: number; errors: string[] };
+	replaceAll(customers: Customer[]): void;
 }
 
 export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCases {
@@ -155,6 +156,10 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 			}
 
 			return { imported, skipped, errors: parsed.errors };
+		},
+
+		replaceAll(customers: Customer[]): void {
+			repo.replaceAll(customers);
 		}
 	};
 }

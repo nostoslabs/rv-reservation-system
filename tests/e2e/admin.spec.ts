@@ -100,6 +100,39 @@ test.describe('Main page has no sites panel', () => {
 	});
 });
 
+test.describe('Backup & Restore section on admin page', () => {
+	test.beforeEach(async ({ page }) => {
+		await clearStorage(page);
+	});
+
+	test('export button is visible on admin page', async ({ page }) => {
+		await page.goto('/admin');
+		const exportBtn = page.locator('[data-testid="backup-export-btn"]');
+		await expect(exportBtn).toBeVisible();
+		await expect(exportBtn).toContainText('Export');
+	});
+
+	test('import section is visible on admin page', async ({ page }) => {
+		await page.goto('/admin');
+		const importSection = page.locator('[data-testid="backup-import-section"]');
+		await expect(importSection).toBeVisible();
+
+		// Should have a file input for .json files
+		const fileInput = page.locator('[data-testid="backup-file-input"]');
+		await expect(fileInput).toBeVisible();
+
+		// Should have an import button
+		const importBtn = page.locator('[data-testid="backup-import-btn"]');
+		await expect(importBtn).toBeVisible();
+		await expect(importBtn).toBeDisabled(); // disabled until file is selected
+	});
+
+	test('backup panel has correct heading', async ({ page }) => {
+		await page.goto('/admin');
+		await expect(page.locator('h2:has-text("Backup & Restore")')).toBeVisible();
+	});
+});
+
 test.describe('Site management on admin page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);

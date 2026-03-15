@@ -112,6 +112,10 @@ function createRvReservationStore() {
 		return { ok: true };
 	}
 
+	function importData(data: PersistedAppData): void {
+		commit({ ...data, hydrated: true }, true);
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
@@ -120,7 +124,8 @@ function createRvReservationStore() {
 		deleteReservation,
 		addParkingLocation,
 		renameParkingLocation,
-		deleteParkingLocation
+		deleteParkingLocation,
+		importData
 	};
 }
 
