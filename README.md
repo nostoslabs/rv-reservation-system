@@ -55,7 +55,7 @@ npm run tauri:build  # Production installer
 - Use the modal `Save`, `Cancel`, and `Delete` buttons
 - Use the `TODAY` button (first row, fourth column) to realign the view to today
 - Manage parking locations in the panel on the left (or top on narrow screens)
-- Navigate to `/settings` for site name and display preferences
+- Navigate to `/admin` for site name and display preferences
 
 ## Data Persistence
 
