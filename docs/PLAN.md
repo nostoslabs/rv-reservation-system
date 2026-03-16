@@ -1,7 +1,7 @@
 # Offline-First Desktop Migration Plan (Tauri + SQLite)
 
 ## Objective
-Evolve the current SvelteKit RV reservation demo into an offline-first desktop application using Tauri + SQLite, while preserving an architecture that can later support a web SaaS deployment (e.g. Firebase) via swappable infrastructure adapters.
+Evolve the RV reservation system into a fully offline-first desktop application using Tauri + SQLite, while preserving an architecture that can later support a web SaaS deployment (e.g. Firebase) via swappable infrastructure adapters.
 
 ## Execution Rules
 - Follow `AGENTS.md` (Clean Architecture, storage abstraction, TDD, atomic commits).

@@ -64,16 +64,17 @@ Windows code signing is not yet configured. Unsigned builds will show SmartScree
 
 ## Artifact Naming
 
-- GitHub Actions artifacts: `rv-reservation-demo-{target}` (e.g. `rv-reservation-demo-universal-apple-darwin`)
-- Installer files follow Tauri defaults: `RV Reservation Demo_{version}_{arch}.{ext}`
+- GitHub Actions artifacts: `rv-reservation-system-{target}` (e.g. `rv-reservation-system-universal-apple-darwin`)
+- Installer files follow Tauri defaults: `RV Reservation System_{version}_{arch}.{ext}`
 
 ## Versioning
 
-Version is maintained in:
-- `src-tauri/tauri.conf.json` → `version`
+Version is maintained in three files (all must match):
 - `package.json` → `version`
+- `src-tauri/tauri.conf.json` → `version`
+- `src-tauri/Cargo.toml` → `version`
 
-Both should be updated together before tagging a release.
+All three should be updated together before tagging a release.
 
 ## Verification Checklist
 
