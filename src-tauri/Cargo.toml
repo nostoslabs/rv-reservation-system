@@ -1,12 +1,12 @@
 [package]
-name = "rv-reservation-demo"
-version = "1.1.0"
+name = "rv-reservation-system"
+version = "1.4.0"
 description = "RV Reservation Schedule"
 authors = ["Nostos Labs"]
 edition = "2021"
 
 [lib]
-name = "rv_reservation_demo_lib"
+name = "rv_reservation_system_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
