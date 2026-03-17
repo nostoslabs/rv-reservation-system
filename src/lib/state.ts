@@ -113,7 +113,8 @@ function createRvReservationStore() {
 	}
 
 	function reorderParkingLocations(orderedNames: string[]): MutationResult {
-		const result = parkingLocationUseCases.reorder(orderedNames, getPersistedData());
+		const { parkingLocationUseCases: plUseCases } = getAppServices();
+		const result = plUseCases.reorder(orderedNames, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
