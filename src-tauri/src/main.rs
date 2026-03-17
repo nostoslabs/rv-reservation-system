@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    rv_reservation_demo_lib::run()
+    rv_reservation_system_lib::run()
 }

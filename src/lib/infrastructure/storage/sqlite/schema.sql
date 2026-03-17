@@ -1,4 +1,4 @@
--- RV Reservation Demo – SQLite Schema v2
+-- RV Reservation System – SQLite Schema v2
 -- Date columns store ISO 8601 local calendar dates (YYYY-MM-DD).
 -- All TEXT columns use UTF-8 encoding (SQLite default).
 

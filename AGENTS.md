@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Purpose
-This repository is being evolved from a browser-only SvelteKit demo into an offline-first desktop app (Tauri + SQLite) while preserving a clean path to a future web SaaS deployment (Firebase or another cloud backend).
+An offline-first desktop RV park reservation management app (Tauri + SQLite) with a clean path to a future web SaaS deployment (Firebase or another cloud backend).
 
 These instructions apply to both human contributors and Codex agents.
 
@@ -84,6 +84,18 @@ Notes:
 - Push the branch to origin and open a pull request via `gh pr create`.
 - PRs must pass all checks (type-check, unit tests, build) before merging.
 - Use squash-merge or regular merge per PR size — avoid force-pushing to shared branches.
+
+### PR Labeling (Mandatory)
+Label every PR with at least one category label. These labels drive auto-generated release notes (configured in `.github/release.yml`).
+
+| Label | When to use |
+|-------|-------------|
+| `enhancement` or `feat` | New features or capabilities |
+| `bug` or `fix` | Bug fixes |
+| `ui` or `design` or `accessibility` | Visual, layout, or accessibility changes |
+| `chore` or `dependencies` or `refactor` | Maintenance, dependency updates, internal refactors |
+
+PR titles should be clear and descriptive — they appear as line items in release notes. Use conventional commit style (e.g. `feat: add customer search`, `fix: overlap validation off-by-one`).
 
 ## Commit Discipline (Mandatory)
 - Make incremental atomic commits.
