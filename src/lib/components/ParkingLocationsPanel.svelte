@@ -9,6 +9,7 @@
     add: { name: string };
     rename: { oldName: string; newName: string };
     remove: { name: string };
+    reorder: { orderedNames: string[] };
     clearerror: void;
   }>();
 
@@ -17,6 +18,10 @@
   let editingLocation: string | null = null;
   let editDraft = '';
   let confirmingDelete: string | null = null;
+
+  // Drag state
+  let dragIndex: number | null = null;
+  let dropTargetIndex: number | null = null;
 
   function submitAdd(): void {
     dispatch('add', { name: newLocationName });
@@ -69,6 +74,46 @@
       openMenu = null;
     }
   }
+
+  // Drag-and-drop handlers
+  function handleDragStart(index: number): void {
+    dragIndex = index;
+  }
+
+  function handleDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    if (dragIndex === null || dragIndex === index) {
+      dropTargetIndex = null;
+      return;
+    }
+    dropTargetIndex = index;
+  }
+
+  function handleDragLeave(): void {
+    dropTargetIndex = null;
+  }
+
+  function handleDrop(event: DragEvent, index: number): void {
+    event.preventDefault();
+    if (dragIndex === null || dragIndex === index) {
+      dragIndex = null;
+      dropTargetIndex = null;
+      return;
+    }
+
+    const reordered = [...locations];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(index, 0, moved);
+    dispatch('reorder', { orderedNames: reordered });
+
+    dragIndex = null;
+    dropTargetIndex = null;
+  }
+
+  function handleDragEnd(): void {
+    dragIndex = null;
+    dropTargetIndex = null;
+  }
 </script>
 
 <svelte:window on:click={handleClickOutside} />
@@ -76,7 +121,7 @@
 <section class="panel" aria-labelledby="parking-locations-title">
   <div class="panel-header">
     <h2 id="parking-locations-title">Sites</h2>
-    <p>Manage rows shown in the schedule.</p>
+    <p>Manage rows shown in the schedule. Drag to reorder.</p>
   </div>
 
   {#if errorMessage}
@@ -92,8 +137,17 @@
   </form>
 
   <ul class="location-list">
-    {#each locations as location}
-      <li>
+    {#each locations as location, i}
+      <li
+        draggable={editingLocation === null && confirmingDelete === null}
+        class:drag-over={dropTargetIndex === i && dragIndex !== null && dragIndex !== i}
+        class:dragging={dragIndex === i}
+        on:dragstart={() => handleDragStart(i)}
+        on:dragover={(e) => handleDragOver(e, i)}
+        on:dragleave={handleDragLeave}
+        on:drop={(e) => handleDrop(e, i)}
+        on:dragend={handleDragEnd}
+      >
         {#if editingLocation === location}
           <div class="location-row editing">
             <input
@@ -116,6 +170,7 @@
           </div>
         {:else}
           <div class="location-row">
+            <span class="drag-handle" aria-hidden="true" title="Drag to reorder">&#x2630;</span>
             <span class="location-name">{location}</span>
             <span class="count">{reservationCounts[location] ?? 0} reservations</span>
             <div class="kebab-wrapper">
@@ -238,9 +293,26 @@
     overflow-y: auto;
   }
 
+  .location-list li {
+    border-radius: 8px;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  .location-list li[draggable="true"] {
+    cursor: grab;
+  }
+
+  .location-list li.dragging {
+    opacity: 0.4;
+  }
+
+  .location-list li.drag-over {
+    box-shadow: 0 -2px 0 0 #0c5fdb;
+  }
+
   .location-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     gap: 0.4rem;
     align-items: center;
   }
@@ -248,6 +320,15 @@
   .location-row.editing,
   .location-row.confirm-delete {
     grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .drag-handle {
+    color: #9aa8b8;
+    font-size: 0.85rem;
+    cursor: grab;
+    user-select: none;
+    padding: 0.3rem 0.15rem;
+    line-height: 1;
   }
 
   .location-name {
@@ -337,7 +418,7 @@
 
   @media (max-width: 900px) {
     .location-row {
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
     }
 
     .count {

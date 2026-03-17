@@ -112,6 +112,16 @@ function createRvReservationStore() {
 		return { ok: true };
 	}
 
+	function reorderParkingLocations(orderedNames: string[]): MutationResult {
+		const result = parkingLocationUseCases.reorder(orderedNames, getPersistedData());
+		if (!result.ok) {
+			return { ok: false, errors: result.errors };
+		}
+
+		commit({ ...result.data!, hydrated: true }, true);
+		return { ok: true };
+	}
+
 	function importData(data: PersistedAppData): void {
 		commit({ ...data, hydrated: true }, true);
 	}
@@ -125,6 +135,7 @@ function createRvReservationStore() {
 		addParkingLocation,
 		renameParkingLocation,
 		deleteParkingLocation,
+		reorderParkingLocations,
 		importData
 	};
 }
