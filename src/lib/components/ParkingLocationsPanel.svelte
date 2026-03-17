@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
 
   export let locations: string[] = [];
   export let reservationCounts: Record<string, number> = {};
@@ -19,9 +19,10 @@
   let editDraft = '';
   let confirmingDelete: string | null = null;
 
-  // Drag state
+  // Pointer-based drag state
   let dragIndex: number | null = null;
   let dropTargetIndex: number | null = null;
+  let listEl: HTMLUListElement;
 
   function submitAdd(): void {
     dispatch('add', { name: newLocationName });
@@ -75,42 +76,62 @@
     }
   }
 
-  // Drag-and-drop handlers
-  function handleDragStart(index: number): void {
-    dragIndex = index;
-  }
-
-  function handleDragOver(event: DragEvent, index: number): void {
-    event.preventDefault();
-    if (dragIndex === null || dragIndex === index) {
-      dropTargetIndex = null;
-      return;
-    }
-    dropTargetIndex = index;
-  }
-
-  function handleDragLeave(): void {
-    dropTargetIndex = null;
-  }
-
-  function handleDrop(event: DragEvent, index: number): void {
-    event.preventDefault();
-    if (dragIndex === null || dragIndex === index) {
-      dragIndex = null;
-      dropTargetIndex = null;
-      return;
-    }
-
+  // Move up/down helpers (kebab menu actions)
+  function moveUp(index: number): void {
+    if (index <= 0) return;
     const reordered = [...locations];
-    const [moved] = reordered.splice(dragIndex, 1);
-    reordered.splice(index, 0, moved);
+    [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
     dispatch('reorder', { orderedNames: reordered });
-
-    dragIndex = null;
-    dropTargetIndex = null;
+    openMenu = null;
   }
 
-  function handleDragEnd(): void {
+  function moveDown(index: number): void {
+    if (index >= locations.length - 1) return;
+    const reordered = [...locations];
+    [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+    dispatch('reorder', { orderedNames: reordered });
+    openMenu = null;
+  }
+
+  // Pointer-based drag reorder (works in Tauri WKWebView unlike HTML5 DnD)
+  function getItemIndexAtY(clientY: number): number | null {
+    if (!listEl) return null;
+    const items = listEl.querySelectorAll(':scope > li');
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  function handlePointerDown(event: PointerEvent, index: number): void {
+    if (editingLocation !== null || confirmingDelete !== null) return;
+    event.preventDefault();
+    dragIndex = index;
+    const target = event.currentTarget as HTMLElement;
+    target.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
+    if (dragIndex === null) return;
+    const hoverIndex = getItemIndexAtY(event.clientY);
+    if (hoverIndex !== null && hoverIndex !== dragIndex) {
+      dropTargetIndex = hoverIndex;
+    } else {
+      dropTargetIndex = null;
+    }
+  }
+
+  function handlePointerUp(event: PointerEvent): void {
+    if (dragIndex === null) return;
+    if (dropTargetIndex !== null && dropTargetIndex !== dragIndex) {
+      const reordered = [...locations];
+      const [moved] = reordered.splice(dragIndex, 1);
+      reordered.splice(dropTargetIndex, 0, moved);
+      dispatch('reorder', { orderedNames: reordered });
+    }
     dragIndex = null;
     dropTargetIndex = null;
   }
@@ -121,7 +142,7 @@
 <section class="panel" aria-labelledby="parking-locations-title">
   <div class="panel-header">
     <h2 id="parking-locations-title">Sites</h2>
-    <p>Manage rows shown in the schedule. Drag to reorder.</p>
+    <p>Manage rows shown in the schedule. Drag the grip to reorder.</p>
   </div>
 
   {#if errorMessage}
@@ -136,17 +157,12 @@
     <button type="submit">Add</button>
   </form>
 
-  <ul class="location-list">
+  <ul class="location-list" bind:this={listEl}>
     {#each locations as location, i}
       <li
-        draggable={editingLocation === null && confirmingDelete === null}
-        class:drag-over={dropTargetIndex === i && dragIndex !== null && dragIndex !== i}
+        class:drag-over-above={dropTargetIndex === i && dragIndex !== null && dragIndex > i}
+        class:drag-over-below={dropTargetIndex === i && dragIndex !== null && dragIndex < i}
         class:dragging={dragIndex === i}
-        on:dragstart={() => handleDragStart(i)}
-        on:dragover={(e) => handleDragOver(e, i)}
-        on:dragleave={handleDragLeave}
-        on:drop={(e) => handleDrop(e, i)}
-        on:dragend={handleDragEnd}
       >
         {#if editingLocation === location}
           <div class="location-row editing">
@@ -170,7 +186,16 @@
           </div>
         {:else}
           <div class="location-row">
-            <span class="drag-handle" aria-hidden="true" title="Drag to reorder">&#x2630;</span>
+            <span
+              class="drag-handle"
+              role="button"
+              tabindex="0"
+              aria-label={`Reorder ${location}`}
+              title="Drag to reorder"
+              on:pointerdown={(e) => handlePointerDown(e, i)}
+              on:pointermove={handlePointerMove}
+              on:pointerup={handlePointerUp}
+            >&#x2630;</span>
             <span class="location-name">{location}</span>
             <span class="count">{reservationCounts[location] ?? 0} reservations</span>
             <div class="kebab-wrapper">
@@ -182,6 +207,12 @@
               >&#x22EE;</button>
               {#if openMenu === location}
                 <div class="kebab-menu" role="menu">
+                  {#if i > 0}
+                    <button type="button" role="menuitem" on:click|stopPropagation={() => moveUp(i)}>Move Up</button>
+                  {/if}
+                  {#if i < locations.length - 1}
+                    <button type="button" role="menuitem" on:click|stopPropagation={() => moveDown(i)}>Move Down</button>
+                  {/if}
                   <button type="button" role="menuitem" on:click|stopPropagation={() => startRename(location)}>Rename</button>
                   <button type="button" role="menuitem" class="menu-danger" on:click|stopPropagation={() => startDelete(location)}>Delete</button>
                 </div>
@@ -295,19 +326,19 @@
 
   .location-list li {
     border-radius: 8px;
-    transition: background 0.15s, box-shadow 0.15s;
-  }
-
-  .location-list li[draggable="true"] {
-    cursor: grab;
+    transition: box-shadow 0.12s;
   }
 
   .location-list li.dragging {
     opacity: 0.4;
   }
 
-  .location-list li.drag-over {
+  .location-list li.drag-over-above {
     box-shadow: 0 -2px 0 0 #0c5fdb;
+  }
+
+  .location-list li.drag-over-below {
+    box-shadow: 0 2px 0 0 #0c5fdb;
   }
 
   .location-row {
@@ -327,8 +358,13 @@
     font-size: 0.85rem;
     cursor: grab;
     user-select: none;
+    touch-action: none;
     padding: 0.3rem 0.15rem;
     line-height: 1;
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
   }
 
   .location-name {
