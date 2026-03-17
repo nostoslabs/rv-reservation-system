@@ -25,6 +25,7 @@ export interface AppServices {
 
 let instance: AppServices | null = null;
 let initPromise: Promise<AppServices> | null = null;
+let properlyInitialized = false;
 
 function isTauri(): boolean {
 	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -116,16 +117,18 @@ export function getAppServices(): AppServices {
  * Call this once at app startup before accessing getAppServices().
  */
 export async function initAppServices(): Promise<AppServices> {
-	if (instance) return instance;
+	if (properlyInitialized && instance) return instance;
 
 	if (!initPromise) {
 		initPromise = isTauri()
 			? createSqliteServices().then((services) => {
 					instance = services;
+					properlyInitialized = true;
 					return services;
 				})
 			: Promise.resolve(createLocalStorageServices()).then((services) => {
 					instance = services;
+					properlyInitialized = true;
 					return services;
 				});
 	}
