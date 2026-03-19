@@ -377,8 +377,8 @@ test.describe('Merge customers — reservation re-linking', () => {
 	});
 });
 
-test.describe('Merge customers — startup dedup migration', () => {
-	test('auto-merges duplicate customers on app load', async ({ browser }) => {
+test.describe('Merge customers — startup dedup migration (disabled)', () => {
+	test('does not auto-merge duplicates on app load (auto-dedup disabled)', async ({ browser }) => {
 		// Create a fresh browser context to ensure no cached JS state
 		const context = await browser.newContext();
 		const page = await context.newPage();
@@ -416,28 +416,22 @@ test.describe('Merge customers — startup dedup migration', () => {
 		const freshPage = await context.newPage();
 
 		// This load triggers layout.ts → initAppServices() → runStartupMigrations()
+		// Auto-dedup is disabled, so both duplicates should remain
 		await freshPage.goto('/');
 		await freshPage.waitForSelector('.toolbar-title');
 		await freshPage.waitForTimeout(500);
 
-		// Verify migration ran: check localStorage directly
+		// Verify duplicates are preserved (auto-dedup is disabled)
 		const customerCount = await freshPage.evaluate(() => {
 			const raw = window.localStorage.getItem('rv-reservation-demo:customers:v1');
 			return raw ? JSON.parse(raw).length : 0;
 		});
-		expect(customerCount).toBe(1);
+		expect(customerCount).toBe(2);
 
-		// Verify migration flag was set
-		const flagSet = await freshPage.evaluate(() => {
-			return window.localStorage.getItem('rv-reservation-demo:migrations:dedup-v1') !== null;
-		});
-		expect(flagSet).toBe(true);
-
-		// Navigate to customers page and confirm visually
+		// Navigate to customers page and confirm both duplicates are visible
 		await freshPage.click('[data-testid="customers-link"]');
 		await freshPage.waitForURL(/\/customers$/);
-		await expect(freshPage.locator('[data-testid="customer-row"]')).toHaveCount(1);
-		await expect(freshPage.locator('.customer-name').first()).toContainText('Bobby Smith');
+		await expect(freshPage.locator('[data-testid="customer-row"]')).toHaveCount(2);
 
 		await context.close();
 	});
