@@ -2,3 +2,9 @@ export { createReservationUseCases, type ReservationUseCases } from './reservati
 export { createParkingLocationUseCases, type ParkingLocationUseCases } from './parking-location-use-cases';
 export { createAdminSettingsUseCases, type AdminSettingsUseCases } from './admin';
 export { createCustomerUseCases, type CustomerUseCases } from './customer-use-cases';
+export {
+	createMergeCustomersUseCases,
+	type MergeCustomersUseCases,
+	type MergeCustomersResult,
+	type DeduplicateAllResult
+} from './merge-customers-use-case';

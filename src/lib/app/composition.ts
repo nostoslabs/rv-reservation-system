@@ -4,10 +4,12 @@ import {
 	createParkingLocationUseCases,
 	createAdminSettingsUseCases,
 	createCustomerUseCases,
+	createMergeCustomersUseCases,
 	type ReservationUseCases,
 	type ParkingLocationUseCases,
 	type AdminSettingsUseCases,
-	type CustomerUseCases
+	type CustomerUseCases,
+	type MergeCustomersUseCases
 } from '$lib/application/use-cases';
 import { createWebFallbackDesktopCapabilities } from '$lib/infrastructure/desktop/web-fallback';
 import { createLocalStorageAppDataRepository } from '$lib/infrastructure/storage/localstorage/app-data-repository';
@@ -21,6 +23,7 @@ export interface AppServices {
 	parkingLocationUseCases: ParkingLocationUseCases;
 	adminSettingsUseCases: AdminSettingsUseCases;
 	customerUseCases: CustomerUseCases;
+	mergeCustomersUseCases: MergeCustomersUseCases;
 }
 
 let instance: AppServices | null = null;
@@ -49,7 +52,8 @@ function createLocalStorageServices(): AppServices {
 		reservationUseCases: createReservationUseCases(appDataRepo),
 		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
 		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
-		customerUseCases: createCustomerUseCases(customerRepo)
+		customerUseCases: createCustomerUseCases(customerRepo),
+		mergeCustomersUseCases: createMergeCustomersUseCases(customerRepo)
 	};
 }
 
@@ -97,7 +101,8 @@ async function createSqliteServices(): Promise<AppServices> {
 		reservationUseCases: createReservationUseCases(appDataRepo),
 		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
 		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
-		customerUseCases: createCustomerUseCases(customerRepo)
+		customerUseCases: createCustomerUseCases(customerRepo),
+		mergeCustomersUseCases: createMergeCustomersUseCases(customerRepo)
 	};
 }
 
