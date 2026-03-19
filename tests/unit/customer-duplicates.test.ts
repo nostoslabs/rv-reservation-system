@@ -50,7 +50,7 @@ describe('findDuplicateCustomer', () => {
 		expect(result).toBeNull();
 	});
 
-	it('returns null when phone is empty', () => {
+	it('returns null when input phone is empty but candidate has phone', () => {
 		const result = findDuplicateCustomer(customers, 'Alice Johnson', '');
 		expect(result).toBeNull();
 	});
@@ -68,5 +68,31 @@ describe('findDuplicateCustomer', () => {
 	it('returns null when no match', () => {
 		const result = findDuplicateCustomer(customers, 'Unknown', '000-0000');
 		expect(result).toBeNull();
+	});
+
+	it('matches on name alone when both phones are empty', () => {
+		const noPhoneCustomers: Customer[] = [
+			makeCustomer({ id: '10', name: 'No Phone Guest', phone: '' })
+		];
+		const result = findDuplicateCustomer(noPhoneCustomers, 'No Phone Guest', '');
+		expect(result).not.toBeNull();
+		expect(result!.id).toBe('10');
+	});
+
+	it('does not match name-only when input has phone but candidate does not', () => {
+		const noPhoneCustomers: Customer[] = [
+			makeCustomer({ id: '10', name: 'No Phone Guest', phone: '' })
+		];
+		const result = findDuplicateCustomer(noPhoneCustomers, 'No Phone Guest', '555-9999');
+		expect(result).toBeNull();
+	});
+
+	it('matches name-only case-insensitively when both phones empty', () => {
+		const noPhoneCustomers: Customer[] = [
+			makeCustomer({ id: '10', name: 'No Phone Guest', phone: '' })
+		];
+		const result = findDuplicateCustomer(noPhoneCustomers, '  no phone guest  ', '');
+		expect(result).not.toBeNull();
+		expect(result!.id).toBe('10');
 	});
 });
