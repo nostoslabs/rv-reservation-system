@@ -101,7 +101,8 @@
       endDate: reservation.endDate,
       parkingLocation: reservation.parkingLocation,
       color: reservation.color,
-      status: reservation.status
+      status: reservation.status,
+      customerId: reservation.customerId
     };
     modalErrors = [];
     modalOpen = true;
@@ -215,7 +216,8 @@
         endDate: reservation.endDate,
         parkingLocation: reservation.parkingLocation,
         color: reservation.color,
-        status: reservation.status
+        status: reservation.status,
+        customerId: reservation.customerId
       };
     } else {
       modalMode = 'create';
@@ -268,7 +270,7 @@
   }
 
   function handleModalBookAgain(event: CustomEvent<ReservationFormValues>): void {
-    const { name, phoneNumber, notes, parkingLocation, color } = event.detail;
+    const { name, phoneNumber, notes, parkingLocation, color, customerId } = event.detail;
     modalMode = 'create';
     modalDraft = {
       name,
@@ -278,7 +280,8 @@
       endDate: addDays(todayIso, 1),
       parkingLocation,
       color,
-      status: 'reserved'
+      status: 'reserved',
+      customerId
     };
     modalErrors = [];
   }
