@@ -84,6 +84,7 @@
   }
 
   function handleDocumentMouseDown(event: MouseEvent): void {
+    if (!dropdownOpen) return;
     if (containerEl && event.target instanceof Node && !containerEl.contains(event.target)) {
       dropdownOpen = false;
       dismissed = true;
