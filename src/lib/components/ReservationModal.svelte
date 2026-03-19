@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, afterUpdate } from 'svelte';
-  import { diffDays } from '$lib/date';
+  import { addDays, compareIsoDates, diffDays, formatReservationDetail } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
@@ -37,6 +37,9 @@
   let confirmingDelete = false;
   let autocompleteRef: AutocompleteInput;
   let wasOpen = false;
+  let previousStartDate = draft.startDate;
+
+  const MAX_RANGE_PREVIEW_SEGMENTS = 10;
 
   $: customerSuggestions = customers.map((c) => ({
     label: c.name,
@@ -58,10 +61,23 @@
   $: nightsLabel = nightsCount !== null && nightsCount > 0
     ? `${nightsCount} night${nightsCount === 1 ? '' : 's'}`
     : null;
+  $: hasValidDateRange = Boolean(
+    form.startDate
+    && form.endDate
+    && compareIsoDates(form.startDate, form.endDate) < 0
+  );
+  $: minimumDepartureDate = form.startDate ? addDays(form.startDate, 1) : '';
+  $: rangePreviewSegments = hasValidDateRange
+    ? Array.from({ length: Math.min(nightsCount ?? 0, MAX_RANGE_PREVIEW_SEGMENTS) }, (_, index) => index)
+    : [];
+  $: hiddenRangeSegmentCount = hasValidDateRange && nightsCount
+    ? Math.max(0, nightsCount - MAX_RANGE_PREVIEW_SEGMENTS)
+    : 0;
 
   $: if (open) {
     form = { ...emptyExtras, ...draft };
     confirmingDelete = false;
+    previousStartDate = draft.startDate;
   }
 
   afterUpdate(() => {
@@ -127,6 +143,29 @@
       endDate: ''
     });
   }
+
+  function handleStartDateInput(event: Event): void {
+    const nextStartDate = (event.currentTarget as HTMLInputElement).value;
+    const currentStartDate = previousStartDate;
+    const currentEndDate = form.endDate;
+
+    form.startDate = nextStartDate;
+
+    if (!nextStartDate) {
+      previousStartDate = '';
+      return;
+    }
+
+    const stayLength = currentStartDate && currentEndDate && compareIsoDates(currentStartDate, currentEndDate) < 0
+      ? diffDays(currentStartDate, currentEndDate)
+      : 1;
+
+    if (!currentEndDate || compareIsoDates(nextStartDate, currentEndDate) >= 0 || currentStartDate !== nextStartDate) {
+      form.endDate = addDays(nextStartDate, Math.max(stayLength, 1));
+    }
+
+    previousStartDate = nextStartDate;
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -181,13 +220,46 @@
         <div class="row-2">
           <label>
             <span>Arrival</span>
-            <input bind:value={form.startDate} type="date" required />
+            <input
+              bind:value={form.startDate}
+              type="date"
+              required
+              data-testid="arrival-date-input"
+              on:input={handleStartDateInput}
+            />
           </label>
           <label>
             <span>Departure</span>
-            <input bind:value={form.endDate} type="date" required />
+            <input
+              bind:value={form.endDate}
+              type="date"
+              required
+              min={minimumDepartureDate}
+              data-testid="departure-date-input"
+            />
           </label>
         </div>
+
+        {#if hasValidDateRange}
+          <div class="date-range-preview" data-testid="date-range-preview" aria-live="polite">
+            <div class="date-range-preview-header">
+              <span>Selected stay</span>
+              <span>{formatReservationDetail(form.startDate)} → {formatReservationDetail(form.endDate)}</span>
+            </div>
+            <div class="date-range-preview-body">
+              <span class="date-boundary">Check-in<br />{formatReservationDetail(form.startDate)}</span>
+              <div class="date-range-track" aria-hidden="true">
+                {#each rangePreviewSegments as segment}
+                  <span class="range-segment" class:is-last-visible={segment === rangePreviewSegments.length - 1 && hiddenRangeSegmentCount === 0}></span>
+                {/each}
+                {#if hiddenRangeSegmentCount > 0}
+                  <span class="range-segment range-segment-overflow">+{hiddenRangeSegmentCount}</span>
+                {/if}
+              </div>
+              <span class="date-boundary date-boundary-end">Check-out<br />{formatReservationDetail(form.endDate)}</span>
+            </div>
+          </div>
+        {/if}
 
         <!-- Nights display -->
         {#if nightsLabel}
@@ -287,6 +359,8 @@
   .modal {
     position: relative;
     width: min(38rem, 100%);
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
     background: white;
     border-radius: 14px;
     border: 1px solid #d7dce4;
@@ -375,6 +449,79 @@
     border: 1px solid #d0dfef;
     border-radius: 8px;
     text-align: center;
+  }
+
+  .date-range-preview {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    border: 1px solid #d7e5f5;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
+  }
+
+  .date-range-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.82rem;
+    color: #36506d;
+    font-weight: 600;
+  }
+
+  .date-range-preview-body {
+    display: grid;
+    grid-template-columns: minmax(0, 7rem) 1fr minmax(0, 7rem);
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .date-boundary {
+    font-size: 0.76rem;
+    line-height: 1.35;
+    color: #324863;
+    font-weight: 600;
+  }
+
+  .date-boundary-end {
+    text-align: right;
+  }
+
+  .date-range-track {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .range-segment {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 0.7rem;
+    border-radius: 999px;
+    background: #9dc2f3;
+    box-shadow: inset 0 0 0 1px rgba(12, 95, 219, 0.12);
+  }
+
+  .range-segment:first-child {
+    background: #0c5fdb;
+  }
+
+  .range-segment.is-last-visible {
+    background: #2f7ff0;
+  }
+
+  .range-segment-overflow {
+    flex: 0 0 auto;
+    min-width: 2.5rem;
+    height: auto;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    text-align: center;
+    color: #214978;
+    background: #dbe9fb;
   }
 
   label {
@@ -505,6 +652,21 @@
   @media (max-width: 640px) {
     .row-2 {
       grid-template-columns: 1fr;
+    }
+
+    .date-range-preview-header,
+    .date-range-preview-body {
+      grid-template-columns: 1fr;
+    }
+
+    .date-range-preview-header {
+      justify-content: flex-start;
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .date-boundary-end {
+      text-align: left;
     }
 
     .modal-actions {

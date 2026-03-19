@@ -201,6 +201,39 @@ test.describe('Modal accessibility and UX', () => {
 		await modal(page).locator('input[type="date"]').nth(1).fill(offsetDate(1));
 		await expect(nightsDisplay).toHaveText('1 night');
 	});
+
+	test('changing arrival preserves the selected stay length and updates departure constraints', async ({ page }) => {
+		const originalArrival = getTodayIso();
+		const updatedArrival = offsetDate(30);
+		await clickCellAtDate(page, originalArrival, 0);
+		await expect(modal(page)).toBeVisible();
+
+		await modal(page).getByTestId('arrival-date-input').fill(originalArrival);
+		await modal(page).getByTestId('departure-date-input').fill(offsetDate(5));
+		await expect(modal(page).getByTestId('nights-display')).toHaveText('5 nights');
+
+		await modal(page).getByTestId('arrival-date-input').fill(updatedArrival);
+
+		await expect(modal(page).getByTestId('departure-date-input')).toHaveValue(offsetDate(35));
+		await expect(modal(page).getByTestId('departure-date-input')).toHaveAttribute('min', offsetDate(31));
+		await expect(modal(page).getByTestId('nights-display')).toHaveText('5 nights');
+	});
+
+	test('date range preview shows the selected stay as a connected range', async ({ page }) => {
+		const today = getTodayIso();
+		await clickCellAtDate(page, today, 0);
+		await expect(modal(page)).toBeVisible();
+
+		await modal(page).getByTestId('arrival-date-input').fill(today);
+		await modal(page).getByTestId('departure-date-input').fill(offsetDate(3));
+
+		const rangePreview = modal(page).getByTestId('date-range-preview');
+		await expect(rangePreview).toBeVisible();
+		await expect(rangePreview).toContainText('Selected stay');
+		await expect(rangePreview).toContainText('Check-in');
+		await expect(rangePreview).toContainText('Check-out');
+		await expect(rangePreview.locator('.range-segment')).toHaveCount(3);
+	});
 });
 
 test.describe('New Reservation button', () => {
