@@ -4,12 +4,21 @@
   import { registerPersistenceLifecycleHandlers } from '$lib/app/composition';
 
   onMount(() => {
-    let cleanup = () => {};
-    void registerPersistenceLifecycleHandlers().then((dispose) => {
-      cleanup = dispose;
+    let dispose: (() => void) | null = null;
+    let unmounted = false;
+
+    registerPersistenceLifecycleHandlers().then((cleanup) => {
+      if (unmounted) {
+        cleanup();
+      } else {
+        dispose = cleanup;
+      }
     });
 
-    return () => cleanup();
+    return () => {
+      unmounted = true;
+      dispose?.();
+    };
   });
 </script>
 

@@ -130,7 +130,7 @@ export function getAppServices(): AppServices {
 }
 
 export function getActiveProvider(): string {
-	return properlyInitialized ? 'SQLite' : 'localStorage (fallback)';
+	return properlyInitialized && isTauri() ? 'SQLite' : 'localStorage (fallback)';
 }
 
 /**
@@ -187,38 +187,43 @@ export async function registerPersistenceLifecycleHandlers(): Promise<() => void
 	document.addEventListener('visibilitychange', handleVisibilityChange);
 	window.addEventListener('pagehide', handlePageHide);
 
-	let closeCleanup: (() => void) | null = null;
-	if (isTauri()) {
-		const { getCurrentWindow } = await import('@tauri-apps/api/window');
-		const appWindow = getCurrentWindow();
-		let closing = false;
-
-		closeCleanup = await appWindow.onCloseRequested(async (event) => {
-			if (closing) {
-				return;
-			}
-
-			closing = true;
-			event.preventDefault();
-
-			try {
-				await flushPendingWrites();
-			} finally {
-				if (closeCleanup) {
-					closeCleanup();
-					closeCleanup = null;
-				}
-				await appWindow.close();
-			}
-		});
-	}
-
-	return () => {
+	const disposeBasic = () => {
 		window.clearInterval(flushTicker);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('pagehide', handlePageHide);
+	};
+
+	let closeCleanup: (() => void) | null = null;
+	if (isTauri()) {
+		try {
+			const { getCurrentWindow } = await import('@tauri-apps/api/window');
+			const appWindow = getCurrentWindow();
+			let closing = false;
+
+			closeCleanup = await appWindow.onCloseRequested(async (event) => {
+				if (closing) return;
+				closing = true;
+				event.preventDefault();
+
+				try {
+					await flushPendingWrites();
+				} finally {
+					if (closeCleanup) {
+						closeCleanup();
+						closeCleanup = null;
+					}
+					await appWindow.close();
+				}
+			});
+		} catch (err) {
+			console.error('Failed to register Tauri close handler:', err);
+		}
+	}
+
+	return () => {
+		disposeBasic();
 		if (closeCleanup) {
-			void closeCleanup();
+			closeCleanup();
 			closeCleanup = null;
 		}
 	};
