@@ -1,6 +1,8 @@
 import { writable, get } from 'svelte/store';
 import { getAppServices } from '$lib/app/composition';
+import { rvReservationStore } from '$lib/state';
 import type { Customer, CustomerFormValues, CustomerSearchResult } from '$lib/domain/customers';
+import type { MergeCustomersResult } from '$lib/application/use-cases';
 
 function createCustomerStore() {
 	const internal = writable<Customer[]>([]);
@@ -73,6 +75,36 @@ function createCustomerStore() {
 		internal.set(customerUseCases.getAll());
 	}
 
+	function mergeCustomers(
+		customerIds: string[],
+		overrides?: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>>
+	): MergeCustomersResult {
+		const { mergeCustomersUseCases, repositories } = getAppServices();
+		const appData = repositories.appData.load();
+		const result = mergeCustomersUseCases.merge(customerIds, appData, overrides);
+		if (result.ok) {
+			internal.set(getAppServices().customerUseCases.getAll());
+			rvReservationStore.importData(result.data);
+		}
+		return result;
+	}
+
+	function findDuplicateGroups(): Customer[][] {
+		const { mergeCustomersUseCases } = getAppServices();
+		return mergeCustomersUseCases.findDuplicates();
+	}
+
+	function deduplicateAll(): { groupsMerged: number; reservationsRelinked: number } {
+		const { mergeCustomersUseCases, repositories } = getAppServices();
+		const appData = repositories.appData.load();
+		const result = mergeCustomersUseCases.deduplicateAll(appData);
+		if (result.groupsMerged > 0) {
+			internal.set(getAppServices().customerUseCases.getAll());
+			rvReservationStore.importData(result.data);
+		}
+		return { groupsMerged: result.groupsMerged, reservationsRelinked: result.reservationsRelinked };
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
@@ -84,7 +116,10 @@ function createCustomerStore() {
 		getById,
 		findOrCreateFromReservation,
 		importCsv,
-		replaceAll
+		replaceAll,
+		mergeCustomers,
+		findDuplicateGroups,
+		deduplicateAll
 	};
 }
 
