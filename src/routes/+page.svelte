@@ -351,13 +351,18 @@
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleSearchClickOutside);
 
-    // In Tauri, intercept window close to flush pending SQLite writes
+    // In Tauri, intercept window close to flush pending SQLite writes.
+    // Use a timeout to guarantee the window closes even if flush hangs.
     let unlistenClose: (() => void) | null = null;
     if ('__TAURI_INTERNALS__' in window) {
       import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-        getCurrentWindow().onCloseRequested(async (event) => {
+        const appWindow = getCurrentWindow();
+        appWindow.onCloseRequested(async (event) => {
+          event.preventDefault();
           rvReservationStore.forceSave();
-          await flushPendingWrites();
+          const timeout = new Promise<void>((r) => setTimeout(r, 2000));
+          await Promise.race([flushPendingWrites(), timeout]);
+          await appWindow.destroy();
         }).then((unlisten) => {
           unlistenClose = unlisten;
         });
