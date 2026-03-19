@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createReservationUseCases } from '$lib/application/use-cases/reservation-use-cases';
+import { buildFirstCellId } from '$lib/domain/reservations';
 import type { AppDataRepository } from '$lib/application/ports';
 import type { PersistedAppData, ReservationFormValues } from '$lib/types';
 
@@ -56,7 +57,7 @@ describe('ReservationUseCases', () => {
 			const data = makeAppData({
 				reservations: [{
 					index: 1,
-					firstCellId: 'A-01:2025-06-01',
+					firstCellId: buildFirstCellId('A-01', '2025-06-01'),
 					name: 'Test Guest',
 					phoneNumber: '555-1234',
 					notes: '',

@@ -124,7 +124,8 @@
       color: form.color,
       status: 'reserved',
       startDate: '',
-      endDate: ''
+      endDate: '',
+      customerId: form.customerId
     });
   }
 </script>

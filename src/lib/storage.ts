@@ -70,7 +70,8 @@ export function sanitizeReservation(value: unknown): Reservation | null {
   const phoneNumber =
     typeof raw.phoneNumber === 'string' ? normalizePhoneNumber(raw.phoneNumber) : '';
   const notes = typeof raw.notes === 'string' ? sanitizeReservationNotes(raw.notes) : '';
-  const customerId = typeof raw.customerId === 'string' && raw.customerId ? raw.customerId : undefined;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const customerId = typeof raw.customerId === 'string' && UUID_RE.test(raw.customerId) ? raw.customerId : undefined;
 
   return {
     index: raw.index,
