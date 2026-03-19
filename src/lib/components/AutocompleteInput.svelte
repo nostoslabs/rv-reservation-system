@@ -20,6 +20,7 @@
   }>();
 
   let dropdownOpen = false;
+  let dismissed = false;
   let selectedIndex = -1;
   let inputEl: HTMLInputElement | null = null;
   let containerEl: HTMLDivElement | null = null;
@@ -32,19 +33,22 @@
       }).slice(0, 10)
     : [];
 
-  $: if (value.trim() && filteredSuggestions.length > 0) {
+  $: if (value.trim() && filteredSuggestions.length > 0 && !dismissed) {
     dropdownOpen = true;
     selectedIndex = -1;
-  } else {
+  } else if (!value.trim() || filteredSuggestions.length === 0) {
     dropdownOpen = false;
+    dismissed = false;
   }
 
   function handleInput(): void {
+    dismissed = false;
     dispatch('input', { value });
   }
 
   function selectSuggestion(suggestion: Suggestion): void {
     dropdownOpen = false;
+    dismissed = true;
     selectedIndex = -1;
     dispatch('select', { suggestion });
   }
@@ -63,6 +67,7 @@
       selectSuggestion(filteredSuggestions[selectedIndex]);
     } else if (event.key === 'Escape') {
       dropdownOpen = false;
+      dismissed = true;
       selectedIndex = -1;
     }
   }
@@ -72,14 +77,27 @@
     setTimeout(() => {
       if (containerEl && !containerEl.contains(document.activeElement)) {
         dropdownOpen = false;
+        dismissed = true;
+        selectedIndex = -1;
       }
     }, 150);
+  }
+
+  function handleDocumentMouseDown(event: MouseEvent): void {
+    if (!dropdownOpen) return;
+    if (containerEl && event.target instanceof Node && !containerEl.contains(event.target)) {
+      dropdownOpen = false;
+      dismissed = true;
+      selectedIndex = -1;
+    }
   }
 
   export function focus(): void {
     inputEl?.focus();
   }
 </script>
+
+<svelte:window on:mousedown={handleDocumentMouseDown} />
 
 <div class="autocomplete-container" bind:this={containerEl}>
   <input
@@ -147,7 +165,7 @@
     border-radius: 12px;
     box-shadow: 0 12px 36px rgba(10, 24, 47, 0.14);
     z-index: 50;
-    max-height: 16rem;
+    max-height: 10rem;
     overflow-y: auto;
     list-style: none;
     margin: 0;
