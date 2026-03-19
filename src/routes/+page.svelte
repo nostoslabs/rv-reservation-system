@@ -20,6 +20,7 @@
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
   import { customerStore } from '$lib/customer-state';
+  import { getActiveProvider } from '$lib/app/composition';
   import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
 
   const DAYS_BEFORE_TODAY = 45;
@@ -173,6 +174,7 @@
     ])
   ) as Record<string, number>;
   $: saveStatusText = getSaveStatusText($rvReservationStore.lastSavedAt, nowMs);
+  $: storageProvider = getActiveProvider();
   $: dailySummary = computeDailySummary(
     $rvReservationStore.reservations,
     $rvReservationStore.parkingLocations,
@@ -180,7 +182,7 @@
   );
 
   function getSaveStatusText(lastSavedAt: number | null, nowTimestamp: number): string {
-    if (!lastSavedAt) return '';
+    if (!lastSavedAt) return 'Not saved';
     const ageMs = Math.max(0, nowTimestamp - lastSavedAt);
     const ageMinutes = Math.floor(ageMs / 60000);
     if (ageMinutes <= 0) return 'Saved';
@@ -452,9 +454,8 @@
       <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
       <span class="badge">{ $rvReservationStore.reservations.length } res</span>
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
-      {#if saveStatusText}
-        <span class="badge save-badge" aria-live="polite">{saveStatusText}</span>
-      {/if}
+      <span class="badge save-badge" aria-live="polite">{saveStatusText}</span>
+      <span class="badge provider-badge">{storageProvider}</span>
       <a href="/customers" class="settings-link" title="Customers" aria-label="Customers" data-testid="customers-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -769,6 +770,12 @@
 
   .save-badge {
     color: #3d5a78;
+  }
+
+  .provider-badge {
+    font-size: 0.7rem;
+    color: #7a8da4;
+    border-color: #e2e8f1;
   }
 
   .sr-only {

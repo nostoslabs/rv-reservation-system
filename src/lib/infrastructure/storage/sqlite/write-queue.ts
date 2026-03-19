@@ -5,12 +5,14 @@ export interface SqliteWriteQueue {
 
 export function createSqliteWriteQueue(onError: (error: unknown) => void): SqliteWriteQueue {
 	let pending = Promise.resolve();
+	let lastError: unknown = null;
 
 	async function run<T>(operation: () => Promise<T>, onSuccess?: (result: T) => void): Promise<void> {
 		try {
 			const result = await operation();
 			onSuccess?.(result);
 		} catch (error) {
+			lastError = error;
 			onError(error);
 		}
 	}
@@ -20,8 +22,13 @@ export function createSqliteWriteQueue(onError: (error: unknown) => void): Sqlit
 			pending = pending.then(() => run(operation, onSuccess), () => run(operation, onSuccess));
 		},
 
-		flush(): Promise<void> {
-			return pending;
+		async flush(): Promise<void> {
+			await pending;
+			if (lastError) {
+				const err = lastError;
+				lastError = null;
+				throw err;
+			}
 		}
 	};
 }

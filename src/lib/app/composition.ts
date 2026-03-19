@@ -173,7 +173,7 @@ export async function registerPersistenceLifecycleHandlers(): Promise<() => void
 		return () => {};
 	}
 
-	const flush = () => void flushPendingWrites();
+	const flush = () => void flushPendingWrites().catch((err) => console.error('Flush error:', err));
 	const flushTicker = window.setInterval(flush, 2_000);
 	const handleVisibilityChange = (): void => {
 		if (document.visibilityState === 'hidden') {

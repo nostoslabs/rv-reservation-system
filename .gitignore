@@ -11,6 +11,7 @@ src-tauri/Cargo.lock
 src-tauri/gen/
 .vercel
 .playwright-mcp
+data/
 .env*
 *.png
 !src/**/*.png
