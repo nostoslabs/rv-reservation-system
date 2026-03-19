@@ -16,3 +16,5 @@ src-tauri/gen/
 !src/**/*.png
 !screenshots/**/*.png
 !static/**/*.png
+!src-tauri/icons/**/*.png
+!rv_icon.png
