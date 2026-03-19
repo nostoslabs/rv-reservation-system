@@ -29,6 +29,14 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 		},
 		async openFile(filters?: FileFilter[]): Promise<string | null> {
 			return new Promise((resolve) => {
+				let resolved = false;
+				const done = (value: string | null) => {
+					if (resolved) return;
+					resolved = true;
+					if (input.parentNode) document.body.removeChild(input);
+					resolve(value);
+				};
+
 				const input = document.createElement('input');
 				input.type = 'file';
 				if (filters?.length) {
@@ -37,21 +45,24 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 				input.style.display = 'none';
 				input.addEventListener('change', async () => {
 					const file = input.files?.[0];
-					document.body.removeChild(input);
 					if (!file) {
-						resolve(null);
+						done(null);
 						return;
 					}
 					try {
-						resolve(await file.text());
+						done(await file.text());
 					} catch {
-						resolve(null);
+						done(null);
 					}
 				});
-				input.addEventListener('cancel', () => {
-					document.body.removeChild(input);
-					resolve(null);
-				});
+				// Fallback for browsers where 'cancel' event doesn't fire:
+				// when the file dialog closes, window regains focus.
+				const onFocus = () => {
+					setTimeout(() => {
+						if (!resolved) done(null);
+					}, 300);
+				};
+				window.addEventListener('focus', onFocus, { once: true });
 				document.body.appendChild(input);
 				input.click();
 			});

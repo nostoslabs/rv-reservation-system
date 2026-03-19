@@ -135,7 +135,7 @@
     const { desktop } = getAppServices();
     const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
     if (saved) {
-      successMessage = `Backup exported as ${filename}.`;
+      successMessage = 'Backup exported successfully.';
     }
   }
 
@@ -146,32 +146,24 @@
     try {
       const { desktop } = getAppServices();
       const text = await desktop.openFile(JSON_FILTERS);
-      if (!text) {
-        backupImporting = false;
-        return;
-      }
+      if (!text) return;
 
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
       } catch {
         errorMessage = 'Invalid JSON file.';
-        backupImporting = false;
         return;
       }
 
       const validation = validateBackup(parsed);
       if (!validation.valid) {
         errorMessage = 'Invalid backup file: ' + validation.errors.join('; ');
-        backupImporting = false;
         return;
       }
 
       const confirmed = confirm('This will replace all current data with the backup. Continue?');
-      if (!confirmed) {
-        backupImporting = false;
-        return;
-      }
+      if (!confirmed) return;
 
       const backup = parsed as AppBackup;
 
