@@ -131,12 +131,15 @@ export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCus
 
 		deduplicateAll(appData) {
 			const groups = findDuplicateGroups(repo.getAll());
-			let totalGroupsMerged = 0;
-			let totalReservationsRelinked = 0;
-			let currentData = appData;
+			if (groups.length === 0) {
+				return { groupsMerged: 0, reservationsRelinked: 0, data: appData };
+			}
+
+			// Build a single loser→winner mapping across all groups
+			const loserIdToWinner = new Map<string, string>();
+			const loserNamePhoneKeys = new Map<string, string>();
 
 			for (const group of groups) {
-				const ids = group.map((c) => c.id);
 				const now = new Date().toISOString();
 				const resolution = resolveCustomerMerge(group, now);
 
@@ -144,24 +147,36 @@ export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCus
 				const loserCustomers = group.filter((c) => c.id !== resolution.winner.id);
 				for (const loserId of resolution.loserIds) {
 					repo.remove(loserId);
+					loserIdToWinner.set(loserId, resolution.winner.id);
 				}
-
-				const { data, count } = relinkReservations(
-					currentData,
-					resolution.winner.id,
-					resolution.loserIds,
-					loserCustomers
-				);
-				currentData = data;
-
-				totalGroupsMerged++;
-				totalReservationsRelinked += count;
+				for (const loser of loserCustomers) {
+					const key = normalizeName(loser.name).toLowerCase() + '|' + normalizePhoneNumber(loser.phone).toLowerCase();
+					loserNamePhoneKeys.set(key, resolution.winner.id);
+				}
 			}
 
+			// Single pass over reservations to re-link
+			let totalReservationsRelinked = 0;
+			const reservations = appData.reservations.map((r) => {
+				if (r.customerId && loserIdToWinner.has(r.customerId)) {
+					totalReservationsRelinked++;
+					return { ...r, customerId: loserIdToWinner.get(r.customerId)! };
+				}
+				if (!r.customerId) {
+					const rKey = normalizeName(r.name).toLowerCase() + '|' + normalizePhoneNumber(r.phoneNumber).toLowerCase();
+					const winnerId = loserNamePhoneKeys.get(rKey);
+					if (winnerId) {
+						totalReservationsRelinked++;
+						return { ...r, customerId: winnerId };
+					}
+				}
+				return r;
+			});
+
 			return {
-				groupsMerged: totalGroupsMerged,
+				groupsMerged: groups.length,
 				reservationsRelinked: totalReservationsRelinked,
-				data: currentData
+				data: { ...appData, reservations }
 			};
 		}
 	};

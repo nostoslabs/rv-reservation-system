@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { runStartupMigrations } from '$lib/app/startup-migrations';
 import type { AppServices } from '$lib/app/composition';
 import type { Customer } from '$lib/domain/customers';

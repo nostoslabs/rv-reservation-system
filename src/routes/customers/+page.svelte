@@ -178,7 +178,6 @@
     modalErrors = [];
   }
 
-  // Merge preview (wired in next commit)
   let mergePreviewOpen = false;
   let mergePreviewCustomers: Customer[] = [];
 
