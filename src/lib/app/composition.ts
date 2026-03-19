@@ -74,23 +74,31 @@ async function createSqliteServices(): Promise<AppServices> {
 	const { createSqliteCustomerRepository } = await import(
 		'$lib/infrastructure/storage/sqlite/customer-repository'
 	);
+	const { createSqliteWriteQueue } = await import(
+		'$lib/infrastructure/storage/sqlite/write-queue'
+	);
 	const { runMigrations } = await import('$lib/infrastructure/storage/sqlite/migrator');
 	const { allMigrations } = await import('$lib/infrastructure/storage/sqlite/migrations');
 
 	const db = await createTauriDatabase('rv-reservations.db');
 	await runMigrations(db, allMigrations);
 
-	const appDataRepo = createSqliteAppDataRepository(db);
-	const siteSettingsRepo = createSqliteSiteSettingsRepository(db);
-	const customerRepo = createSqliteCustomerRepository(db);
+	// Single shared write queue — all repos serialize through this to prevent
+	// interleaved transactions on the same SQLite connection.
+	const writes = createSqliteWriteQueue((err) => {
+		console.error('SQLite write failed:', err);
+	});
+
+	const appDataRepo = createSqliteAppDataRepository(db, writes);
+	const siteSettingsRepo = createSqliteSiteSettingsRepository(db, writes);
+	const customerRepo = createSqliteCustomerRepository(db, writes);
 
 	await appDataRepo.init();
 	await siteSettingsRepo.init();
 	await customerRepo.init();
 
-	flushFn = async () => {
-		await Promise.all([appDataRepo.flush(), siteSettingsRepo.flush(), customerRepo.flush()]);
-	};
+	// All repos share one queue, so one flush drains everything.
+	flushFn = () => writes.flush();
 
 	const repositories: StorageRepositories = {
 		appData: appDataRepo,

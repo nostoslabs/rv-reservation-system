@@ -1,10 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { runMigrations } from '$lib/infrastructure/storage/sqlite/migrator';
 import { allMigrations } from '$lib/infrastructure/storage/sqlite/migrations';
 import { createSqliteAppDataRepository } from '$lib/infrastructure/storage/sqlite/app-data-repository';
 import { createSqliteSiteSettingsRepository } from '$lib/infrastructure/storage/sqlite/site-settings-repository';
+import { createSqliteCustomerRepository } from '$lib/infrastructure/storage/sqlite/customer-repository';
+import { createSqliteWriteQueue } from '$lib/infrastructure/storage/sqlite/write-queue';
+import type { SqliteWriteQueue } from '$lib/infrastructure/storage/sqlite/write-queue';
 import type { PersistedAppData, Reservation } from '$lib/types';
 import { createInMemoryDb } from './in-memory-db';
+import type { Database } from '$lib/infrastructure/storage/sqlite/types';
+import type { Customer } from '$lib/domain/customers';
+
+function createTestQueue(): SqliteWriteQueue {
+	return createSqliteWriteQueue((err) => {
+		console.error('Test write queue error:', err);
+	});
+}
 
 function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 	return {
@@ -22,6 +33,53 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 	};
 }
 
+function makeCustomer(overrides: Partial<Customer> = {}): Customer {
+	return {
+		id: 'customer-1',
+		name: 'Test Guest',
+		phone: '555-1234',
+		email: '',
+		notes: '',
+		createdAt: '2025-03-01T00:00:00.000Z',
+		updatedAt: '2025-03-01T00:00:00.000Z',
+		...overrides
+	};
+}
+
+function createTransactionGuardDb(): Database {
+	let transactionOpen = false;
+
+	return {
+		async execute(sql: string): Promise<void> {
+			const trimmed = sql.trim();
+
+			if (/^BEGIN/i.test(trimmed)) {
+				if (transactionOpen) {
+					throw new Error('concurrent transaction detected');
+				}
+				transactionOpen = true;
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				return;
+			}
+
+			if (/^COMMIT/i.test(trimmed) || /^ROLLBACK/i.test(trimmed)) {
+				transactionOpen = false;
+				return;
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, 1));
+		},
+
+		async select<T>(): Promise<T[]> {
+			return [];
+		}
+	};
+}
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
+
 describe('SQLite AppDataRepository', () => {
 	let db: ReturnType<typeof createInMemoryDb>;
 
@@ -31,7 +89,7 @@ describe('SQLite AppDataRepository', () => {
 	});
 
 	it('returns default data on empty database', async () => {
-		const repo = createSqliteAppDataRepository(db);
+		const repo = createSqliteAppDataRepository(db, createTestQueue());
 		await repo.init();
 		const data = repo.load();
 
@@ -43,7 +101,7 @@ describe('SQLite AppDataRepository', () => {
 	});
 
 	it('round-trips reservations through save and reload', async () => {
-		const repo = createSqliteAppDataRepository(db);
+		const repo = createSqliteAppDataRepository(db, createTestQueue());
 		await repo.init();
 
 		const data: PersistedAppData = {
@@ -63,7 +121,7 @@ describe('SQLite AppDataRepository', () => {
 		await repo.flush();
 
 		// Create a new repo instance to verify persistence
-		const repo2 = createSqliteAppDataRepository(db);
+		const repo2 = createSqliteAppDataRepository(db, createTestQueue());
 		await repo2.init();
 		const loaded = repo2.load();
 
@@ -75,7 +133,7 @@ describe('SQLite AppDataRepository', () => {
 	});
 
 	it('preserves parking location order', async () => {
-		const repo = createSqliteAppDataRepository(db);
+		const repo = createSqliteAppDataRepository(db, createTestQueue());
 		await repo.init();
 
 		const data: PersistedAppData = {
@@ -89,13 +147,13 @@ describe('SQLite AppDataRepository', () => {
 		repo.save(data);
 		await repo.flush();
 
-		const repo2 = createSqliteAppDataRepository(db);
+		const repo2 = createSqliteAppDataRepository(db, createTestQueue());
 		await repo2.init();
 		expect(repo2.load().parkingLocations).toEqual(['Z-99', 'A-01', 'M-50']);
 	});
 
 	it('clear resets to default state', async () => {
-		const repo = createSqliteAppDataRepository(db);
+		const repo = createSqliteAppDataRepository(db, createTestQueue());
 		await repo.init();
 
 		repo.save({
@@ -110,7 +168,7 @@ describe('SQLite AppDataRepository', () => {
 		repo.clear();
 		await repo.flush();
 
-		const repo2 = createSqliteAppDataRepository(db);
+		const repo2 = createSqliteAppDataRepository(db, createTestQueue());
 		await repo2.init();
 		const data = repo2.load();
 
@@ -120,7 +178,7 @@ describe('SQLite AppDataRepository', () => {
 	});
 
 	it('getDefaultData returns correct defaults', async () => {
-		const repo = createSqliteAppDataRepository(db);
+		const repo = createSqliteAppDataRepository(db, createTestQueue());
 		const defaults = repo.getDefaultData();
 
 		expect(defaults.version).toBe(3);
@@ -128,6 +186,33 @@ describe('SQLite AppDataRepository', () => {
 		expect(defaults.parkingLocations).toHaveLength(10);
 		expect(defaults.nextReservationIndex).toBe(1);
 		expect(defaults.lastSavedAt).toBeNull();
+	});
+
+	it('serializes rapid successive saves instead of opening concurrent transactions', async () => {
+		const guardedDb = createTransactionGuardDb();
+		const repo = createSqliteAppDataRepository(guardedDb, createTestQueue());
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		await repo.init();
+
+		repo.save({
+			version: 3,
+			reservations: [makeReservation({ index: 1 })],
+			parkingLocations: ['A-01'],
+			nextReservationIndex: 2,
+			lastSavedAt: null
+		});
+		repo.save({
+			version: 3,
+			reservations: [makeReservation({ index: 2, firstCellId: 'A-01::2025-04-01', startDate: '2025-04-01', endDate: '2025-04-02' })],
+			parkingLocations: ['A-01'],
+			nextReservationIndex: 3,
+			lastSavedAt: null
+		});
+
+		await repo.flush();
+
+		expect(errorSpy).not.toHaveBeenCalled();
 	});
 });
 
@@ -140,7 +225,7 @@ describe('SQLite SiteSettingsRepository', () => {
 	});
 
 	it('returns default settings on empty database', async () => {
-		const repo = createSqliteSiteSettingsRepository(db);
+		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo.init();
 		const settings = repo.load();
 
@@ -148,13 +233,13 @@ describe('SQLite SiteSettingsRepository', () => {
 	});
 
 	it('round-trips settings through save and reload', async () => {
-		const repo = createSqliteSiteSettingsRepository(db);
+		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo.init();
 
 		repo.save({ siteName: 'My Park' });
 		await new Promise((r) => setTimeout(r, 10));
 
-		const repo2 = createSqliteSiteSettingsRepository(db);
+		const repo2 = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo2.init();
 		const loaded = repo2.load();
 
@@ -162,7 +247,7 @@ describe('SQLite SiteSettingsRepository', () => {
 	});
 
 	it('sanitizes settings on save', async () => {
-		const repo = createSqliteSiteSettingsRepository(db);
+		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo.init();
 
 		const result = repo.save({ siteName: '  Padded Name  ' });
@@ -170,7 +255,7 @@ describe('SQLite SiteSettingsRepository', () => {
 	});
 
 	it('enforces max lengths', async () => {
-		const repo = createSqliteSiteSettingsRepository(db);
+		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo.init();
 
 		const result = repo.save({
@@ -178,5 +263,47 @@ describe('SQLite SiteSettingsRepository', () => {
 		});
 
 		expect(result.siteName).toHaveLength(80);
+	});
+
+	it('flushes pending settings writes before reload', async () => {
+		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
+		await repo.init();
+
+		repo.save({ siteName: 'My Park' });
+		await repo.flush();
+
+		const repo2 = createSqliteSiteSettingsRepository(db, createTestQueue());
+		await repo2.init();
+
+		expect(repo2.load().siteName).toBe('My Park');
+	});
+});
+
+describe('SQLite CustomerRepository', () => {
+	let db: ReturnType<typeof createInMemoryDb>;
+
+	beforeEach(async () => {
+		db = createInMemoryDb();
+		await runMigrations(db, allMigrations);
+	});
+
+	it('returns no customers on an empty database', async () => {
+		const repo = createSqliteCustomerRepository(db, createTestQueue());
+		await repo.init();
+
+		expect(repo.getAll()).toEqual([]);
+	});
+
+	it('flushes pending customer writes before reload', async () => {
+		const repo = createSqliteCustomerRepository(db, createTestQueue());
+		await repo.init();
+
+		repo.save(makeCustomer());
+		await repo.flush();
+
+		const repo2 = createSqliteCustomerRepository(db, createTestQueue());
+		await repo2.init();
+
+		expect(repo2.getAll()).toEqual([makeCustomer()]);
 	});
 });

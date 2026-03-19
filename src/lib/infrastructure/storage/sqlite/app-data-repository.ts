@@ -3,7 +3,7 @@ import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus
 import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
 import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
 import type { Database } from './types';
-import { createSqliteWriteQueue } from './write-queue';
+import type { SqliteWriteQueue } from './write-queue';
 
 const DATA_VERSION = 3;
 
@@ -155,14 +155,11 @@ async function clearDb(db: Database): Promise<void> {
  * Must be initialized with `init()` before use — this pre-loads data
  * into an in-memory cache so the synchronous port interface is satisfied.
  */
-export function createSqliteAppDataRepository(db: Database): AppDataRepository & {
+export function createSqliteAppDataRepository(db: Database, writes: SqliteWriteQueue): AppDataRepository & {
 	init(): Promise<void>;
 	flush(): Promise<void>;
 } {
 	let cache: PersistedAppData = getDefaultData();
-	const writes = createSqliteWriteQueue((err) => {
-		console.error('SQLite app data write failed:', err);
-	});
 
 	return {
 		async init() {
