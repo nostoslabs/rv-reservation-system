@@ -225,7 +225,8 @@ test.describe('Backup export/import functional tests', () => {
 
 		// Read and validate the backup content
 		const tmpPath = await download.path();
-		const content = readFileSync(tmpPath!, 'utf8');
+		expect(tmpPath).toBeTruthy();
+		const content = readFileSync(tmpPath as string, 'utf8');
 		const backup = JSON.parse(content);
 
 		expect(backup.schema.version).toBe(1);
