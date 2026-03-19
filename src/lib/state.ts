@@ -62,6 +62,12 @@ function createRvReservationStore() {
 		commit({ ...state, hydrated: true }, true);
 	}
 
+	async function forceSaveAndFlush(): Promise<void> {
+		forceSave();
+		const { flushPendingWrites } = await import('$lib/app/composition');
+		await flushPendingWrites();
+	}
+
 	function saveReservation(formInput: ReservationFormValues): MutationResult {
 		const { reservationUseCases } = getAppServices();
 		const result = reservationUseCases.save(formInput, getPersistedData());
@@ -136,6 +142,7 @@ function createRvReservationStore() {
 		subscribe: internal.subscribe,
 		hydrate,
 		forceSave,
+		forceSaveAndFlush,
 		saveReservation,
 		deleteReservation,
 		addParkingLocation,

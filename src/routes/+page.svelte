@@ -6,7 +6,6 @@
     diffDays,
     formatReservationDetail,
     formatScheduleHeader,
-    formatTimestamp,
     getTodayIsoLocal
   } from '$lib/date';
   import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
@@ -34,7 +33,40 @@
   let nowMs = Date.now();
   let occupancyMap: Map<string, Reservation> = new Map();
   let reservationCountsByLocation: Record<string, number> = {};
-  let autosaveStatus = 'Autosave pending';
+
+  // Column virtualization — only render visible date columns + buffer
+  const COLUMN_BUFFER = 10;
+  let visStartCol = Math.max(0, DAYS_BEFORE_TODAY - 15);
+  let visEndCol = Math.min(TOTAL_DATE_COLUMNS, DAYS_BEFORE_TODAY + 25);
+  let rafPending = false;
+
+  function updateVisibleColumns(): void {
+    if (!gridScroller) return;
+    const scrollLeft = gridScroller.scrollLeft;
+    const viewportWidth = gridScroller.clientWidth;
+    const colWidth = DATE_COLUMN_WIDTH;
+    const firstVisible = Math.floor(scrollLeft / colWidth);
+    const colsFit = Math.ceil(viewportWidth / colWidth) + 1;
+    const newStart = Math.max(0, firstVisible - COLUMN_BUFFER);
+    const newEnd = Math.min(TOTAL_DATE_COLUMNS, firstVisible + colsFit + COLUMN_BUFFER);
+    if (newStart !== visStartCol || newEnd !== visEndCol) {
+      visStartCol = newStart;
+      visEndCol = newEnd;
+    }
+  }
+
+  function handleGridScroll(): void {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      updateVisibleColumns();
+    });
+  }
+
+  $: visibleDateColumns = dateColumns.slice(visStartCol, visEndCol);
+  $: leftSpacerWidth = visStartCol * DATE_COLUMN_WIDTH;
+  $: rightSpacerWidth = (TOTAL_DATE_COLUMNS - visEndCol) * DATE_COLUMN_WIDTH;
 
   let modalOpen = false;
   let modalMode: 'create' | 'edit' = 'create';
@@ -140,44 +172,32 @@
       $rvReservationStore.reservations.filter((reservation) => reservation.parkingLocation === location).length
     ])
   ) as Record<string, number>;
-  $: autosaveStatus = getAutosaveStatus($rvReservationStore.lastSavedAt, nowMs);
+  $: saveStatusText = getSaveStatusText($rvReservationStore.lastSavedAt, nowMs);
   $: dailySummary = computeDailySummary(
     $rvReservationStore.reservations,
     $rvReservationStore.parkingLocations,
     todayIso
   );
 
-  function getAutosaveStatus(lastSavedAt: number | null, nowTimestamp: number): string {
-    if (!lastSavedAt) return 'Autosave pending';
+  function getSaveStatusText(lastSavedAt: number | null, nowTimestamp: number): string {
+    if (!lastSavedAt) return '';
     const ageMs = Math.max(0, nowTimestamp - lastSavedAt);
     const ageMinutes = Math.floor(ageMs / 60000);
-    if (ageMinutes <= 0) {
-      return `Saved just now (${formatTimestamp(lastSavedAt)})`;
-    }
-    if (ageMinutes === 1) {
-      return `Saved 1 minute ago (${formatTimestamp(lastSavedAt)})`;
-    }
-    if (ageMinutes < 60) {
-      return `Saved ${ageMinutes} minutes ago (${formatTimestamp(lastSavedAt)})`;
-    }
-    const ageHours = Math.floor(ageMinutes / 60);
-    return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
+    if (ageMinutes <= 0) return 'Saved';
+    if (ageMinutes === 1) return 'Saved 1m ago';
+    if (ageMinutes < 60) return `Saved ${ageMinutes}m ago`;
+    return `Saved ${Math.floor(ageMinutes / 60)}h ago`;
   }
 
   async function alignToToday(): Promise<void> {
     await tick();
     if (!gridScroller) return;
     const todayIndex = diffDays(gridStartDate, todayIso);
-    // The today column's left edge in the table is at FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH.
-    // The sticky first column occupies FIRST_COLUMN_WIDTH of the visible viewport, so the
-    // visible date area is clientWidth - FIRST_COLUMN_WIDTH wide.
-    // To center today in that visible date area, we set scrollLeft so that:
-    //   scrollLeft + FIRST_COLUMN_WIDTH + visibleDateWidth/2 = FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH + DATE_COLUMN_WIDTH/2
-    //   scrollLeft = todayIndex * DATE_COLUMN_WIDTH - (visibleDateWidth - DATE_COLUMN_WIDTH) / 2
     const visibleDateWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
     const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH - Math.max(0, (visibleDateWidth - DATE_COLUMN_WIDTH) / 2);
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
+    updateVisibleColumns();
   }
 
   function scrollWeek(direction: number): void {
@@ -308,14 +328,10 @@
     return lines.join('\n');
   }
 
-  function saveNow(): void {
-    rvReservationStore.forceSave();
-    nowMs = Date.now();
-  }
-
   async function toggleCompactView(): Promise<void> {
     siteSettingsStore.setCompactView(!compactView);
     await tick();
+    updateVisibleColumns();
     await alignToToday();
   }
 
@@ -324,10 +340,11 @@
     siteSettingsStore.hydrate();
     customerStore.hydrate();
 
+    // Attach scroll listener for column virtualization
+    const scroller = gridScroller;
+    scroller?.addEventListener('scroll', handleGridScroll, { passive: true });
+
     // Scroll to today immediately, then retry a few times to handle late layout.
-    // The grid dimensions may not be final on the first tick, so we retry until the
-    // scroller has a nonzero clientWidth (meaning layout is complete) and the scroll
-    // position lands correctly.
     void alignToToday();
     const retryDelays = [80, 200, 500];
     const retryTimers = retryDelays.map((delay) =>
@@ -338,23 +355,12 @@
       nowMs = Date.now();
     }, 60_000);
 
-    const autosaveTicker = window.setInterval(() => {
-      rvReservationStore.forceSave();
-      nowMs = Date.now();
-    }, 15 * 60_000);
-
-    const handleBeforeUnload = (): void => {
-      rvReservationStore.forceSave();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleSearchClickOutside);
 
     return () => {
+      scroller?.removeEventListener('scroll', handleGridScroll);
       retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
-      window.clearInterval(autosaveTicker);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleSearchClickOutside);
       if (toastTimer) clearTimeout(toastTimer);
     };
@@ -446,8 +452,9 @@
       <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
       <span class="badge">{ $rvReservationStore.reservations.length } res</span>
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
-      <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
-      <button type="button" class="save-btn" on:click={saveNow}>Save</button>
+      {#if saveStatusText}
+        <span class="badge save-badge" aria-live="polite">{saveStatusText}</span>
+      {/if}
       <a href="/customers" class="settings-link" title="Customers" aria-label="Customers" data-testid="customers-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -502,9 +509,15 @@
         <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
             <col class="first-col" />
-            {#each dateColumns as _date}
+            {#if leftSpacerWidth > 0}
+              <col style="width:{leftSpacerWidth}px" />
+            {/if}
+            {#each visibleDateColumns as _date}
               <col class="date-col" />
             {/each}
+            {#if rightSpacerWidth > 0}
+              <col style="width:{rightSpacerWidth}px" />
+            {/if}
           </colgroup>
 
           <thead>
@@ -515,7 +528,10 @@
                   <strong>{formatReservationDetail(todayIso)}</strong>
                 </div>
               </th>
-              {#each dateColumns as dateIso}
+              {#if leftSpacerWidth > 0}
+                <th class="sticky-row1 spacer-cell" aria-hidden="true"></th>
+              {/if}
+              {#each visibleDateColumns as dateIso (dateIso)}
                 <th
                   class="sticky-row1 date-header"
                   class:today={dateIso === todayIso}
@@ -525,6 +541,9 @@
                   {formatScheduleHeader(dateIso)}
                 </th>
               {/each}
+              {#if rightSpacerWidth > 0}
+                <th class="sticky-row1 spacer-cell" aria-hidden="true"></th>
+              {/if}
             </tr>
           </thead>
 
@@ -532,7 +551,10 @@
             {#each $rvReservationStore.parkingLocations as location}
               <tr>
                 <th class="sticky-col location-cell" scope="row">{location}</th>
-                {#each dateColumns as dateIso}
+                {#if leftSpacerWidth > 0}
+                  <td class="spacer-cell" aria-hidden="true"></td>
+                {/if}
+                {#each visibleDateColumns as dateIso (dateIso)}
                   {@const cellId = buildCellId(location, dateIso)}
                   {@const reservation = occupancyMap.get(cellId)}
                   <td
@@ -548,6 +570,9 @@
                     {/if}
                   </td>
                 {/each}
+                {#if rightSpacerWidth > 0}
+                  <td class="spacer-cell" aria-hidden="true"></td>
+                {/if}
               </tr>
             {/each}
           </tbody>
@@ -744,21 +769,6 @@
 
   .save-badge {
     color: #3d5a78;
-  }
-
-  .save-btn {
-    border-radius: 8px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    min-height: 36px;
-  }
-
-  .save-btn:hover {
-    background: #edf3fd;
   }
 
   .sr-only {
@@ -996,6 +1006,12 @@
     font-weight: 600;
     color: #27384f;
     z-index: 5;
+  }
+
+  .spacer-cell {
+    padding: 0;
+    border: none;
+    background: #ffffff;
   }
 
   .grid-cell {

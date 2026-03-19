@@ -7,7 +7,7 @@
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
   import { createBackup, validateBackup, type AppBackup } from '$lib/domain/backup';
-  import { getAppServices } from '$lib/app/composition';
+  import { getAppServices, flushPendingWrites } from '$lib/app/composition';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -128,14 +128,18 @@
       customers
     );
 
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const filename = `rv-backup-${dateStr}.json`;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const filename = `rv-backup-${dateStr}_${timeStr}.json`;
     const content = JSON.stringify(backup, null, 2);
 
     const { desktop } = getAppServices();
     const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
     if (saved) {
       successMessage = 'Backup exported successfully.';
+    } else {
+      errorMessage = 'Backup export was cancelled or failed. Check file permissions.';
     }
   }
 
@@ -193,8 +197,12 @@
         siteNameDraft = backup.data.siteSettings.siteName;
       }
 
+      // Wait for all writes to persist to database before confirming
+      await flushPendingWrites();
+
       successMessage = `Backup restored successfully (${backup.data.reservations.length} reservations, ${backup.data.customers.length} customers).`;
-    } catch {
+    } catch (err) {
+      console.error('Backup import failed:', err);
       errorMessage = 'Failed to import backup file.';
     } finally {
       backupImporting = false;
