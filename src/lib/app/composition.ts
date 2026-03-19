@@ -76,6 +76,12 @@ async function createSqliteServices(): Promise<AppServices> {
 	const { runMigrations } = await import('$lib/infrastructure/storage/sqlite/migrator');
 	const { allMigrations } = await import('$lib/infrastructure/storage/sqlite/migrations');
 
+	// Migrate database from old app identifier (demo → system) if needed
+	const { migrateLegacyDatabase } = await import(
+		'$lib/infrastructure/storage/sqlite/migrate-legacy-db'
+	);
+	await migrateLegacyDatabase();
+
 	const db = await createTauriDatabase('rv-reservations.db');
 	await runMigrations(db, allMigrations);
 
