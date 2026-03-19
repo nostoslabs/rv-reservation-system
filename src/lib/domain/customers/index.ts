@@ -10,5 +10,7 @@ export { normalizeName, normalizePhoneNumber, normalizeEmail } from './normaliza
 export { validateCustomerForm } from './validation';
 export { searchCustomers } from './search';
 export { findDuplicateCustomer } from './duplicates';
+export { resolveCustomerMerge, findDuplicateGroups } from './merge';
+export type { MergeResolution } from './merge';
 export { parseCustomerCsv } from './csv-parser';
 export type { CsvParseResult } from './csv-parser';
