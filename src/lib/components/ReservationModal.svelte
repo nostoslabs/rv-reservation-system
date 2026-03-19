@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, afterUpdate } from 'svelte';
-  import { diffDays } from '$lib/date';
+  import { addDays, diffDays } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
@@ -59,8 +59,18 @@
     ? `${nightsCount} night${nightsCount === 1 ? '' : 's'}`
     : null;
 
+  // When start date changes, auto-advance end date if it's empty or before start
+  let lastStartDate = '';
+  $: if (form.startDate && form.startDate !== lastStartDate) {
+    lastStartDate = form.startDate;
+    if (!form.endDate || form.endDate <= form.startDate) {
+      form.endDate = addDays(form.startDate, 1);
+    }
+  }
+
   $: if (open) {
     form = { ...emptyExtras, ...draft };
+    lastStartDate = draft.startDate || '';
     confirmingDelete = false;
   }
 
@@ -186,7 +196,12 @@
           </label>
           <label>
             <span>Departure</span>
-            <input bind:value={form.endDate} type="date" required />
+            <input
+              bind:value={form.endDate}
+              type="date"
+              required
+              min={form.startDate ? addDays(form.startDate, 1) : undefined}
+            />
           </label>
         </div>
 

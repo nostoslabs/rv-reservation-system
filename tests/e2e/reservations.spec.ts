@@ -500,3 +500,85 @@ test.describe('Phone number search', () => {
 		await expect(dropdown.locator('.search-result-name')).toHaveText('Phone Test');
 	});
 });
+
+test.describe('Date picker UX', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('end date auto-advances to start + 1 when start date is set', async ({ page }) => {
+		const start = offsetDate(5);
+		const expectedEnd = offsetDate(6);
+
+		await clickCellAtDate(page, getTodayIso());
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+
+		await startInput.fill(start);
+		await expect(endInput).toHaveValue(expectedEnd);
+	});
+
+	test('end date auto-advances when set before start date', async ({ page }) => {
+		const start = offsetDate(10);
+		const expectedEnd = offsetDate(11);
+
+		await clickCellAtDate(page, getTodayIso());
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+
+		// Set end date first, then start after it
+		await endInput.fill(offsetDate(3));
+		await startInput.fill(start);
+		await expect(endInput).toHaveValue(expectedEnd);
+	});
+
+	test('end date is preserved when already after start date', async ({ page }) => {
+		const start = offsetDate(5);
+		const end = offsetDate(10);
+
+		await clickCellAtDate(page, getTodayIso());
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+
+		// Set dates in order — end should not change
+		await startInput.fill(start);
+		await endInput.fill(end);
+		await expect(endInput).toHaveValue(end);
+	});
+
+	test('end date has min attribute set to day after start', async ({ page }) => {
+		const start = offsetDate(5);
+		const minEnd = offsetDate(6);
+
+		await clickCellAtDate(page, getTodayIso());
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+
+		await startInput.fill(start);
+		await expect(endInput).toHaveAttribute('min', minEnd);
+	});
+
+	test('nights display updates when dates change', async ({ page }) => {
+		const start = offsetDate(5);
+		const end = offsetDate(8);
+
+		await clickCellAtDate(page, getTodayIso());
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+
+		await startInput.fill(start);
+		await endInput.fill(end);
+
+		await expect(modal(page).locator('[data-testid="nights-display"]')).toContainText('3 nights');
+	});
+});
