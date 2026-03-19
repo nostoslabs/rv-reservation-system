@@ -156,8 +156,10 @@ async function clearDb(db: Database): Promise<void> {
  */
 export function createSqliteAppDataRepository(db: Database): AppDataRepository & {
 	init(): Promise<void>;
+	flush(): Promise<void>;
 } {
 	let cache: PersistedAppData = getDefaultData();
+	let pendingWrite: Promise<void> = Promise.resolve();
 
 	return {
 		async init() {
@@ -173,8 +175,7 @@ export function createSqliteAppDataRepository(db: Database): AppDataRepository &
 		save(data: PersistedAppData): number {
 			// Write-through: update cache immediately, persist async
 			cache = { ...data, version: DATA_VERSION };
-			// Fire-and-forget write (errors logged, not thrown)
-			saveToDb(db, cache).then(
+			pendingWrite = saveToDb(db, cache).then(
 				(savedAt) => {
 					cache = { ...cache, lastSavedAt: savedAt };
 				},
@@ -187,7 +188,11 @@ export function createSqliteAppDataRepository(db: Database): AppDataRepository &
 
 		clear(): void {
 			cache = getDefaultData();
-			clearDb(db).catch((err) => console.error('SQLite clear failed:', err));
+			pendingWrite = clearDb(db).catch((err) => console.error('SQLite clear failed:', err));
+		},
+
+		async flush(): Promise<void> {
+			await pendingWrite;
 		}
 	};
 }

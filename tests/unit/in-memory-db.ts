@@ -135,6 +135,11 @@ export function createInMemoryDb(): Database & {
 		async execute(sql: string, params: unknown[] = []): Promise<void> {
 			const trimmed = sql.trim();
 
+			// Transaction statements (no-op in memory)
+			if (/^(BEGIN|COMMIT|ROLLBACK)/i.test(trimmed)) {
+				return;
+			}
+
 			// CREATE TABLE
 			const tableName = parseCreateTable(trimmed);
 			if (tableName) {

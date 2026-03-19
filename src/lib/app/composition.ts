@@ -26,6 +26,7 @@ export interface AppServices {
 let instance: AppServices | null = null;
 let initPromise: Promise<AppServices> | null = null;
 let properlyInitialized = false;
+let flushFn: (() => Promise<void>) | null = null;
 
 function isTauri(): boolean {
 	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -82,6 +83,8 @@ async function createSqliteServices(): Promise<AppServices> {
 	await siteSettingsRepo.init();
 	await customerRepo.init();
 
+	flushFn = () => appDataRepo.flush();
+
 	const repositories: StorageRepositories = {
 		appData: appDataRepo,
 		siteSettings: siteSettingsRepo,
@@ -134,4 +137,13 @@ export async function initAppServices(): Promise<AppServices> {
 	}
 
 	return initPromise;
+}
+
+/**
+ * Flush any pending async writes to SQLite.
+ * Call before the app closes to ensure data is persisted.
+ * No-op in web/localStorage mode (writes are synchronous).
+ */
+export async function flushPendingWrites(): Promise<void> {
+	if (flushFn) await flushFn();
 }

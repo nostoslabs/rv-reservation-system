@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { flushPendingWrites } from '$lib/app/composition';
   import ReservationModal from '$lib/components/ReservationModal.svelte';
   import {
     addDays,
@@ -350,12 +351,26 @@
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleSearchClickOutside);
 
+    // In Tauri, intercept window close to flush pending SQLite writes
+    let unlistenClose: (() => void) | null = null;
+    if ('__TAURI_INTERNALS__' in window) {
+      import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+        getCurrentWindow().onCloseRequested(async (event) => {
+          rvReservationStore.forceSave();
+          await flushPendingWrites();
+        }).then((unlisten) => {
+          unlistenClose = unlisten;
+        });
+      });
+    }
+
     return () => {
       retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleSearchClickOutside);
+      if (unlistenClose) unlistenClose();
       if (toastTimer) clearTimeout(toastTimer);
     };
   });
