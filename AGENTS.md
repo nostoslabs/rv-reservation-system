@@ -124,11 +124,18 @@ Design choices must support both desktop and future web:
 - Treat sync as an optional interface (contract) layered above repositories.
 - Keep IDs and timestamps compatible with future remote sync and conflict resolution.
 
+## Versioning (Mandatory)
+- Bump the version as the **last commit** on the feature branch before merging — not in a separate PR.
+- All three files must match: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
+- After merge to `main`, tag the merge commit (`git tag vX.Y.Z && git push origin vX.Y.Z`) to trigger the release workflow.
+- Use semantic versioning: `feat` = minor bump, `fix` = patch bump.
+
 ## Definition of Done (Per Issue)
 - Work done on a feature branch, not `main`.
 - Tests added/updated first and passing (where harness exists for the layer touched).
 - `npm run check` passes.
 - `npm run build` passes for UI-affecting changes.
+- Version bumped in `package.json`, `tauri.conf.json`, and `Cargo.toml` (last commit on branch).
 - Docs/plan updated if scope or sequencing changed.
 - Atomic commit(s) created.
 - PR opened via `gh pr create` for review/merge.

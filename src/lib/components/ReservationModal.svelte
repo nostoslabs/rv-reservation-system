@@ -1,11 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher, afterUpdate } from 'svelte';
-  import { diffDays } from '$lib/date';
+  import { addDays, compareIsoDates, diffDays } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
   import type { Customer } from '$lib/domain/customers';
   import AutocompleteInput from './AutocompleteInput.svelte';
+  import DateRangeCalendar from './DateRangeCalendar.svelte';
 
   export let open = false;
   export let mode: 'create' | 'edit' = 'create';
@@ -59,8 +60,18 @@
     ? `${nightsCount} night${nightsCount === 1 ? '' : 's'}`
     : null;
 
+  // When start date changes, auto-advance end date if it's empty or before start
+  let lastStartDate = '';
+  $: if (form.startDate && form.startDate !== lastStartDate) {
+    lastStartDate = form.startDate;
+    if (!form.endDate || compareIsoDates(form.endDate, form.startDate) <= 0) {
+      form.endDate = addDays(form.startDate, 1);
+    }
+  }
+
   $: if (open) {
     form = { ...emptyExtras, ...draft };
+    lastStartDate = '';  // Allow auto-advance to run on open if endDate is invalid
     confirmingDelete = false;
   }
 
@@ -113,6 +124,11 @@
     } else {
       confirmingDelete = true;
     }
+  }
+
+  function handleDateRangeChange(event: CustomEvent<{ startDate: string; endDate: string }>): void {
+    form.startDate = event.detail.startDate;
+    form.endDate = event.detail.endDate;
   }
 
   function handleBookAgain(): void {
@@ -178,24 +194,31 @@
           />
         </label>
 
-        <!-- 2. Arrival / Departure dates -->
-        <div class="row-2">
-          <label>
+        <!-- 2. Date range calendar with inline date inputs -->
+        <DateRangeCalendar
+          startDate={form.startDate}
+          endDate={form.endDate}
+          on:change={handleDateRangeChange}
+        />
+
+        <div class="date-row">
+          <label class="date-label">
             <span>Arrival</span>
             <input bind:value={form.startDate} type="date" required />
           </label>
-          <label>
+          <label class="date-label">
             <span>Departure</span>
-            <input bind:value={form.endDate} type="date" required />
+            <input
+              bind:value={form.endDate}
+              type="date"
+              required
+              min={form.startDate ? addDays(form.startDate, 1) : undefined}
+            />
           </label>
+          {#if nightsLabel}
+            <span class="nights-badge" data-testid="nights-display">{nightsLabel}</span>
+          {/if}
         </div>
-
-        <!-- Nights display -->
-        {#if nightsLabel}
-          <div class="nights-display" data-testid="nights-display" aria-live="polite">
-            {nightsLabel}
-          </div>
-        {/if}
 
         <!-- 3. Site (parking location) -->
         <label>
@@ -288,6 +311,8 @@
   .modal {
     position: relative;
     width: min(38rem, 100%);
+    max-height: min(95vh, 52rem);
+    overflow-y: auto;
     background: white;
     border-radius: 14px;
     border: 1px solid #d7dce4;
@@ -361,21 +386,27 @@
     gap: 0.8rem;
   }
 
-  .row-2 {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+  .date-row {
+    display: flex;
+    align-items: end;
+    gap: 0.5rem;
   }
 
-  .nights-display {
-    font-size: 0.88rem;
-    color: #3d5a78;
-    font-weight: 600;
-    padding: 0.3rem 0.6rem;
-    background: #f0f6ff;
-    border: 1px solid #d0dfef;
-    border-radius: 8px;
-    text-align: center;
+  .date-label {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .nights-badge {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0c5fdb;
+    padding: 0.35rem 0.55rem;
+    background: #e8f0fe;
+    border-radius: 6px;
+    white-space: nowrap;
+    align-self: end;
+    margin-bottom: 0.15rem;
   }
 
   label {
@@ -504,10 +535,6 @@
   }
 
   @media (max-width: 640px) {
-    .row-2 {
-      grid-template-columns: 1fr;
-    }
-
     .modal-actions {
       flex-wrap: wrap;
     }
