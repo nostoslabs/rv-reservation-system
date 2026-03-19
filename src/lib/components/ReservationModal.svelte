@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, afterUpdate } from 'svelte';
-  import { addDays, diffDays } from '$lib/date';
+  import { addDays, compareIsoDates, diffDays } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
@@ -64,14 +64,14 @@
   let lastStartDate = '';
   $: if (form.startDate && form.startDate !== lastStartDate) {
     lastStartDate = form.startDate;
-    if (!form.endDate || form.endDate <= form.startDate) {
+    if (!form.endDate || compareIsoDates(form.endDate, form.startDate) <= 0) {
       form.endDate = addDays(form.startDate, 1);
     }
   }
 
   $: if (open) {
     form = { ...emptyExtras, ...draft };
-    lastStartDate = draft.startDate || '';
+    lastStartDate = '';  // Allow auto-advance to run on open if endDate is invalid
     confirmingDelete = false;
   }
 
