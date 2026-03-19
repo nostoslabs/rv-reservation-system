@@ -36,6 +36,40 @@
   let reservationCountsByLocation: Record<string, number> = {};
   let autosaveStatus = 'Autosave pending';
 
+  // Column virtualization — only render visible date columns + buffer
+  const COLUMN_BUFFER = 10;
+  let visStartCol = Math.max(0, DAYS_BEFORE_TODAY - 15);
+  let visEndCol = Math.min(TOTAL_DATE_COLUMNS, DAYS_BEFORE_TODAY + 25);
+  let rafPending = false;
+
+  function updateVisibleColumns(): void {
+    if (!gridScroller) return;
+    const scrollLeft = gridScroller.scrollLeft;
+    const viewportWidth = gridScroller.clientWidth;
+    const colWidth = DATE_COLUMN_WIDTH;
+    const firstVisible = Math.floor(scrollLeft / colWidth);
+    const colsFit = Math.ceil(viewportWidth / colWidth) + 1;
+    const newStart = Math.max(0, firstVisible - COLUMN_BUFFER);
+    const newEnd = Math.min(TOTAL_DATE_COLUMNS, firstVisible + colsFit + COLUMN_BUFFER);
+    if (newStart !== visStartCol || newEnd !== visEndCol) {
+      visStartCol = newStart;
+      visEndCol = newEnd;
+    }
+  }
+
+  function handleGridScroll(): void {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      updateVisibleColumns();
+    });
+  }
+
+  $: visibleDateColumns = dateColumns.slice(visStartCol, visEndCol);
+  $: leftSpacerWidth = visStartCol * DATE_COLUMN_WIDTH;
+  $: rightSpacerWidth = (TOTAL_DATE_COLUMNS - visEndCol) * DATE_COLUMN_WIDTH;
+
   let modalOpen = false;
   let modalMode: 'create' | 'edit' = 'create';
   let modalErrors: string[] = [];
@@ -178,6 +212,7 @@
     const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH - Math.max(0, (visibleDateWidth - DATE_COLUMN_WIDTH) / 2);
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
+    updateVisibleColumns();
   }
 
   function scrollWeek(direction: number): void {
@@ -316,6 +351,7 @@
   async function toggleCompactView(): Promise<void> {
     siteSettingsStore.setCompactView(!compactView);
     await tick();
+    updateVisibleColumns();
     await alignToToday();
   }
 
@@ -324,10 +360,11 @@
     siteSettingsStore.hydrate();
     customerStore.hydrate();
 
+    // Attach scroll listener for column virtualization
+    const scroller = gridScroller;
+    scroller?.addEventListener('scroll', handleGridScroll, { passive: true });
+
     // Scroll to today immediately, then retry a few times to handle late layout.
-    // The grid dimensions may not be final on the first tick, so we retry until the
-    // scroller has a nonzero clientWidth (meaning layout is complete) and the scroll
-    // position lands correctly.
     void alignToToday();
     const retryDelays = [80, 200, 500];
     const retryTimers = retryDelays.map((delay) =>
@@ -351,6 +388,7 @@
     document.addEventListener('click', handleSearchClickOutside);
 
     return () => {
+      scroller?.removeEventListener('scroll', handleGridScroll);
       retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
@@ -502,9 +540,15 @@
         <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
             <col class="first-col" />
-            {#each dateColumns as _date}
+            {#if leftSpacerWidth > 0}
+              <col style="width:{leftSpacerWidth}px" />
+            {/if}
+            {#each visibleDateColumns as _date}
               <col class="date-col" />
             {/each}
+            {#if rightSpacerWidth > 0}
+              <col style="width:{rightSpacerWidth}px" />
+            {/if}
           </colgroup>
 
           <thead>
@@ -515,7 +559,10 @@
                   <strong>{formatReservationDetail(todayIso)}</strong>
                 </div>
               </th>
-              {#each dateColumns as dateIso}
+              {#if leftSpacerWidth > 0}
+                <th class="sticky-row1 spacer-cell" aria-hidden="true"></th>
+              {/if}
+              {#each visibleDateColumns as dateIso (dateIso)}
                 <th
                   class="sticky-row1 date-header"
                   class:today={dateIso === todayIso}
@@ -525,6 +572,9 @@
                   {formatScheduleHeader(dateIso)}
                 </th>
               {/each}
+              {#if rightSpacerWidth > 0}
+                <th class="sticky-row1 spacer-cell" aria-hidden="true"></th>
+              {/if}
             </tr>
           </thead>
 
@@ -532,7 +582,10 @@
             {#each $rvReservationStore.parkingLocations as location}
               <tr>
                 <th class="sticky-col location-cell" scope="row">{location}</th>
-                {#each dateColumns as dateIso}
+                {#if leftSpacerWidth > 0}
+                  <td class="spacer-cell" aria-hidden="true"></td>
+                {/if}
+                {#each visibleDateColumns as dateIso (dateIso)}
                   {@const cellId = buildCellId(location, dateIso)}
                   {@const reservation = occupancyMap.get(cellId)}
                   <td
@@ -548,6 +601,9 @@
                     {/if}
                   </td>
                 {/each}
+                {#if rightSpacerWidth > 0}
+                  <td class="spacer-cell" aria-hidden="true"></td>
+                {/if}
               </tr>
             {/each}
           </tbody>
@@ -996,6 +1052,12 @@
     font-weight: 600;
     color: #27384f;
     z-index: 5;
+  }
+
+  .spacer-cell {
+    padding: 0;
+    border: none;
+    background: #ffffff;
   }
 
   .grid-cell {
