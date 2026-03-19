@@ -12,6 +12,46 @@
   let searchQuery = '';
   let sortBy: 'name' | 'lastVisit' | 'reservations' = 'name';
 
+  // Select mode state
+  let selectMode = false;
+  let selectedIds: Set<string> = new Set();
+
+  function enterSelectMode(): void {
+    selectMode = true;
+    selectedIds = new Set();
+  }
+
+  function exitSelectMode(): void {
+    selectMode = false;
+    selectedIds = new Set();
+  }
+
+  function toggleSelection(id: string): void {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    selectedIds = next;
+  }
+
+  function toggleSelectAll(): void {
+    if (selectedIds.size === filteredCustomers.length) {
+      selectedIds = new Set();
+    } else {
+      selectedIds = new Set(filteredCustomers.map((c) => c.id));
+    }
+  }
+
+  function handleRowClick(customer: Customer): void {
+    if (selectMode) {
+      toggleSelection(customer.id);
+    } else {
+      openEditModal(customer);
+    }
+  }
+
   // Modal state
   let modalOpen = false;
   let modalMode: 'create' | 'edit' = 'create';
@@ -137,6 +177,15 @@
     modalErrors = [];
   }
 
+  // Merge preview (wired in next commit)
+  let mergePreviewOpen = false;
+  let mergePreviewCustomers: Customer[] = [];
+
+  function openMergePreview(): void {
+    mergePreviewCustomers = $customerStore.filter((c) => selectedIds.has(c.id));
+    mergePreviewOpen = true;
+  }
+
   onMount(() => {
     customerStore.hydrate();
     rvReservationStore.hydrate();
@@ -158,29 +207,48 @@
     <h1 class="toolbar-title">Customers</h1>
 
     <div class="toolbar-right">
-      <div class="search-input-wrap">
-        <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="16" height="16">
-          <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
-        </svg>
-        <input
-          type="search"
-          class="search-input"
-          placeholder="Search customers..."
-          bind:value={searchQuery}
-          aria-label="Search customers"
-          data-testid="customer-search-input"
-        />
-      </div>
+      {#if selectMode}
+        <button type="button" class="add-btn" on:click={exitSelectMode} data-testid="cancel-select-btn">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="add-btn primary"
+          disabled={selectedIds.size < 2}
+          on:click={openMergePreview}
+          data-testid="merge-selected-btn"
+        >
+          Merge Selected ({selectedIds.size})
+        </button>
+      {:else}
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="16" height="16">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+          </svg>
+          <input
+            type="search"
+            class="search-input"
+            placeholder="Search customers..."
+            bind:value={searchQuery}
+            aria-label="Search customers"
+            data-testid="customer-search-input"
+          />
+        </div>
 
-      <select class="sort-select" bind:value={sortBy} aria-label="Sort customers by" data-testid="customer-sort-select">
-        <option value="name">Sort: Name</option>
-        <option value="lastVisit">Sort: Last Visit</option>
-        <option value="reservations">Sort: Reservations</option>
-      </select>
+        <select class="sort-select" bind:value={sortBy} aria-label="Sort customers by" data-testid="customer-sort-select">
+          <option value="name">Sort: Name</option>
+          <option value="lastVisit">Sort: Last Visit</option>
+          <option value="reservations">Sort: Reservations</option>
+        </select>
 
-      <button type="button" class="add-btn primary" on:click={openCreateModal} data-testid="add-customer-btn">
-        + Add Customer
-      </button>
+        <button type="button" class="add-btn" on:click={enterSelectMode} data-testid="select-mode-btn">
+          Select
+        </button>
+
+        <button type="button" class="add-btn primary" on:click={openCreateModal} data-testid="add-customer-btn">
+          + Add Customer
+        </button>
+      {/if}
     </div>
   </header>
 
@@ -199,6 +267,17 @@
       <table class="customer-table" data-testid="customer-table">
         <thead>
           <tr>
+            {#if selectMode}
+              <th class="col-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === filteredCustomers.length && filteredCustomers.length > 0}
+                  on:change={toggleSelectAll}
+                  aria-label="Select all customers"
+                  data-testid="select-all-checkbox"
+                />
+              </th>
+            {/if}
             <th>Name</th>
             <th>Phone</th>
             <th>Email</th>
@@ -212,9 +291,20 @@
             {@const lastVisit = getLastVisit(customer)}
             <tr
               class="customer-row"
-              on:click={() => openEditModal(customer)}
+              class:selected={selectMode && selectedIds.has(customer.id)}
+              on:click={() => handleRowClick(customer)}
               data-testid="customer-row"
             >
+              {#if selectMode}
+                <td class="col-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(customer.id)}
+                    on:click|stopPropagation={() => toggleSelection(customer.id)}
+                    data-testid="customer-checkbox"
+                  />
+                </td>
+              {/if}
               <td class="customer-name">{customer.name}</td>
               <td>{customer.phone || '—'}</td>
               <td>{customer.email || '—'}</td>
@@ -223,7 +313,7 @@
             </tr>
           {:else}
             <tr>
-              <td colspan="5" class="no-results">No customers match your search.</td>
+              <td colspan={selectMode ? 6 : 5} class="no-results">No customers match your search.</td>
             </tr>
           {/each}
         </tbody>
@@ -454,6 +544,21 @@
     background: #f0f6ff;
   }
 
+  .customer-row.selected {
+    background: #e8f0fe;
+  }
+
+  .col-checkbox {
+    width: 2.5rem;
+    text-align: center;
+  }
+
+  .col-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
   .customer-name {
     font-weight: 600;
     color: #1b304a;
@@ -498,13 +603,6 @@
 
   @media (max-width: 768px) {
     .col-date, .col-count {
-      display: none;
-    }
-
-    .customer-table th:nth-child(4),
-    .customer-table th:nth-child(5),
-    .customer-table td:nth-child(4),
-    .customer-table td:nth-child(5) {
       display: none;
     }
   }

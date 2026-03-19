@@ -46,7 +46,7 @@ function makeAppData(): PersistedAppData {
 
 function makeServices(repo: CustomerRepository, appData: PersistedAppData): AppServices {
 	return {
-		desktop: { exportJson: vi.fn(), importJson: vi.fn() },
+		desktop: { isDesktop: false, getAppDataDir: async () => null },
 		repositories: {
 			appData: {
 				getDefaultData: () => makeAppData(),
