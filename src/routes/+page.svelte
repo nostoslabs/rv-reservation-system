@@ -344,6 +344,13 @@
       nowMs = Date.now();
     }, 15 * 60_000);
 
+    // Flush pending SQLite writes every 2 seconds so data is never far behind.
+    // This eliminates the need to intercept window close — even a hard kill
+    // loses at most 2 seconds of work.
+    const flushTicker = window.setInterval(() => {
+      void flushPendingWrites();
+    }, 2_000);
+
     const handleBeforeUnload = (): void => {
       rvReservationStore.forceSave();
     };
@@ -351,31 +358,13 @@
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleSearchClickOutside);
 
-    // In Tauri, intercept window close to flush pending SQLite writes.
-    // Use a timeout to guarantee the window closes even if flush hangs.
-    let unlistenClose: (() => void) | null = null;
-    if ('__TAURI_INTERNALS__' in window) {
-      import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-        const appWindow = getCurrentWindow();
-        appWindow.onCloseRequested(async (event) => {
-          event.preventDefault();
-          rvReservationStore.forceSave();
-          const timeout = new Promise<void>((r) => setTimeout(r, 2000));
-          await Promise.race([flushPendingWrites(), timeout]);
-          await appWindow.destroy();
-        }).then((unlisten) => {
-          unlistenClose = unlisten;
-        });
-      });
-    }
-
     return () => {
       retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
+      window.clearInterval(flushTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleSearchClickOutside);
-      if (unlistenClose) unlistenClose();
       if (toastTimer) clearTimeout(toastTimer);
     };
   });
