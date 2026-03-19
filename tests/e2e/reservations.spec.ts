@@ -232,7 +232,7 @@ test.describe('Modal accessibility and UX', () => {
 		await expect(rangePreview).toContainText('Selected stay');
 		await expect(rangePreview).toContainText('Check-in');
 		await expect(rangePreview).toContainText('Check-out');
-		await expect(rangePreview.locator('.range-segment')).toHaveCount(3);
+		await expect(rangePreview.getByTestId('date-range-segment')).toHaveCount(3);
 	});
 });
 

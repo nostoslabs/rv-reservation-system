@@ -39,13 +39,19 @@
   let wasOpen = false;
   let previousStartDate = draft.startDate;
 
-  const MAX_RANGE_PREVIEW_SEGMENTS = 10;
+  const DEFAULT_STAY_LENGTH = 1;
+  // Cap the visual range rail so the modal stays compact on common laptop viewports.
+  const MAX_VISIBLE_RANGE_PREVIEW_SEGMENTS = 10;
 
   $: customerSuggestions = customers.map((c) => ({
     label: c.name,
     sublabel: c.phone || c.email || undefined,
     data: c
   }));
+
+  function hasPositiveDateRange(startDate: string, endDate: string): boolean {
+    return Boolean(startDate && endDate && compareIsoDates(startDate, endDate) < 0);
+  }
 
   function handleCustomerSelect(event: CustomEvent<{ suggestion: { label: string; sublabel?: string; data: unknown } }>): void {
     const customer = event.detail.suggestion.data as Customer;
@@ -61,17 +67,13 @@
   $: nightsLabel = nightsCount !== null && nightsCount > 0
     ? `${nightsCount} night${nightsCount === 1 ? '' : 's'}`
     : null;
-  $: hasValidDateRange = Boolean(
-    form.startDate
-    && form.endDate
-    && compareIsoDates(form.startDate, form.endDate) < 0
-  );
+  $: hasValidDateRange = hasPositiveDateRange(form.startDate, form.endDate);
   $: minimumDepartureDate = form.startDate ? addDays(form.startDate, 1) : '';
   $: rangePreviewSegments = hasValidDateRange
-    ? Array.from({ length: Math.min(nightsCount ?? 0, MAX_RANGE_PREVIEW_SEGMENTS) }, (_, index) => index)
+    ? Array.from({ length: Math.min(nightsCount ?? 0, MAX_VISIBLE_RANGE_PREVIEW_SEGMENTS) }, (_, index) => index)
     : [];
   $: hiddenRangeSegmentCount = hasValidDateRange && nightsCount
-    ? Math.max(0, nightsCount - MAX_RANGE_PREVIEW_SEGMENTS)
+    ? Math.max(0, nightsCount - MAX_VISIBLE_RANGE_PREVIEW_SEGMENTS)
     : 0;
 
   $: if (open) {
@@ -144,6 +146,13 @@
     });
   }
 
+  function shouldUpdateDepartureDate(currentStartDate: string, currentEndDate: string, nextStartDate: string): boolean {
+    const noDepartureSet = !currentEndDate;
+    const arrivalDateChanged = currentStartDate !== nextStartDate;
+    const departureNoLongerValid = currentEndDate ? compareIsoDates(nextStartDate, currentEndDate) >= 0 : false;
+    return noDepartureSet || arrivalDateChanged || departureNoLongerValid;
+  }
+
   function handleStartDateInput(event: Event): void {
     const nextStartDate = (event.currentTarget as HTMLInputElement).value;
     const currentStartDate = previousStartDate;
@@ -156,12 +165,12 @@
       return;
     }
 
-    const stayLength = currentStartDate && currentEndDate && compareIsoDates(currentStartDate, currentEndDate) < 0
+    const stayLength = hasPositiveDateRange(currentStartDate, currentEndDate)
       ? diffDays(currentStartDate, currentEndDate)
-      : 1;
+      : DEFAULT_STAY_LENGTH;
 
-    if (!currentEndDate || compareIsoDates(nextStartDate, currentEndDate) >= 0 || currentStartDate !== nextStartDate) {
-      form.endDate = addDays(nextStartDate, Math.max(stayLength, 1));
+    if (shouldUpdateDepartureDate(currentStartDate, currentEndDate, nextStartDate)) {
+      form.endDate = addDays(nextStartDate, Math.max(stayLength, DEFAULT_STAY_LENGTH));
     }
 
     previousStartDate = nextStartDate;
@@ -250,10 +259,18 @@
               <span class="date-boundary">Check-in<br />{formatReservationDetail(form.startDate)}</span>
               <div class="date-range-track" aria-hidden="true">
                 {#each rangePreviewSegments as segment}
-                  <span class="range-segment" class:is-last-visible={segment === rangePreviewSegments.length - 1 && hiddenRangeSegmentCount === 0}></span>
+                  <span
+                    class="range-segment"
+                    data-testid="date-range-segment"
+                    class:is-last-visible={segment === rangePreviewSegments.length - 1 && hiddenRangeSegmentCount === 0}
+                  ></span>
                 {/each}
                 {#if hiddenRangeSegmentCount > 0}
-                  <span class="range-segment range-segment-overflow">+{hiddenRangeSegmentCount}</span>
+                  <span
+                    class="range-segment range-segment-overflow"
+                    data-testid="date-range-segment"
+                    aria-label={`${hiddenRangeSegmentCount} additional nights`}
+                  >+{hiddenRangeSegmentCount}</span>
                 {/if}
               </div>
               <span class="date-boundary date-boundary-end">Check-out<br />{formatReservationDetail(form.endDate)}</span>
