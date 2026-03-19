@@ -16,6 +16,7 @@ function baseData(overrides?: Partial<PersistedAppData>): PersistedAppData {
 	};
 }
 
+describe('ParkingLocationUseCases', () => {
 describe('reorder', () => {
 	it('reorders locations to the given order', () => {
 		const result = useCases.reorder(['B-01', 'A-02', 'A-01'], baseData());
@@ -53,4 +54,5 @@ describe('reorder', () => {
 		expect(result.ok).toBe(true);
 		expect(result.data!.reservations).toEqual(data.reservations);
 	});
+});
 });
