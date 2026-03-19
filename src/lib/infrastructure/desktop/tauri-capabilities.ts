@@ -1,4 +1,4 @@
-import type { DesktopCapabilities } from '$lib/application/ports';
+import type { DesktopCapabilities, FileFilter } from '$lib/application/ports';
 
 export function createTauriDesktopCapabilities(): DesktopCapabilities {
 	return {
@@ -7,6 +7,36 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			try {
 				const { appDataDir } = await import('@tauri-apps/api/path');
 				return await appDataDir();
+			} catch {
+				return null;
+			}
+		},
+		async saveFile(defaultName: string, content: string, filters?: FileFilter[]): Promise<boolean> {
+			try {
+				const { save } = await import('@tauri-apps/plugin-dialog');
+				const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+				const path = await save({
+					defaultPath: defaultName,
+					filters: filters ?? []
+				});
+				if (!path) return false;
+				await writeTextFile(path, content);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		async openFile(filters?: FileFilter[]): Promise<string | null> {
+			try {
+				const { open } = await import('@tauri-apps/plugin-dialog');
+				const { readTextFile } = await import('@tauri-apps/plugin-fs');
+				const path = await open({
+					multiple: false,
+					directory: false,
+					filters: filters ?? []
+				});
+				if (!path) return null;
+				return await readTextFile(path);
 			} catch {
 				return null;
 			}

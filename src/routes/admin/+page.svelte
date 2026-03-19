@@ -7,6 +7,7 @@
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
   import { createBackup, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { getAppServices } from '$lib/app/composition';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -21,8 +22,6 @@
   let csvErrorsExpanded = false;
 
   // Backup import state
-  let backupFile: File | null = null;
-  let backupFileInput: HTMLInputElement | null = null;
   let backupImporting = false;
 
   let locationPanelError = '';
@@ -113,7 +112,9 @@
     applyLocationMutation(rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
   }
 
-  function handleExportBackup(): void {
+  const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
+
+  async function handleExportBackup(): Promise<void> {
     clearMessages();
 
     const state = get(rvReservationStore);
@@ -129,30 +130,27 @@
 
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `rv-backup-${dateStr}.json`;
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const content = JSON.stringify(backup, null, 2);
 
-    successMessage = `Backup exported as ${filename}.`;
-  }
-
-  function handleBackupFileChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    backupFile = input.files?.[0] ?? null;
-    clearMessages();
+    const { desktop } = getAppServices();
+    const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
+    if (saved) {
+      successMessage = `Backup exported as ${filename}.`;
+    }
   }
 
   async function handleBackupImport(): Promise<void> {
-    if (!backupFile) return;
     backupImporting = true;
     clearMessages();
 
     try {
-      const text = await backupFile.text();
+      const { desktop } = getAppServices();
+      const text = await desktop.openFile(JSON_FILTERS);
+      if (!text) {
+        backupImporting = false;
+        return;
+      }
+
       let parsed: unknown;
       try {
         parsed = JSON.parse(text);
@@ -203,8 +201,6 @@
         siteNameDraft = backup.data.siteSettings.siteName;
       }
 
-      backupFile = null;
-      if (backupFileInput) backupFileInput.value = '';
       successMessage = `Backup restored successfully (${backup.data.reservations.length} reservations, ${backup.data.customers.length} customers).`;
     } catch {
       errorMessage = 'Failed to import backup file.';
@@ -305,27 +301,14 @@
         Export Backup
       </button>
 
-      <div data-testid="backup-import-section">
-        <label>
-          <span>Restore from JSON backup</span>
-          <input
-            bind:this={backupFileInput}
-            type="file"
-            accept=".json"
-            on:change={handleBackupFileChange}
-            data-testid="backup-file-input"
-          />
-        </label>
-        <button
-          type="button"
-          class="import-btn"
-          disabled={!backupFile || backupImporting}
-          on:click={handleBackupImport}
-          data-testid="backup-import-btn"
-        >
-          {backupImporting ? 'Restoring...' : 'Restore Backup'}
-        </button>
-      </div>
+      <button
+        type="button"
+        disabled={backupImporting}
+        on:click={handleBackupImport}
+        data-testid="backup-import-btn"
+      >
+        {backupImporting ? 'Restoring...' : 'Restore Backup'}
+      </button>
     </div>
   </section>
 
@@ -501,7 +484,4 @@
     background: #fafbfd;
   }
 
-  .import-btn {
-    margin-top: 0.5rem;
-  }
 </style>
