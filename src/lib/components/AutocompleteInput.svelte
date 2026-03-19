@@ -32,15 +32,19 @@
       }).slice(0, 10)
     : [];
 
-  $: if (value.trim() && filteredSuggestions.length > 0) {
-    dropdownOpen = true;
-    selectedIndex = -1;
-  } else {
+  $: if (!value.trim() || filteredSuggestions.length === 0) {
     dropdownOpen = false;
+    selectedIndex = -1;
   }
 
   function handleInput(): void {
+    dropdownOpen = value.trim().length > 0 && filteredSuggestions.length > 0;
+    selectedIndex = -1;
     dispatch('input', { value });
+  }
+
+  function handleFocus(): void {
+    dropdownOpen = value.trim().length > 0 && filteredSuggestions.length > 0;
   }
 
   function selectSuggestion(suggestion: Suggestion): void {
@@ -72,8 +76,16 @@
     setTimeout(() => {
       if (containerEl && !containerEl.contains(document.activeElement)) {
         dropdownOpen = false;
+        selectedIndex = -1;
       }
     }, 150);
+  }
+
+  function handleDocumentMouseDown(event: MouseEvent): void {
+    if (containerEl && event.target instanceof Node && !containerEl.contains(event.target)) {
+      dropdownOpen = false;
+      selectedIndex = -1;
+    }
   }
 
   export function focus(): void {
@@ -81,11 +93,14 @@
   }
 </script>
 
+<svelte:window on:mousedown={handleDocumentMouseDown} />
+
 <div class="autocomplete-container" bind:this={containerEl}>
   <input
     bind:this={inputEl}
     bind:value
     on:input={handleInput}
+    on:focus={handleFocus}
     on:keydown={handleKeydown}
     on:blur={handleBlur}
     type="text"
@@ -138,19 +153,15 @@
   }
 
   .autocomplete-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
+    position: static;
     background: white;
     border: 1px solid #d6deea;
     border-radius: 12px;
     box-shadow: 0 12px 36px rgba(10, 24, 47, 0.14);
-    z-index: 50;
     max-height: 16rem;
     overflow-y: auto;
     list-style: none;
-    margin: 0;
+    margin: 0.35rem 0 0;
     padding: 0.35rem;
   }
 

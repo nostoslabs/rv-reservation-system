@@ -134,5 +134,35 @@ test.describe('Auto-complete and auto-create', () => {
 		// Phone should be auto-filled
 		const phoneInput = modal(page).locator('input[type="tel"]');
 		await expect(phoneInput).toHaveValue('555-7777');
+		await expect(dropdown).toBeHidden();
+	});
+
+	test('autocomplete dropdown does not overlap dates and closes when clicking arrival', async ({ page }) => {
+		const today = offsetDate(0);
+		await createReservation(page, { name: 'Alice Johnson', phone: '555-9999', startDate: today, endDate: offsetDate(3) });
+		await createReservation(page, { name: 'Alicia Jones', phone: '555-1111', startDate: offsetDate(5), endDate: offsetDate(8), rowIndex: 1 });
+
+		await clickCellAtDate(page, offsetDate(10), 2);
+		await expect(modal(page)).toBeVisible();
+
+		const nameInput = modal(page).locator('[data-testid="guest-name-input"]');
+		const dropdown = modal(page).locator('.autocomplete-dropdown');
+		const arrivalInput = modal(page).locator('input[type="date"]').first();
+
+		await nameInput.fill('Ali');
+		await expect(dropdown).toBeVisible();
+
+		const [dropdownBox, arrivalBox] = await Promise.all([
+			dropdown.boundingBox(),
+			arrivalInput.boundingBox()
+		]);
+
+		expect(dropdownBox).not.toBeNull();
+		expect(arrivalBox).not.toBeNull();
+		expect((dropdownBox?.y ?? 0) + (dropdownBox?.height ?? 0)).toBeLessThanOrEqual((arrivalBox?.y ?? 0) + 1);
+
+		await arrivalInput.click();
+		await expect(arrivalInput).toBeFocused();
+		await expect(dropdown).toBeHidden();
 	});
 });
