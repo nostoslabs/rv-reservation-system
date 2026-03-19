@@ -138,6 +138,8 @@ export function savePersistedAppData(data: PersistedAppData): number {
   const savedAt = Date.now();
   if (!browser) return savedAt;
 
+  console.log(`[localStorage save] ${data.reservations.length} reservations, ${data.parkingLocations.length} locations`);
+
   const payload: PersistedAppData = {
     ...data,
     version: DATA_VERSION,

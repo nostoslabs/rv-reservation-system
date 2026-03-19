@@ -3,6 +3,7 @@ import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus
 import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
 import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
 import type { Database } from './types';
+import { createSqliteWriteQueue } from './write-queue';
 
 const DATA_VERSION = 3;
 
@@ -159,7 +160,9 @@ export function createSqliteAppDataRepository(db: Database): AppDataRepository &
 	flush(): Promise<void>;
 } {
 	let cache: PersistedAppData = getDefaultData();
-	let pendingWrite: Promise<void> = Promise.resolve();
+	const writes = createSqliteWriteQueue((err) => {
+		console.error('SQLite app data write failed:', err);
+	});
 
 	return {
 		async init() {
@@ -174,25 +177,30 @@ export function createSqliteAppDataRepository(db: Database): AppDataRepository &
 
 		save(data: PersistedAppData): number {
 			// Write-through: update cache immediately, persist async
-			cache = { ...data, version: DATA_VERSION };
-			pendingWrite = saveToDb(db, cache).then(
+			const snapshot = { ...data, version: DATA_VERSION };
+			cache = snapshot;
+			writes.enqueue(
+				() => saveToDb(db, snapshot),
 				(savedAt) => {
 					cache = { ...cache, lastSavedAt: savedAt };
-				},
-				(err) => {
-					console.error('SQLite save failed:', err);
 				}
 			);
 			return Date.now();
 		},
 
 		clear(): void {
-			cache = getDefaultData();
-			pendingWrite = clearDb(db).catch((err) => console.error('SQLite clear failed:', err));
+			const snapshot = getDefaultData();
+			cache = snapshot;
+			writes.enqueue(
+				() => clearDb(db),
+				() => {
+					cache = snapshot;
+				}
+			);
 		},
 
 		async flush(): Promise<void> {
-			await pendingWrite;
+			await writes.flush();
 		}
 	};
 }

@@ -6,6 +6,7 @@ import type { AppState, MutationResult, PersistedAppData, ReservationFormValues 
 function toRuntimeState(): AppState {
 	const { repositories } = getAppServices();
 	const persisted = browser ? repositories.appData.load() : repositories.appData.getDefaultData();
+	console.log(`[toRuntimeState] loaded ${persisted.reservations.length} reservations, ${persisted.parkingLocations.length} locations`);
 	return {
 		...persisted,
 		hydrated: true
@@ -54,7 +55,9 @@ function createRvReservationStore() {
 
 	function hydrate(): void {
 		if (!browser) return;
-		commit({ ...toRuntimeState(), hydrated: true }, false);
+		const state = toRuntimeState();
+		console.log(`[hydrate] committing ${state.reservations.length} reservations (persist=false)`);
+		commit({ ...state, hydrated: true }, false);
 	}
 
 	function forceSave(): void {
