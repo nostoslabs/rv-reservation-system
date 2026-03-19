@@ -89,18 +89,36 @@
     ? hoverDate
     : endDate;
 
-  function dayClass(iso: string): string {
-    const classes: string[] = ['day'];
-    const today = getTodayIsoLocal();
-    if (iso === today) classes.push('today');
-    if (iso === startDate) classes.push('range-start');
-    if (iso === effectiveEnd) classes.push('range-end');
-    if (startDate && effectiveEnd && iso > startDate && iso < effectiveEnd) classes.push('in-range');
-    if (selectionPhase === 'end' && hoverDate && hoverDate > startDate && iso > startDate && iso <= hoverDate && !endDate) {
-      classes.push('hover-range');
+  $: today = getTodayIsoLocal();
+
+  function buildDayClasses(
+    numDays: number, vYear: number, vMonth: number,
+    start: string, end: string, effEnd: string,
+    phase: string, hover: string, todayIso: string
+  ): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (let i = 0; i < numDays; i++) {
+      const day = i + 1;
+      const iso = toIso(vYear, vMonth, day);
+      const classes: string[] = ['day'];
+      if (iso === todayIso) classes.push('today');
+      if (iso === start) classes.push('range-start');
+      if (iso === effEnd) classes.push('range-end');
+      if (start && effEnd && iso > start && iso < effEnd) classes.push('in-range');
+      if (phase === 'end' && hover && hover > start && iso > start && iso <= hover && !end) {
+        classes.push('hover-range');
+      }
+      map[iso] = classes.join(' ');
     }
-    return classes.join(' ');
+    return map;
   }
+
+  // All reactive deps are explicit arguments so Svelte tracks them
+  $: dayClassMap = buildDayClasses(
+    daysInMonth, viewYear, viewMonth,
+    startDate, endDate, effectiveEnd,
+    selectionPhase, hoverDate, today
+  );
 </script>
 
 <div class="calendar" on:mouseleave={handleMouseLeave} role="application" aria-label="Date range calendar">
@@ -132,7 +150,7 @@
       {@const iso = toIso(viewYear, viewMonth, day)}
       <button
         type="button"
-        class={dayClass(iso)}
+        class={dayClassMap[iso] || 'day'}
         on:click={() => handleDayClick(iso)}
         on:mouseenter={() => handleDayHover(iso)}
         aria-label="{MONTHS[viewMonth]} {day}"
@@ -251,14 +269,15 @@
   }
 
   .day.in-range {
-    background: #dbeafe;
-    color: #1a4a8a;
+    background: #93c5fd;
+    color: #1e3a5f;
     border-radius: 0;
+    font-weight: 600;
   }
 
   .day.hover-range {
-    background: #e8f0fe;
-    color: #1a4a8a;
+    background: #bfdbfe;
+    color: #1e3a5f;
     border-radius: 0;
   }
 </style>
