@@ -135,4 +135,93 @@ test.describe('Auto-complete and auto-create', () => {
 		const phoneInput = modal(page).locator('input[type="tel"]');
 		await expect(phoneInput).toHaveValue('555-7777');
 	});
+
+	test('dropdown dismisses when clicking outside autocomplete area', async ({ page }) => {
+		const today = offsetDate(0);
+		const endDate = offsetDate(3);
+		await createReservation(page, { name: 'Alice Johnson', phone: '555-9999', startDate: today, endDate });
+
+		// Open new reservation modal
+		await clickCellAtDate(page, offsetDate(5), 1);
+		await expect(modal(page)).toBeVisible();
+
+		const nameInput = modal(page).locator('[data-testid="guest-name-input"]');
+		const dropdown = modal(page).locator('.autocomplete-dropdown');
+
+		// Type to trigger dropdown
+		await nameInput.fill('Ali');
+		await expect(dropdown).toBeVisible();
+
+		// Click on a field below the dropdown (Notes textarea is never covered)
+		await modal(page).locator('textarea').click();
+		await expect(dropdown).toBeHidden();
+	});
+
+	test('dropdown dismisses when selecting a suggestion', async ({ page }) => {
+		const today = offsetDate(0);
+		const endDate = offsetDate(3);
+		await createReservation(page, { name: 'Alice Johnson', phone: '555-9999', startDate: today, endDate });
+
+		await clickCellAtDate(page, offsetDate(5), 1);
+		await expect(modal(page)).toBeVisible();
+
+		const nameInput = modal(page).locator('[data-testid="guest-name-input"]');
+		const dropdown = modal(page).locator('.autocomplete-dropdown');
+
+		await nameInput.fill('Ali');
+		await expect(dropdown).toBeVisible();
+
+		// Select the suggestion — dropdown should close
+		await dropdown.locator('.autocomplete-option').first().click();
+		await expect(dropdown).toBeHidden();
+
+		// Name should be filled and dropdown stays closed
+		await expect(nameInput).toHaveValue('Alice Johnson');
+	});
+
+	test('dropdown does not reopen after dismissal without new typing', async ({ page }) => {
+		const today = offsetDate(0);
+		const endDate = offsetDate(3);
+		await createReservation(page, { name: 'Alice Johnson', phone: '555-9999', startDate: today, endDate });
+
+		await clickCellAtDate(page, offsetDate(5), 1);
+		await expect(modal(page)).toBeVisible();
+
+		const nameInput = modal(page).locator('[data-testid="guest-name-input"]');
+		const dropdown = modal(page).locator('.autocomplete-dropdown');
+
+		// Type to trigger dropdown, then dismiss by clicking outside
+		await nameInput.fill('Ali');
+		await expect(dropdown).toBeVisible();
+		await modal(page).locator('textarea').click();
+		await expect(dropdown).toBeHidden();
+
+		// Click back on name field — dropdown should NOT reopen (no new typing)
+		await nameInput.click();
+		await page.waitForTimeout(200);
+		await expect(dropdown).toBeHidden();
+	});
+
+	test('dropdown reopens when user types again after dismissal', async ({ page }) => {
+		const today = offsetDate(0);
+		const endDate = offsetDate(3);
+		await createReservation(page, { name: 'Alice Johnson', phone: '555-9999', startDate: today, endDate });
+
+		await clickCellAtDate(page, offsetDate(5), 1);
+		await expect(modal(page)).toBeVisible();
+
+		const nameInput = modal(page).locator('[data-testid="guest-name-input"]');
+		const dropdown = modal(page).locator('.autocomplete-dropdown');
+
+		// Type, dismiss, then type more
+		await nameInput.fill('Ali');
+		await expect(dropdown).toBeVisible();
+		await modal(page).locator('textarea').click();
+		await expect(dropdown).toBeHidden();
+
+		// Type again — should reopen
+		await nameInput.click();
+		await nameInput.press('c');
+		await expect(dropdown).toBeVisible();
+	});
 });
