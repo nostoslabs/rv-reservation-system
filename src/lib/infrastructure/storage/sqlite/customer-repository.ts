@@ -1,6 +1,7 @@
 import type { CustomerRepository } from '$lib/application/ports/customer';
 import type { Customer } from '$lib/domain/customers';
 import type { Database } from './types';
+import type { SqliteWriteQueue } from './write-queue';
 
 interface CustomerRow {
 	id: string;
@@ -51,8 +52,9 @@ async function deleteFromDb(db: Database, id: string): Promise<void> {
 	await db.execute('DELETE FROM customers WHERE id = ?', [id]);
 }
 
-export function createSqliteCustomerRepository(db: Database): CustomerRepository & {
+export function createSqliteCustomerRepository(db: Database, writes: SqliteWriteQueue): CustomerRepository & {
 	init(): Promise<void>;
+	flush(): Promise<void>;
 } {
 	let cache: Customer[] = [];
 
@@ -70,36 +72,34 @@ export function createSqliteCustomerRepository(db: Database): CustomerRepository
 		},
 
 		save(customer: Customer): void {
+			const snapshot = { ...customer };
 			const idx = cache.findIndex((c) => c.id === customer.id);
 			if (idx >= 0) {
-				cache[idx] = customer;
+				cache[idx] = snapshot;
 			} else {
-				cache.push(customer);
+				cache.push(snapshot);
 			}
-			upsertToDb(db, customer).catch((err) =>
-				console.error('SQLite customer save failed:', err)
-			);
+			writes.enqueue(() => upsertToDb(db, snapshot));
 		},
 
 		remove(id: string): void {
 			cache = cache.filter((c) => c.id !== id);
-			deleteFromDb(db, id).catch((err) =>
-				console.error('SQLite customer delete failed:', err)
-			);
+			writes.enqueue(() => deleteFromDb(db, id));
 		},
 
 		replaceAll(customers: Customer[]): void {
-			cache = [...customers];
-			(async () => {
-				try {
-					await db.execute('DELETE FROM customers');
-					for (const c of customers) {
-						await upsertToDb(db, c);
-					}
-				} catch (err) {
-					console.error('SQLite customer replaceAll failed:', err);
+			const snapshot = customers.map((customer) => ({ ...customer }));
+			cache = snapshot;
+			writes.enqueue(async () => {
+				await db.execute('DELETE FROM customers');
+				for (const customer of snapshot) {
+					await upsertToDb(db, customer);
 				}
-			})();
+			});
+		},
+
+		async flush(): Promise<void> {
+			await writes.flush();
 		}
 	};
 }

@@ -36,6 +36,7 @@ function isTauri(): boolean {
 }
 
 function createLocalStorageServices(): AppServices {
+	flushFn = null;
 	const appDataRepo = createLocalStorageAppDataRepository();
 	const siteSettingsRepo = createLocalStorageSiteSettingsRepository();
 	const customerRepo = createLocalStorageCustomerRepository();
@@ -73,21 +74,31 @@ async function createSqliteServices(): Promise<AppServices> {
 	const { createSqliteCustomerRepository } = await import(
 		'$lib/infrastructure/storage/sqlite/customer-repository'
 	);
+	const { createSqliteWriteQueue } = await import(
+		'$lib/infrastructure/storage/sqlite/write-queue'
+	);
 	const { runMigrations } = await import('$lib/infrastructure/storage/sqlite/migrator');
 	const { allMigrations } = await import('$lib/infrastructure/storage/sqlite/migrations');
 
 	const db = await createTauriDatabase('rv-reservations.db');
 	await runMigrations(db, allMigrations);
 
-	const appDataRepo = createSqliteAppDataRepository(db);
-	const siteSettingsRepo = createSqliteSiteSettingsRepository(db);
-	const customerRepo = createSqliteCustomerRepository(db);
+	// Single shared write queue — all repos serialize through this to prevent
+	// interleaved transactions on the same SQLite connection.
+	const writes = createSqliteWriteQueue((err) => {
+		console.error('SQLite write failed:', err);
+	});
+
+	const appDataRepo = createSqliteAppDataRepository(db, writes);
+	const siteSettingsRepo = createSqliteSiteSettingsRepository(db, writes);
+	const customerRepo = createSqliteCustomerRepository(db, writes);
 
 	await appDataRepo.init();
 	await siteSettingsRepo.init();
 	await customerRepo.init();
 
-	flushFn = () => appDataRepo.flush();
+	// All repos share one queue, so one flush drains everything.
+	flushFn = () => writes.flush();
 
 	const repositories: StorageRepositories = {
 		appData: appDataRepo,
@@ -116,6 +127,10 @@ export function getAppServices(): AppServices {
 		instance = createLocalStorageServices();
 	}
 	return instance;
+}
+
+export function getActiveProvider(): string {
+	return properlyInitialized && isTauri() ? 'SQLite' : 'localStorage (fallback)';
 }
 
 /**
@@ -151,4 +166,65 @@ export async function initAppServices(): Promise<AppServices> {
  */
 export async function flushPendingWrites(): Promise<void> {
 	if (flushFn) await flushFn();
+}
+
+export async function registerPersistenceLifecycleHandlers(): Promise<() => void> {
+	if (typeof window === 'undefined') {
+		return () => {};
+	}
+
+	const flush = () => void flushPendingWrites();
+	const flushTicker = window.setInterval(flush, 2_000);
+	const handleVisibilityChange = (): void => {
+		if (document.visibilityState === 'hidden') {
+			flush();
+		}
+	};
+	const handlePageHide = (): void => {
+		flush();
+	};
+
+	document.addEventListener('visibilitychange', handleVisibilityChange);
+	window.addEventListener('pagehide', handlePageHide);
+
+	const disposeBasic = () => {
+		window.clearInterval(flushTicker);
+		document.removeEventListener('visibilitychange', handleVisibilityChange);
+		window.removeEventListener('pagehide', handlePageHide);
+	};
+
+	let closeCleanup: (() => void) | null = null;
+	if (isTauri()) {
+		try {
+			const { getCurrentWindow } = await import('@tauri-apps/api/window');
+			const appWindow = getCurrentWindow();
+			let closing = false;
+
+			closeCleanup = await appWindow.onCloseRequested(async (event) => {
+				if (closing) return;
+				closing = true;
+				event.preventDefault();
+
+				try {
+					await flushPendingWrites();
+				} finally {
+					if (closeCleanup) {
+						closeCleanup();
+						closeCleanup = null;
+					}
+					await appWindow.close();
+				}
+			});
+		} catch (err) {
+			console.error('Failed to register Tauri close handler:', err);
+		}
+	}
+
+	return () => {
+		disposeBasic();
+		if (closeCleanup) {
+			closeCleanup();
+			closeCleanup = null;
+		}
+	};
 }

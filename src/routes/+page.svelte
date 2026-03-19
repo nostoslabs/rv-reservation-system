@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { flushPendingWrites } from '$lib/app/composition';
   import ReservationModal from '$lib/components/ReservationModal.svelte';
   import {
     addDays,
@@ -344,13 +343,6 @@
       nowMs = Date.now();
     }, 15 * 60_000);
 
-    // Flush pending SQLite writes every 2 seconds so data is never far behind.
-    // This eliminates the need to intercept window close — even a hard kill
-    // loses at most 2 seconds of work.
-    const flushTicker = window.setInterval(() => {
-      void flushPendingWrites();
-    }, 2_000);
-
     const handleBeforeUnload = (): void => {
       rvReservationStore.forceSave();
     };
@@ -362,7 +354,6 @@
       retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
       window.clearInterval(autosaveTicker);
-      window.clearInterval(flushTicker);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleSearchClickOutside);
       if (toastTimer) clearTimeout(toastTimer);
