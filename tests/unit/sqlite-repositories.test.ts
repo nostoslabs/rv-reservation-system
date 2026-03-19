@@ -60,7 +60,7 @@ describe('SQLite AppDataRepository', () => {
 		repo.save(data);
 
 		// Wait for async write to complete
-		await new Promise((r) => setTimeout(r, 10));
+		await repo.flush();
 
 		// Create a new repo instance to verify persistence
 		const repo2 = createSqliteAppDataRepository(db);
@@ -87,7 +87,7 @@ describe('SQLite AppDataRepository', () => {
 		};
 
 		repo.save(data);
-		await new Promise((r) => setTimeout(r, 10));
+		await repo.flush();
 
 		const repo2 = createSqliteAppDataRepository(db);
 		await repo2.init();
@@ -105,10 +105,10 @@ describe('SQLite AppDataRepository', () => {
 			nextReservationIndex: 5,
 			lastSavedAt: null
 		});
-		await new Promise((r) => setTimeout(r, 10));
+		await repo.flush();
 
 		repo.clear();
-		await new Promise((r) => setTimeout(r, 10));
+		await repo.flush();
 
 		const repo2 = createSqliteAppDataRepository(db);
 		await repo2.init();

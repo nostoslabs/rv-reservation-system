@@ -188,7 +188,7 @@ export function createSqliteAppDataRepository(db: Database): AppDataRepository &
 
 		clear(): void {
 			cache = getDefaultData();
-			clearDb(db).catch((err) => console.error('SQLite clear failed:', err));
+			pendingWrite = clearDb(db).catch((err) => console.error('SQLite clear failed:', err));
 		},
 
 		async flush(): Promise<void> {
