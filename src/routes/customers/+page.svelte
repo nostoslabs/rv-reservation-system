@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import CustomerModal from '$lib/components/CustomerModal.svelte';
+  import MergePreviewModal from '$lib/components/MergePreviewModal.svelte';
   import { customerStore } from '$lib/customer-state';
   import { rvReservationStore } from '$lib/state';
   import { siteSettingsStore } from '$lib/site-settings';
@@ -186,6 +187,22 @@
     mergePreviewOpen = true;
   }
 
+  function handleMergeConfirm(event: CustomEvent<{ overrides: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>> }>): void {
+    const ids = mergePreviewCustomers.map((c) => c.id);
+    const result = customerStore.mergeCustomers(ids, event.detail.overrides);
+    mergePreviewOpen = false;
+    if (result.ok) {
+      exitSelectMode();
+      showToast(`Merged ${result.mergedCount} customers`);
+    } else {
+      showToast(result.errors[0] ?? 'Merge failed');
+    }
+  }
+
+  function handleMergeCancel(): void {
+    mergePreviewOpen = false;
+  }
+
   onMount(() => {
     customerStore.hydrate();
     rvReservationStore.hydrate();
@@ -334,6 +351,13 @@
   on:save={handleModalSave}
   on:cancel={closeModal}
   on:delete={handleModalDelete}
+/>
+
+<MergePreviewModal
+  open={mergePreviewOpen}
+  customers={mergePreviewCustomers}
+  on:confirm={handleMergeConfirm}
+  on:cancel={handleMergeCancel}
 />
 
 <style>
