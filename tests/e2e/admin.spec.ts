@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import * as fs from 'fs';
-import * as path from 'path';
+import { readFileSync } from 'node:fs';
 
 async function clearStorage(page: Page) {
 	await page.goto('/');
@@ -225,9 +224,8 @@ test.describe('Backup export/import functional tests', () => {
 		expect(download.suggestedFilename()).toMatch(/^rv-backup-\d{4}-\d{2}-\d{2}\.json$/);
 
 		// Read and validate the backup content
-		const filePath = await download.path();
-		expect(filePath).toBeTruthy();
-		const content = fs.readFileSync(filePath!, 'utf8');
+		const tmpPath = await download.path();
+		const content = readFileSync(tmpPath!, 'utf8');
 		const backup = JSON.parse(content);
 
 		expect(backup.schema.version).toBe(1);
@@ -277,10 +275,6 @@ test.describe('Backup export/import functional tests', () => {
 			}
 		};
 
-		const tmpFile = path.join('test-results', 'test-backup-import.json');
-		fs.mkdirSync('test-results', { recursive: true });
-		fs.writeFileSync(tmpFile, JSON.stringify(backup));
-
 		await page.goto('/admin');
 
 		// Intercept the desktop.openFile call by injecting the backup content
@@ -327,7 +321,5 @@ test.describe('Backup export/import functional tests', () => {
 		await expect(page.locator('.toolbar-title')).toContainText('Restored Park');
 		await expect(page.locator('.location-cell:has-text("Import-Site")')).toBeVisible();
 
-		// Clean up
-		fs.unlinkSync(tmpFile);
 	});
 });

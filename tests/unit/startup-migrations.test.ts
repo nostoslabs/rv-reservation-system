@@ -46,7 +46,7 @@ function makeAppData(): PersistedAppData {
 
 function makeServices(repo: CustomerRepository, appData: PersistedAppData): AppServices {
 	return {
-		desktop: { isDesktop: false, getAppDataDir: async () => null },
+		desktop: { isDesktop: false, getAppDataDir: async () => null, saveFile: async () => false, openFile: async () => null },
 		repositories: {
 			appData: {
 				getDefaultData: () => makeAppData(),
