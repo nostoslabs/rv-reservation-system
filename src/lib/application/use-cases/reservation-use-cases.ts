@@ -64,7 +64,8 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 				endDate: form.endDate,
 				parkingLocation: form.parkingLocation,
 				color: form.color,
-				status: form.status
+				status: form.status,
+				customerId: form.customerId
 			};
 
 			const reservations = existing
