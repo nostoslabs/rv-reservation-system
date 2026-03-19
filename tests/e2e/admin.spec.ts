@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function clearStorage(page: Page) {
 	await page.goto('/');
@@ -112,19 +114,12 @@ test.describe('Backup & Restore section on settings page', () => {
 		await expect(exportBtn).toContainText('Export');
 	});
 
-	test('import section is visible on settings page', async ({ page }) => {
+	test('restore button is visible on settings page', async ({ page }) => {
 		await page.goto('/admin');
-		const importSection = page.locator('[data-testid="backup-import-section"]');
-		await expect(importSection).toBeVisible();
 
-		// Should have a file input for .json files
-		const fileInput = page.locator('[data-testid="backup-file-input"]');
-		await expect(fileInput).toBeVisible();
-
-		// Should have an import button
 		const importBtn = page.locator('[data-testid="backup-import-btn"]');
 		await expect(importBtn).toBeVisible();
-		await expect(importBtn).toBeDisabled(); // disabled until file is selected
+		await expect(importBtn).toContainText('Restore Backup');
 	});
 
 	test('backup panel has correct heading', async ({ page }) => {
@@ -204,5 +199,135 @@ test.describe('Site management on settings page', () => {
 
 		// Site should be gone
 		await expect(page.locator('[data-testid="sites-management"]')).not.toContainText('Delete-Me');
+	});
+});
+
+test.describe('Backup export/import functional tests', () => {
+	test.beforeEach(async ({ page }) => {
+		await clearStorage(page);
+	});
+
+	test('export produces a valid backup JSON file', async ({ page }) => {
+		await page.goto('/admin');
+
+		// Set a known site name first
+		const siteNameInput = page.locator('label:has-text("Site Name") input');
+		await siteNameInput.fill('Export Test Park');
+		await page.click('button:has-text("Save Site Name")');
+		await expect(page.locator('.message.success')).toBeVisible();
+
+		// Click export and capture the download
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			page.click('[data-testid="backup-export-btn"]')
+		]);
+
+		expect(download.suggestedFilename()).toMatch(/^rv-backup-\d{4}-\d{2}-\d{2}\.json$/);
+
+		// Read and validate the backup content
+		const filePath = await download.path();
+		expect(filePath).toBeTruthy();
+		const content = fs.readFileSync(filePath!, 'utf8');
+		const backup = JSON.parse(content);
+
+		expect(backup.schema.version).toBe(1);
+		expect(backup.schema.appName).toBe('rv-reservation-system');
+		expect(backup.schema.exportedAt).toBeTruthy();
+		expect(Array.isArray(backup.data.reservations)).toBe(true);
+		expect(Array.isArray(backup.data.parkingLocations)).toBe(true);
+		expect(Array.isArray(backup.data.customers)).toBe(true);
+		expect(backup.data.siteSettings.siteName).toBe('Export Test Park');
+
+		// Success message should be shown
+		await expect(page.locator('.message.success')).toContainText('Backup exported successfully');
+	});
+
+	test('import restores data from a backup file', async ({ page }) => {
+		// Create a backup file with known data
+		const backup = {
+			schema: { version: 1, appName: 'rv-reservation-system', exportedAt: new Date().toISOString() },
+			data: {
+				reservations: [
+					{
+						index: 1,
+						firstCellId: 'Import-Site_2025-07-01',
+						name: 'Imported Guest',
+						phoneNumber: '555-0000',
+						notes: 'from backup',
+						startDate: '2025-07-01',
+						endDate: '2025-07-03',
+						parkingLocation: 'Import-Site',
+						color: 'blue',
+						status: 'reserved'
+					}
+				],
+				parkingLocations: ['Import-Site'],
+				siteSettings: { siteName: 'Restored Park', compactView: false },
+				customers: [
+					{
+						id: 'imported-c1',
+						name: 'Backup Customer',
+						phone: '555-1111',
+						email: 'backup@test.com',
+						notes: '',
+						createdAt: '2025-01-01T00:00:00.000Z',
+						updatedAt: '2025-01-01T00:00:00.000Z'
+					}
+				]
+			}
+		};
+
+		const tmpFile = path.join('test-results', 'test-backup-import.json');
+		fs.mkdirSync('test-results', { recursive: true });
+		fs.writeFileSync(tmpFile, JSON.stringify(backup));
+
+		await page.goto('/admin');
+
+		// Intercept the desktop.openFile call by injecting the backup content
+		// Since web fallback opens a file input, we override via page.evaluate
+		await page.evaluate((backupJson: string) => {
+			// Override the file input click to auto-populate
+			const origCreateElement = document.createElement.bind(document);
+			document.createElement = function (tag: string, options?: ElementCreationOptions) {
+				const el = origCreateElement(tag, options);
+				if (tag === 'input' && !el.dataset._patched) {
+					el.dataset._patched = 'true';
+					const origClick = el.click.bind(el);
+					el.click = function () {
+						// Create a File from the backup JSON and set it on the input
+						const file = new File([backupJson], 'test-backup.json', { type: 'application/json' });
+						const dt = new DataTransfer();
+						dt.items.add(file);
+						Object.defineProperty(el, 'files', { value: dt.files, writable: false });
+						el.dispatchEvent(new Event('change', { bubbles: true }));
+					};
+				}
+				return el;
+			} as typeof document.createElement;
+		}, JSON.stringify(backup));
+
+		// Accept the confirmation dialog
+		page.on('dialog', (dialog) => dialog.accept());
+
+		// Click restore
+		await page.click('[data-testid="backup-import-btn"]');
+
+		// Wait for success message
+		await expect(page.locator('.message.success')).toContainText('Backup restored successfully');
+		await expect(page.locator('.message.success')).toContainText('1 reservations');
+		await expect(page.locator('.message.success')).toContainText('1 customers');
+
+		// Verify site name was restored
+		const siteNameInput = page.locator('label:has-text("Site Name") input');
+		await expect(siteNameInput).toHaveValue('Restored Park');
+
+		// Navigate to main page and verify site appears
+		await page.goto('/');
+		await page.waitForSelector('.toolbar-title');
+		await expect(page.locator('.toolbar-title')).toContainText('Restored Park');
+		await expect(page.locator('.location-cell:has-text("Import-Site")')).toBeVisible();
+
+		// Clean up
+		fs.unlinkSync(tmpFile);
 	});
 });
