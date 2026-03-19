@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
 
   export let locations: string[] = [];
   export let reservationCounts: Record<string, number> = {};
@@ -9,6 +9,7 @@
     add: { name: string };
     rename: { oldName: string; newName: string };
     remove: { name: string };
+    reorder: { orderedNames: string[] };
     clearerror: void;
   }>();
 
@@ -17,6 +18,11 @@
   let editingLocation: string | null = null;
   let editDraft = '';
   let confirmingDelete: string | null = null;
+
+  // Pointer-based drag state
+  let dragIndex: number | null = null;
+  let dropTargetIndex: number | null = null;
+  let listEl: HTMLUListElement;
 
   function submitAdd(): void {
     dispatch('add', { name: newLocationName });
@@ -69,6 +75,66 @@
       openMenu = null;
     }
   }
+
+  // Move up/down helpers (kebab menu actions)
+  function moveUp(index: number): void {
+    if (index <= 0) return;
+    const reordered = [...locations];
+    [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+    dispatch('reorder', { orderedNames: reordered });
+    openMenu = null;
+  }
+
+  function moveDown(index: number): void {
+    if (index >= locations.length - 1) return;
+    const reordered = [...locations];
+    [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+    dispatch('reorder', { orderedNames: reordered });
+    openMenu = null;
+  }
+
+  // Pointer-based drag reorder (works in Tauri WKWebView unlike HTML5 DnD)
+  function getItemIndexAtY(clientY: number): number | null {
+    if (!listEl) return null;
+    const items = listEl.querySelectorAll(':scope > li');
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  function handlePointerDown(event: PointerEvent, index: number): void {
+    if (editingLocation !== null || confirmingDelete !== null) return;
+    event.preventDefault();
+    dragIndex = index;
+    const target = event.currentTarget as HTMLElement;
+    target.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
+    if (dragIndex === null) return;
+    const hoverIndex = getItemIndexAtY(event.clientY);
+    if (hoverIndex !== null && hoverIndex !== dragIndex) {
+      dropTargetIndex = hoverIndex;
+    } else {
+      dropTargetIndex = null;
+    }
+  }
+
+  function handlePointerUp(event: PointerEvent): void {
+    if (dragIndex === null) return;
+    if (dropTargetIndex !== null && dropTargetIndex !== dragIndex) {
+      const reordered = [...locations];
+      const [moved] = reordered.splice(dragIndex, 1);
+      reordered.splice(dropTargetIndex, 0, moved);
+      dispatch('reorder', { orderedNames: reordered });
+    }
+    dragIndex = null;
+    dropTargetIndex = null;
+  }
 </script>
 
 <svelte:window on:click={handleClickOutside} />
@@ -76,7 +142,7 @@
 <section class="panel" aria-labelledby="parking-locations-title">
   <div class="panel-header">
     <h2 id="parking-locations-title">Sites</h2>
-    <p>Manage rows shown in the schedule.</p>
+    <p>Manage rows shown in the schedule. Drag the grip to reorder.</p>
   </div>
 
   {#if errorMessage}
@@ -91,9 +157,13 @@
     <button type="submit">Add</button>
   </form>
 
-  <ul class="location-list">
-    {#each locations as location}
-      <li>
+  <ul class="location-list" bind:this={listEl}>
+    {#each locations as location, i}
+      <li
+        class:drag-over-above={dropTargetIndex === i && dragIndex !== null && dragIndex > i}
+        class:drag-over-below={dropTargetIndex === i && dragIndex !== null && dragIndex < i}
+        class:dragging={dragIndex === i}
+      >
         {#if editingLocation === location}
           <div class="location-row editing">
             <input
@@ -116,6 +186,16 @@
           </div>
         {:else}
           <div class="location-row">
+            <span
+              class="drag-handle"
+              role="button"
+              tabindex="0"
+              aria-label={`Reorder ${location}`}
+              title="Drag to reorder"
+              on:pointerdown={(e) => handlePointerDown(e, i)}
+              on:pointermove={handlePointerMove}
+              on:pointerup={handlePointerUp}
+            >&#x2630;</span>
             <span class="location-name">{location}</span>
             <span class="count">{reservationCounts[location] ?? 0} reservations</span>
             <div class="kebab-wrapper">
@@ -127,6 +207,12 @@
               >&#x22EE;</button>
               {#if openMenu === location}
                 <div class="kebab-menu" role="menu">
+                  {#if i > 0}
+                    <button type="button" role="menuitem" on:click|stopPropagation={() => moveUp(i)}>Move Up</button>
+                  {/if}
+                  {#if i < locations.length - 1}
+                    <button type="button" role="menuitem" on:click|stopPropagation={() => moveDown(i)}>Move Down</button>
+                  {/if}
                   <button type="button" role="menuitem" on:click|stopPropagation={() => startRename(location)}>Rename</button>
                   <button type="button" role="menuitem" class="menu-danger" on:click|stopPropagation={() => startDelete(location)}>Delete</button>
                 </div>
@@ -238,9 +324,26 @@
     overflow-y: auto;
   }
 
+  .location-list li {
+    border-radius: 8px;
+    transition: box-shadow 0.12s;
+  }
+
+  .location-list li.dragging {
+    opacity: 0.4;
+  }
+
+  .location-list li.drag-over-above {
+    box-shadow: 0 -2px 0 0 #0c5fdb;
+  }
+
+  .location-list li.drag-over-below {
+    box-shadow: 0 2px 0 0 #0c5fdb;
+  }
+
   .location-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     gap: 0.4rem;
     align-items: center;
   }
@@ -248,6 +351,20 @@
   .location-row.editing,
   .location-row.confirm-delete {
     grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .drag-handle {
+    color: #9aa8b8;
+    font-size: 0.85rem;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    padding: 0.3rem 0.15rem;
+    line-height: 1;
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
   }
 
   .location-name {
@@ -337,7 +454,7 @@
 
   @media (max-width: 900px) {
     .location-row {
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
     }
 
     .count {

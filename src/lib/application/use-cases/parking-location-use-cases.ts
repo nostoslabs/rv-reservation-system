@@ -18,6 +18,7 @@ export interface ParkingLocationUseCases {
 	add(nameInput: string, currentData: PersistedAppData): MutationResult & { data?: PersistedAppData };
 	rename(oldName: string, newNameInput: string, currentData: PersistedAppData): MutationResult & { data?: PersistedAppData };
 	remove(name: string, currentData: PersistedAppData): MutationResult & { data?: PersistedAppData };
+	reorder(orderedNames: string[], currentData: PersistedAppData): MutationResult & { data?: PersistedAppData };
 }
 
 export function createParkingLocationUseCases(_repo: AppDataRepository): ParkingLocationUseCases {
@@ -92,6 +93,25 @@ export function createParkingLocationUseCases(_repo: AppDataRepository): Parking
 			const data: PersistedAppData = {
 				...currentData,
 				parkingLocations: currentData.parkingLocations.filter((loc) => loc !== name)
+			};
+
+			return { ok: true as const, data };
+		},
+
+		reorder(orderedNames: string[], currentData: PersistedAppData) {
+			if (orderedNames.length !== currentData.parkingLocations.length) {
+				return { ok: false as const, errors: ['Location count mismatch.'] };
+			}
+
+			const currentSet = new Set(currentData.parkingLocations);
+			const newSet = new Set(orderedNames);
+			if (currentSet.size !== newSet.size || [...currentSet].some((n) => !newSet.has(n))) {
+				return { ok: false as const, errors: ['Reordered list must contain the same locations.'] };
+			}
+
+			const data: PersistedAppData = {
+				...currentData,
+				parkingLocations: orderedNames
 			};
 
 			return { ok: true as const, data };

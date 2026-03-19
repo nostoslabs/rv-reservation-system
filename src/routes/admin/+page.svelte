@@ -109,6 +109,10 @@
     applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
   }
 
+  function handleReorderLocations(event: CustomEvent<{ orderedNames: string[] }>): void {
+    applyLocationMutation(rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
+  }
+
   function handleExportBackup(): void {
     clearMessages();
 
@@ -333,6 +337,7 @@
       on:add={handleAddLocation}
       on:rename={handleRenameLocation}
       on:remove={handleDeleteLocation}
+      on:reorder={handleReorderLocations}
       on:clearerror={() => (locationPanelError = '')}
     />
   </div>

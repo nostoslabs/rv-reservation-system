@@ -14,12 +14,12 @@ function toRuntimeState(): AppState {
 
 function createRvReservationStore() {
 	const internal = writable<AppState>(toRuntimeState());
-	const { repositories, reservationUseCases, parkingLocationUseCases } = getAppServices();
 
 	function commit(next: AppState, persist = true): void {
 		let finalState = next;
 
 		if (persist) {
+			const { repositories } = getAppServices();
 			const savedAt = repositories.appData.save({
 				version: next.version,
 				reservations: next.reservations,
@@ -63,6 +63,7 @@ function createRvReservationStore() {
 	}
 
 	function saveReservation(formInput: ReservationFormValues): MutationResult {
+		const { reservationUseCases } = getAppServices();
 		const result = reservationUseCases.save(formInput, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
@@ -73,6 +74,7 @@ function createRvReservationStore() {
 	}
 
 	function deleteReservation(index: number): MutationResult {
+		const { reservationUseCases } = getAppServices();
 		const result = reservationUseCases.remove(index, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
@@ -83,6 +85,7 @@ function createRvReservationStore() {
 	}
 
 	function addParkingLocation(nameInput: string): MutationResult {
+		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.add(nameInput, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
@@ -93,6 +96,7 @@ function createRvReservationStore() {
 	}
 
 	function renameParkingLocation(oldName: string, newNameInput: string): MutationResult {
+		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.rename(oldName, newNameInput, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
@@ -103,7 +107,19 @@ function createRvReservationStore() {
 	}
 
 	function deleteParkingLocation(name: string): MutationResult {
+		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.remove(name, getPersistedData());
+		if (!result.ok) {
+			return { ok: false, errors: result.errors };
+		}
+
+		commit({ ...result.data!, hydrated: true }, true);
+		return { ok: true };
+	}
+
+	function reorderParkingLocations(orderedNames: string[]): MutationResult {
+		const { parkingLocationUseCases } = getAppServices();
+		const result = parkingLocationUseCases.reorder(orderedNames, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
@@ -125,6 +141,7 @@ function createRvReservationStore() {
 		addParkingLocation,
 		renameParkingLocation,
 		deleteParkingLocation,
+		reorderParkingLocations,
 		importData
 	};
 }

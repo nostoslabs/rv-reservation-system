@@ -101,39 +101,50 @@ async function loadFromDb(db: Database): Promise<PersistedAppData> {
 async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 	const savedAt = Date.now();
 
-	// Sync parking locations
-	await db.execute('DELETE FROM parking_locations');
-	for (let i = 0; i < data.parkingLocations.length; i++) {
-		await db.execute('INSERT INTO parking_locations (name, sort_order) VALUES (?, ?)', [
-			data.parkingLocations[i],
-			i
+	// Use a transaction for atomicity — prevents partial writes on crash
+	await db.execute('BEGIN TRANSACTION');
+	try {
+		// Delete reservations FIRST (they reference parking_locations via FK)
+		await db.execute('DELETE FROM reservations');
+
+		// Now safe to delete and re-insert parking locations
+		await db.execute('DELETE FROM parking_locations');
+		for (let i = 0; i < data.parkingLocations.length; i++) {
+			await db.execute('INSERT INTO parking_locations (name, sort_order) VALUES (?, ?)', [
+				data.parkingLocations[i],
+				i
+			]);
+		}
+
+		// Re-insert reservations (parking_locations rows exist now)
+		for (const r of data.reservations) {
+			await db.execute(
+				'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
+			);
+		}
+
+		// Sync metadata
+		await db.execute('INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?, ?)', [
+			'next_reservation_index',
+			String(data.nextReservationIndex)
 		]);
-	}
+		await db.execute('INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?, ?)', [
+			'last_saved_at',
+			String(savedAt)
+		]);
 
-	// Sync reservations — full replace for simplicity
-	await db.execute('DELETE FROM reservations');
-	for (const r of data.reservations) {
-		await db.execute(
-			'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-			[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
-		);
+		await db.execute('COMMIT');
+	} catch (err) {
+		await db.execute('ROLLBACK').catch(() => {});
+		throw err;
 	}
-
-	// Sync metadata
-	await db.execute('INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?, ?)', [
-		'next_reservation_index',
-		String(data.nextReservationIndex)
-	]);
-	await db.execute('INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?, ?)', [
-		'last_saved_at',
-		String(savedAt)
-	]);
 
 	return savedAt;
 }
 
 async function clearDb(db: Database): Promise<void> {
-	await db.execute('DELETE FROM reservations');
+	await db.execute('DELETE FROM reservations'); // FK child first
 	await db.execute('DELETE FROM parking_locations');
 	await db.execute('DELETE FROM app_metadata');
 }
