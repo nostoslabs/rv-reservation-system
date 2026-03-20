@@ -3,38 +3,35 @@ import { get, writable } from 'svelte/store';
 import { getAppServices } from '$lib/app/composition';
 import type { AppState, MutationResult, PersistedAppData, ReservationFormValues } from '$lib/types';
 
-function toRuntimeState(): AppState {
+function getDefaultState(): AppState {
 	const { repositories } = getAppServices();
-	const persisted = browser ? repositories.appData.load() : repositories.appData.getDefaultData();
 	return {
-		...persisted,
-		hydrated: true
+		...repositories.appData.getDefaultData(),
+		hydrated: false
 	};
 }
 
 function createRvReservationStore() {
-	const internal = writable<AppState>(toRuntimeState());
+	const internal = writable<AppState>(getDefaultState());
 
-	function commit(next: AppState, persist = true): void {
-		let finalState = next;
-
+	async function commit(next: AppState, persist = true): Promise<void> {
 		if (persist) {
 			const { repositories } = getAppServices();
-			const savedAt = repositories.appData.save({
+			const savedAt = await repositories.appData.save({
 				version: next.version,
 				reservations: next.reservations,
 				parkingLocations: next.parkingLocations,
 				nextReservationIndex: next.nextReservationIndex,
 				lastSavedAt: next.lastSavedAt
 			});
-			finalState = {
+			internal.set({
 				...next,
 				lastSavedAt: savedAt,
 				hydrated: true
-			};
+			});
+		} else {
+			internal.set(next);
 		}
-
-		internal.set(finalState);
 	}
 
 	function getState(): AppState {
@@ -54,88 +51,84 @@ function createRvReservationStore() {
 
 	function hydrate(): void {
 		if (!browser) return;
-		commit({ ...toRuntimeState(), hydrated: true }, false);
+		const { repositories } = getAppServices();
+		const persisted = repositories.appData.load();
+		internal.set({ ...persisted, hydrated: true });
 	}
 
-	function forceSave(): void {
-		const state = getState();
-		commit({ ...state, hydrated: true }, true);
-	}
-
-	function saveReservation(formInput: ReservationFormValues): MutationResult {
+	async function saveReservation(formInput: ReservationFormValues): Promise<MutationResult> {
 		const { reservationUseCases } = getAppServices();
 		const result = reservationUseCases.save(formInput, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
 
-		commit({ ...result.data!, hydrated: true }, true);
+		await commit({ ...result.data!, hydrated: true }, true);
 		return { ok: true };
 	}
 
-	function deleteReservation(index: number): MutationResult {
+	async function deleteReservation(index: number): Promise<MutationResult> {
 		const { reservationUseCases } = getAppServices();
 		const result = reservationUseCases.remove(index, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
 
-		commit({ ...result.data!, hydrated: true }, true);
+		await commit({ ...result.data!, hydrated: true }, true);
 		return { ok: true };
 	}
 
-	function addParkingLocation(nameInput: string): MutationResult {
+	async function addParkingLocation(nameInput: string): Promise<MutationResult> {
 		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.add(nameInput, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
 
-		commit({ ...result.data!, hydrated: true }, true);
+		await commit({ ...result.data!, hydrated: true }, true);
 		return { ok: true };
 	}
 
-	function renameParkingLocation(oldName: string, newNameInput: string): MutationResult {
+	async function renameParkingLocation(oldName: string, newNameInput: string): Promise<MutationResult> {
 		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.rename(oldName, newNameInput, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
 
-		commit({ ...result.data!, hydrated: true }, true);
+		await commit({ ...result.data!, hydrated: true }, true);
 		return { ok: true };
 	}
 
-	function deleteParkingLocation(name: string): MutationResult {
+	async function deleteParkingLocation(name: string): Promise<MutationResult> {
 		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.remove(name, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
 
-		commit({ ...result.data!, hydrated: true }, true);
+		await commit({ ...result.data!, hydrated: true }, true);
 		return { ok: true };
 	}
 
-	function reorderParkingLocations(orderedNames: string[]): MutationResult {
+	async function reorderParkingLocations(orderedNames: string[]): Promise<MutationResult> {
 		const { parkingLocationUseCases } = getAppServices();
 		const result = parkingLocationUseCases.reorder(orderedNames, getPersistedData());
 		if (!result.ok) {
 			return { ok: false, errors: result.errors };
 		}
 
-		commit({ ...result.data!, hydrated: true }, true);
+		await commit({ ...result.data!, hydrated: true }, true);
 		return { ok: true };
 	}
 
-	function importData(data: PersistedAppData): void {
-		commit({ ...data, hydrated: true }, true);
+	async function importData(data: PersistedAppData): Promise<void> {
+		await commit({ ...data, hydrated: true }, true);
 	}
 
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
-		forceSave,
 		saveReservation,
 		deleteReservation,
 		addParkingLocation,

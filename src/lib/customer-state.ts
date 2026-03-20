@@ -12,27 +12,27 @@ function createCustomerStore() {
 		internal.set(customerUseCases.getAll());
 	}
 
-	function create(form: CustomerFormValues) {
+	async function create(form: CustomerFormValues) {
 		const { customerUseCases } = getAppServices();
-		const result = customerUseCases.create(form);
+		const result = await customerUseCases.create(form);
 		if (result.ok) {
 			internal.set(customerUseCases.getAll());
 		}
 		return result;
 	}
 
-	function update(form: CustomerFormValues) {
+	async function update(form: CustomerFormValues) {
 		const { customerUseCases } = getAppServices();
-		const result = customerUseCases.update(form);
+		const result = await customerUseCases.update(form);
 		if (result.ok) {
 			internal.set(customerUseCases.getAll());
 		}
 		return result;
 	}
 
-	function remove(id: string) {
+	async function remove(id: string) {
 		const { customerUseCases } = getAppServices();
-		const result = customerUseCases.remove(id);
+		const result = await customerUseCases.remove(id);
 		if (result.ok) {
 			internal.set(customerUseCases.getAll());
 		}
@@ -53,38 +53,38 @@ function createCustomerStore() {
 		return customerUseCases.getById(id);
 	}
 
-	function findOrCreateFromReservation(name: string, phone: string): Customer | null {
+	async function findOrCreateFromReservation(name: string, phone: string): Promise<Customer | null> {
 		const { customerUseCases } = getAppServices();
-		const customer = customerUseCases.findOrCreateFromReservation(name, phone);
+		const customer = await customerUseCases.findOrCreateFromReservation(name, phone);
 		if (customer) {
 			internal.set(customerUseCases.getAll());
 		}
 		return customer;
 	}
 
-	function importCsv(csvText: string) {
+	async function importCsv(csvText: string) {
 		const { customerUseCases } = getAppServices();
-		const result = customerUseCases.importCsv(csvText);
+		const result = await customerUseCases.importCsv(csvText);
 		internal.set(customerUseCases.getAll());
 		return result;
 	}
 
-	function replaceAll(customers: Customer[]): void {
+	async function replaceAll(customers: Customer[]): Promise<void> {
 		const { customerUseCases } = getAppServices();
-		customerUseCases.replaceAll(customers);
+		await customerUseCases.replaceAll(customers);
 		internal.set(customerUseCases.getAll());
 	}
 
-	function mergeCustomers(
+	async function mergeCustomers(
 		customerIds: string[],
 		overrides?: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>>
-	): MergeCustomersResult {
+	): Promise<MergeCustomersResult> {
 		const { mergeCustomersUseCases, repositories } = getAppServices();
 		const appData = repositories.appData.load();
-		const result = mergeCustomersUseCases.merge(customerIds, appData, overrides);
+		const result = await mergeCustomersUseCases.merge(customerIds, appData, overrides);
 		if (result.ok) {
 			internal.set(getAppServices().customerUseCases.getAll());
-			rvReservationStore.importData(result.data);
+			await rvReservationStore.importData(result.data);
 		}
 		return result;
 	}
@@ -94,13 +94,13 @@ function createCustomerStore() {
 		return mergeCustomersUseCases.findDuplicates();
 	}
 
-	function deduplicateAll(): { groupsMerged: number; reservationsRelinked: number } {
+	async function deduplicateAll(): Promise<{ groupsMerged: number; reservationsRelinked: number }> {
 		const { mergeCustomersUseCases, repositories } = getAppServices();
 		const appData = repositories.appData.load();
-		const result = mergeCustomersUseCases.deduplicateAll(appData);
+		const result = await mergeCustomersUseCases.deduplicateAll(appData);
 		if (result.groupsMerged > 0) {
 			internal.set(getAppServices().customerUseCases.getAll());
-			rvReservationStore.importData(result.data);
+			await rvReservationStore.importData(result.data);
 		}
 		return { groupsMerged: result.groupsMerged, reservationsRelinked: result.reservationsRelinked };
 	}

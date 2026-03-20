@@ -11,9 +11,7 @@ function getDefaultSettings(): SiteSettings {
 }
 
 function createSiteSettingsStore() {
-	const internal = writable<SiteSettings>(
-		browser ? getAppServices().adminSettingsUseCases.loadSettings() : getDefaultSettings()
-	);
+	const internal = writable<SiteSettings>(getDefaultSettings());
 
 	function hydrate(): void {
 		if (!browser) return;
@@ -21,10 +19,10 @@ function createSiteSettingsStore() {
 		internal.set(adminSettingsUseCases.loadSettings());
 	}
 
-	function setSiteName(siteName: string): SiteSettings {
+	async function setSiteName(siteName: string): Promise<SiteSettings> {
 		const { adminSettingsUseCases } = getAppServices();
 		const current = get(internal);
-		const result = adminSettingsUseCases.updateSiteName(siteName, current);
+		const result = await adminSettingsUseCases.updateSiteName(siteName, current);
 		if (result.ok && result.settings) {
 			internal.set(result.settings);
 			return result.settings;
@@ -32,10 +30,10 @@ function createSiteSettingsStore() {
 		return current;
 	}
 
-	function setCompactView(compact: boolean): SiteSettings {
+	async function setCompactView(compact: boolean): Promise<SiteSettings> {
 		const { adminSettingsUseCases } = getAppServices();
 		const current = get(internal);
-		const result = adminSettingsUseCases.setCompactView(compact, current);
+		const result = await adminSettingsUseCases.setCompactView(compact, current);
 		internal.set(result.settings);
 		return result.settings;
 	}
