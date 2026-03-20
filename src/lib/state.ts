@@ -118,6 +118,16 @@ function createRvReservationStore() {
 		return persist(result.data!);
 	}
 
+	async function moveReservation(index: number, daysDelta: number, newSite?: string): Promise<MutationResult> {
+		const { reservationUseCases } = getAppServices();
+		const result = reservationUseCases.move(index, daysDelta, newSite, getPersistedData());
+		if (!result.ok) {
+			return { ok: false, errors: result.errors };
+		}
+
+		return persist(result.data!);
+	}
+
 	async function importData(data: PersistedAppData): Promise<MutationResult> {
 		return persist(data);
 	}
@@ -127,6 +137,7 @@ function createRvReservationStore() {
 		hydrate,
 		saveReservation,
 		deleteReservation,
+		moveReservation,
 		addParkingLocation,
 		renameParkingLocation,
 		deleteParkingLocation,
