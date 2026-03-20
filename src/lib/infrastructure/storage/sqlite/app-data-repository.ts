@@ -1,8 +1,8 @@
 import type { AppDataRepository } from '$lib/application/ports';
 import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus } from '$lib/domain/models';
 import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
-import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
-import type { Database } from './types';
+import { getDefaultPersistedAppData, DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
+import { type Database, withTransaction } from './types';
 
 const DATA_VERSION = 3;
 
@@ -30,13 +30,7 @@ interface LocationRow {
 }
 
 function getDefaultData(): PersistedAppData {
-	return {
-		version: DATA_VERSION,
-		reservations: [],
-		parkingLocations: [...DEFAULT_PARKING_LOCATIONS],
-		nextReservationIndex: 1,
-		lastSavedAt: null
-	};
+	return { ...getDefaultPersistedAppData(), version: DATA_VERSION };
 }
 
 function rowToReservation(row: ReservationRow): Reservation {
@@ -101,8 +95,7 @@ async function loadFromDb(db: Database): Promise<PersistedAppData> {
 async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 	const savedAt = Date.now();
 
-	await db.execute('BEGIN TRANSACTION');
-	try {
+	await withTransaction(db, async () => {
 		// Clear FK children first, then parents, then re-insert.
 		// Within a transaction this is safe — interrupted = rollback, not empty.
 		await db.execute('DELETE FROM reservations');
@@ -133,12 +126,7 @@ async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 			'last_saved_at',
 			String(savedAt)
 		]);
-
-		await db.execute('COMMIT');
-	} catch (err) {
-		await db.execute('ROLLBACK').catch(() => {});
-		throw err;
-	}
+	});
 
 	return savedAt;
 }

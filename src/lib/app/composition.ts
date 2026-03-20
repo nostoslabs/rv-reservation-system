@@ -28,32 +28,31 @@ export interface AppServices {
 
 let instance: AppServices | null = null;
 let initPromise: Promise<AppServices> | null = null;
-let properlyInitialized = false;
 
 function isTauri(): boolean {
 	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
-function createLocalStorageServices(): AppServices {
-	const appDataRepo = createLocalStorageAppDataRepository();
-	const siteSettingsRepo = createLocalStorageSiteSettingsRepository();
-	const customerRepo = createLocalStorageCustomerRepository();
-
-	const repositories: StorageRepositories = {
-		appData: appDataRepo,
-		siteSettings: siteSettingsRepo,
-		customers: customerRepo
-	};
-
+function buildAppServices(desktop: DesktopCapabilities, repositories: StorageRepositories): AppServices {
 	return {
-		desktop: createWebFallbackDesktopCapabilities(),
+		desktop,
 		repositories,
-		reservationUseCases: createReservationUseCases(appDataRepo),
-		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
-		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
-		customerUseCases: createCustomerUseCases(customerRepo),
-		mergeCustomersUseCases: createMergeCustomersUseCases(customerRepo)
+		reservationUseCases: createReservationUseCases(repositories.appData),
+		parkingLocationUseCases: createParkingLocationUseCases(repositories.appData),
+		adminSettingsUseCases: createAdminSettingsUseCases(repositories.siteSettings),
+		customerUseCases: createCustomerUseCases(repositories.customers),
+		mergeCustomersUseCases: createMergeCustomersUseCases(repositories.customers)
 	};
+}
+
+function createLocalStorageServices(): AppServices {
+	const repositories: StorageRepositories = {
+		appData: createLocalStorageAppDataRepository(),
+		siteSettings: createLocalStorageSiteSettingsRepository(),
+		customers: createLocalStorageCustomerRepository()
+	};
+
+	return buildAppServices(createWebFallbackDesktopCapabilities(), repositories);
 }
 
 async function createSqliteServices(): Promise<AppServices> {
@@ -82,9 +81,7 @@ async function createSqliteServices(): Promise<AppServices> {
 	const siteSettingsRepo = createSqliteSiteSettingsRepository(db);
 	const customerRepo = createSqliteCustomerRepository(db);
 
-	await appDataRepo.init();
-	await siteSettingsRepo.init();
-	await customerRepo.init();
+	await Promise.all([appDataRepo.init(), siteSettingsRepo.init(), customerRepo.init()]);
 
 	const repositories: StorageRepositories = {
 		appData: appDataRepo,
@@ -92,15 +89,7 @@ async function createSqliteServices(): Promise<AppServices> {
 		customers: customerRepo
 	};
 
-	return {
-		desktop: createTauriDesktopCapabilities(),
-		repositories,
-		reservationUseCases: createReservationUseCases(appDataRepo),
-		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
-		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
-		customerUseCases: createCustomerUseCases(customerRepo),
-		mergeCustomersUseCases: createMergeCustomersUseCases(customerRepo)
-	};
+	return buildAppServices(createTauriDesktopCapabilities(), repositories);
 }
 
 /**
@@ -114,13 +103,8 @@ export function getAppServices(): AppServices {
 			throw new Error('getAppServices() called before initAppServices() completed');
 		}
 		instance = createLocalStorageServices();
-		properlyInitialized = true;
 	}
 	return instance;
-}
-
-export function getActiveProvider(): string {
-	return properlyInitialized && isTauri() ? 'SQLite' : 'localStorage (fallback)';
 }
 
 /**
@@ -130,55 +114,43 @@ export function getActiveProvider(): string {
  * Call this once at app startup before accessing getAppServices().
  */
 export async function initAppServices(): Promise<AppServices> {
-	if (properlyInitialized && instance) return instance;
+	if (instance) return instance;
 
 	if (!initPromise) {
-		initPromise = isTauri()
-			? createSqliteServices().then((services) => {
-					instance = services;
-					properlyInitialized = true;
-					return services;
-				})
-			: Promise.resolve(createLocalStorageServices()).then((services) => {
-					instance = services;
-					properlyInitialized = true;
-					return services;
-				});
+		initPromise = (isTauri() ? createSqliteServices() : Promise.resolve(createLocalStorageServices()))
+			.then((services) => {
+				instance = services;
+				return services;
+			});
 	}
 
 	return initPromise;
 }
 
 export async function registerPersistenceLifecycleHandlers(): Promise<() => void> {
-	if (typeof window === 'undefined') {
+	if (typeof window === 'undefined' || !isTauri()) {
 		return () => {};
 	}
 
 	let closeCleanup: (() => void) | null = null;
-	if (isTauri()) {
-		try {
-			const { getCurrentWindow } = await import('@tauri-apps/api/window');
-			const appWindow = getCurrentWindow();
-			let closing = false;
+	try {
+		const { getCurrentWindow } = await import('@tauri-apps/api/window');
+		const appWindow = getCurrentWindow();
+		let closing = false;
 
-			closeCleanup = await appWindow.onCloseRequested(async (event) => {
-				if (closing) return;
-				closing = true;
-				event.preventDefault();
+		closeCleanup = await appWindow.onCloseRequested(async (event) => {
+			if (closing) return;
+			closing = true;
+			event.preventDefault();
 
-				try {
-					// No flush needed — all writes are awaited inline
-				} finally {
-					if (closeCleanup) {
-						closeCleanup();
-						closeCleanup = null;
-					}
-					await appWindow.close();
-				}
-			});
-		} catch (err) {
-			console.error('Failed to register Tauri close handler:', err);
-		}
+			if (closeCleanup) {
+				closeCleanup();
+				closeCleanup = null;
+			}
+			await appWindow.close();
+		});
+	} catch (err) {
+		console.error('Failed to register Tauri close handler:', err);
 	}
 
 	return () => {

@@ -1,6 +1,6 @@
 import type { CustomerRepository } from '$lib/application/ports/customer';
 import type { Customer } from '$lib/domain/customers';
-import type { Database } from './types';
+import { type Database, withTransaction } from './types';
 
 interface CustomerRow {
 	id: string;
@@ -87,17 +87,12 @@ export function createSqliteCustomerRepository(db: Database): CustomerRepository
 
 		async replaceAll(customers: Customer[]): Promise<void> {
 			const snapshot = customers.map((customer) => ({ ...customer }));
-			await db.execute('BEGIN TRANSACTION');
-			try {
+			await withTransaction(db, async () => {
 				await db.execute('DELETE FROM customers');
 				for (const customer of snapshot) {
 					await upsertToDb(db, customer);
 				}
-				await db.execute('COMMIT');
-			} catch (err) {
-				await db.execute('ROLLBACK').catch(() => {});
-				throw err;
-			}
+			});
 			cache = snapshot;
 		}
 	};
