@@ -69,7 +69,7 @@ export function createLocalStorageCustomerRepository(): CustomerRepository {
 			return customers.find((c) => c.id === id) ?? null;
 		},
 
-		save(customer: Customer): void {
+		async save(customer: Customer): Promise<void> {
 			const idx = customers.findIndex((c) => c.id === customer.id);
 			if (idx >= 0) {
 				customers[idx] = customer;
@@ -79,12 +79,12 @@ export function createLocalStorageCustomerRepository(): CustomerRepository {
 			persist();
 		},
 
-		remove(id: string): void {
+		async remove(id: string): Promise<void> {
 			customers = customers.filter((c) => c.id !== id);
 			persist();
 		},
 
-		replaceAll(newCustomers: Customer[]): void {
+		async replaceAll(newCustomers: Customer[]): Promise<void> {
 			customers = [...newCustomers];
 			persist();
 		}

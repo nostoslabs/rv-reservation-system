@@ -134,7 +134,7 @@ export function loadPersistedAppData(): PersistedAppData {
   }
 }
 
-export function savePersistedAppData(data: PersistedAppData): number {
+export async function savePersistedAppData(data: PersistedAppData): Promise<number> {
   const savedAt = Date.now();
   if (!browser) return savedAt;
 
@@ -148,7 +148,7 @@ export function savePersistedAppData(data: PersistedAppData): number {
   return savedAt;
 }
 
-export function clearPersistedAppData(): void {
+export async function clearPersistedAppData(): Promise<void> {
   if (!browser) return;
   window.localStorage.removeItem(STORAGE_KEY);
 }
@@ -197,7 +197,7 @@ export function loadSiteSettings(): SiteSettings {
   }
 }
 
-export function saveSiteSettings(settings: SiteSettings): SiteSettings {
+export async function saveSiteSettings(settings: SiteSettings): Promise<SiteSettings> {
   const sanitized = sanitizeSiteSettings(settings);
   if (!browser) return sanitized;
   window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(sanitized));

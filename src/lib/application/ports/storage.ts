@@ -4,13 +4,13 @@ import type { CustomerRepository } from './customer';
 export interface AppDataRepository {
   getDefaultData(): PersistedAppData;
   load(): PersistedAppData;
-  save(data: PersistedAppData): number;
-  clear(): void;
+  save(data: PersistedAppData): Promise<number>;
+  clear(): Promise<void>;
 }
 
 export interface SiteSettingsRepository {
   load(): SiteSettings;
-  save(settings: SiteSettings): SiteSettings;
+  save(settings: SiteSettings): Promise<SiteSettings>;
 }
 
 export interface StorageRepositories {
