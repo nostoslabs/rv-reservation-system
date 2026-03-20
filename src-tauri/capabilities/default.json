@@ -11,6 +11,12 @@
     "sql:allow-select",
     "dialog:default",
     "fs:default",
+    "fs:read-files",
+    "fs:write-files",
+    {
+      "identifier": "fs:scope",
+      "allow": ["$HOME/**"]
+    },
     "window-state:default"
   ]
 }
