@@ -20,34 +20,26 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			}
 		},
 		async saveFile(defaultName: string, content: string, filters?: FileFilter[]): Promise<boolean> {
-			try {
-				const { save } = await import('@tauri-apps/plugin-dialog');
-				const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-				const path = await save({
-					defaultPath: defaultName,
-					filters: filters ?? []
-				});
-				if (!path) return false;
-				await writeTextFile(path, content);
-				return true;
-			} catch {
-				return false;
-			}
+			const { save } = await import('@tauri-apps/plugin-dialog');
+			const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+			const path = await save({
+				defaultPath: defaultName,
+				filters: filters ?? []
+			});
+			if (!path) return false;
+			await writeTextFile(path, content);
+			return true;
 		},
 		async openFile(filters?: FileFilter[]): Promise<string | null> {
-			try {
-				const { open } = await import('@tauri-apps/plugin-dialog');
-				const { readTextFile } = await import('@tauri-apps/plugin-fs');
-				const path = await open({
-					multiple: false,
-					directory: false,
-					filters: filters ?? []
-				});
-				if (!path) return null;
-				return await readTextFile(path);
-			} catch {
-				return null;
-			}
+			const { open } = await import('@tauri-apps/plugin-dialog');
+			const { readTextFile } = await import('@tauri-apps/plugin-fs');
+			const path = await open({
+				multiple: false,
+				directory: false,
+				filters: filters ?? []
+			});
+			if (!path) return null;
+			return await readTextFile(path);
 		}
 	};
 }
