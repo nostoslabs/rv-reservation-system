@@ -11,7 +11,8 @@
   } from '$lib/date';
   import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
   import { filterReservations } from '$lib/domain/reservations/search';
-  import { buildCellId, buildOccupancyMap } from '$lib/reservations';
+  import { buildCellId, buildOccupancyMap, rangesOverlap } from '$lib/reservations';
+  import { enumerateDates } from '$lib/date';
   import {
     STATUS_BACKGROUND_COLORS,
     STATUS_COLORS,
@@ -163,6 +164,118 @@
     }, 3000);
   }
 
+  // Drag state
+  const DRAG_THRESHOLD = 5;
+  let dragState: {
+    reservation: Reservation;
+    originX: number;
+    originY: number;
+    started: boolean;
+    currentDaysDelta: number;
+    currentSite: string;
+  } | null = null;
+  let dragPreviewCells: Set<string> = new Set();
+  let dragHasOverlap = false;
+  let dragEndedAt = 0;
+
+  function handleCellPointerDown(location: string, dateIso: string, event: PointerEvent): void {
+    const reservation = occupancyMap.get(buildCellId(location, dateIso));
+    if (!reservation) return;
+
+    dragState = {
+      reservation,
+      originX: event.clientX,
+      originY: event.clientY,
+      started: false,
+      currentDaysDelta: 0,
+      currentSite: reservation.parkingLocation
+    };
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
+    if (!dragState) return;
+
+    const dx = event.clientX - dragState.originX;
+    const dy = event.clientY - dragState.originY;
+
+    if (!dragState.started) {
+      if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+      dragState.started = true;
+      // Capture pointer to track movement outside the grid
+      (event.currentTarget as HTMLElement)?.setPointerCapture?.(event.pointerId);
+    }
+
+    // Calculate day delta from horizontal movement
+    const daysDelta = Math.round(dx / DATE_COLUMN_WIDTH);
+
+    // Calculate site from vertical movement
+    const locations = $rvReservationStore.parkingLocations;
+    const origSiteIndex = locations.indexOf(dragState.reservation.parkingLocation);
+    // Each row is approximately cell-height. Use the grid cell height.
+    const cellHeight = compactView ? 28 : 48;
+    const rowDelta = Math.round(dy / cellHeight);
+    const newSiteIndex = Math.max(0, Math.min(locations.length - 1, origSiteIndex + rowDelta));
+    const targetSite = locations[newSiteIndex];
+
+    dragState.currentDaysDelta = daysDelta;
+    dragState.currentSite = targetSite;
+
+    // Compute preview cells
+    const res = dragState.reservation;
+    const nights = diffDays(res.startDate, res.endDate);
+    const newStart = addDays(res.startDate, daysDelta);
+    const newEnd = addDays(newStart, nights);
+    const previewDates = enumerateDates(newStart, newEnd);
+    dragPreviewCells = new Set(previewDates.map((d) => buildCellId(targetSite, d)));
+
+    // Check for overlaps
+    dragHasOverlap = false;
+    for (const other of $rvReservationStore.reservations) {
+      if (other.index === res.index) continue;
+      if (other.parkingLocation !== targetSite) continue;
+      if (rangesOverlap(newStart, newEnd, other.startDate, other.endDate)) {
+        dragHasOverlap = true;
+        break;
+      }
+    }
+  }
+
+  async function handlePointerUp(event: PointerEvent): Promise<void> {
+    if (!dragState) return;
+
+    const state = dragState;
+    const wasStarted = state.started;
+    dragState = null;
+    dragPreviewCells = new Set();
+    dragHasOverlap = false;
+
+    // Release pointer capture
+    (event.currentTarget as HTMLElement)?.releasePointerCapture?.(event.pointerId);
+
+    if (!wasStarted) return; // Was a click, not a drag — let the click handler deal with it
+    dragEndedAt = Date.now();
+
+    const { reservation, currentDaysDelta, currentSite } = state;
+    if (currentDaysDelta === 0 && currentSite === reservation.parkingLocation) return;
+
+    const newSite = currentSite !== reservation.parkingLocation ? currentSite : undefined;
+    const result = await rvReservationStore.moveReservation(reservation.index, currentDaysDelta, newSite);
+    if (!result.ok) {
+      showToast(result.errors?.[0] ?? 'Cannot move reservation');
+    } else {
+      showToast('Reservation moved');
+    }
+  }
+
+  function handleGlobalKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && dragState?.started) {
+      dragState = null;
+      dragPreviewCells = new Set();
+      dragHasOverlap = false;
+      dragEndedAt = Date.now();
+    }
+  }
+
   $: compactView = $siteSettingsStore.compactView ?? false;
   $: FIRST_COLUMN_WIDTH = compactView ? 140 : 220;
   $: DATE_COLUMN_WIDTH = compactView ? 90 : 128;
@@ -237,6 +350,9 @@
   }
 
   function openModalForCell(parkingLocation: string, dateIso: string, event?: MouseEvent): void {
+    // Don't open modal if we just finished or cancelled a drag
+    if (dragState?.started) return;
+    if (Date.now() - dragEndedAt < 200) return;
     modalTriggerElement = (event?.currentTarget as HTMLElement) ?? null;
     const reservation = occupancyMap.get(buildCellId(parkingLocation, dateIso));
 
@@ -387,6 +503,8 @@
   });
 </script>
 
+<svelte:window on:keydown={handleGlobalKeydown} />
+
 <svelte:head>
   <title>{$siteSettingsStore.siteName}</title>
   <meta
@@ -523,7 +641,15 @@
         </div>
       {/if}
 
-      <div class="sheet-scroll" class:compact={compactView} bind:this={gridScroller}>
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div
+        class="sheet-scroll"
+        class:compact={compactView}
+        class:dragging={dragState?.started}
+        bind:this={gridScroller}
+        on:pointermove={handlePointerMove}
+        on:pointerup={handlePointerUp}
+      >
         <table class="sheet-table" aria-label="RV reservation schedule">
           <colgroup>
             <col class="first-col" />
@@ -575,15 +701,20 @@
                 {#each visibleDateColumns as dateIso (dateIso)}
                   {@const cellId = buildCellId(location, dateIso)}
                   {@const reservation = occupancyMap.get(cellId)}
+                  {@const isDragSource = dragState?.started && reservation?.index === dragState.reservation.index}
+                  {@const isDragPreview = dragPreviewCells.has(cellId)}
                   <td
-                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''}`}
-                    style={reservation ? `background: ${STATUS_BACKGROUND_COLORS[reservation.status]}; border-left: 3px solid ${STATUS_COLORS[reservation.status]};` : ''}
+                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''}`}
+                    style={reservation && !isDragSource ? `background: ${STATUS_BACKGROUND_COLORS[reservation.status]}; border-left: 3px solid ${STATUS_COLORS[reservation.status]};` : ''}
                     on:click={(e) => openModalForCell(location, dateIso, e)}
+                    on:pointerdown={(e) => handleCellPointerDown(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
-                    {#if reservation}
+                    {#if reservation && !isDragSource}
                       <span class="reservation-label"><span class="status-icon" aria-hidden="true">{STATUS_ICONS[reservation.status]}</span>{reservation.name}</span>
-                    {:else}
+                    {:else if isDragPreview}
+                      <span class="reservation-label drag-ghost"><span class="status-icon" aria-hidden="true">{STATUS_ICONS[dragState?.reservation.status ?? 'reserved']}</span>{dragState?.reservation.name}</span>
+                    {:else if !reservation}
                       <span class="empty-hint" aria-hidden="true">+</span>
                     {/if}
                   </td>
@@ -1097,8 +1228,36 @@
     line-clamp: 1;
   }
 
+  .grid-cell.occupied {
+    cursor: grab;
+  }
+
+  .dragging .grid-cell.occupied {
+    cursor: grabbing;
+  }
+
   .grid-cell.occupied:hover {
     filter: brightness(0.97);
+  }
+
+  .grid-cell.drag-source {
+    opacity: 0.3;
+    background: #e8ecf2 !important;
+    border-left-color: #c8d1de !important;
+  }
+
+  .grid-cell.drag-preview {
+    background: rgba(10, 99, 224, 0.15) !important;
+    border-left: 3px solid #0a63e0 !important;
+  }
+
+  .grid-cell.drag-preview-error {
+    background: rgba(212, 42, 42, 0.12) !important;
+    border-left: 3px solid #d42a2a !important;
+  }
+
+  .drag-ghost {
+    opacity: 0.7;
   }
 
   /* Search */
