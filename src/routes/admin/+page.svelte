@@ -142,8 +142,10 @@
       customers
     );
 
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const filename = `rv-backup-${dateStr}.json`;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const filename = `rv-backup-${dateStr}-${timeStr}.json`;
     const content = JSON.stringify(backup, null, 2);
 
     const { desktop } = getAppServices();
