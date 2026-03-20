@@ -179,92 +179,93 @@
       {/if}
 
       <form class="modal-form" on:submit|preventDefault={handleSubmit}>
-        <!-- 1. Guest Name (autofocused, with autocomplete) -->
-        <label>
-          <span>Name</span>
-          <AutocompleteInput
-            bind:this={autocompleteRef}
-            bind:value={form.name}
-            suggestions={customerSuggestions}
-            placeholder="Guest name"
-            required
-            maxlength={80}
-            testid="guest-name-input"
-            on:select={handleCustomerSelect}
-          />
-        </label>
-
-        <!-- 2. Date range calendar with inline date inputs -->
-        <DateRangeCalendar
-          startDate={form.startDate}
-          endDate={form.endDate}
-          on:change={handleDateRangeChange}
-        />
-
-        <div class="date-row">
-          <label class="date-label">
-            <span>Arrival</span>
-            <input bind:value={form.startDate} type="date" required />
-          </label>
-          <label class="date-label">
-            <span>Departure</span>
-            <input
-              bind:value={form.endDate}
-              type="date"
-              required
-              min={form.startDate ? addDays(form.startDate, 1) : undefined}
+        <div class="form-columns">
+          <div class="column-left">
+            <DateRangeCalendar
+              startDate={form.startDate}
+              endDate={form.endDate}
+              on:change={handleDateRangeChange}
             />
-          </label>
-          {#if nightsLabel}
-            <span class="nights-badge" data-testid="nights-display">{nightsLabel}</span>
-          {/if}
-        </div>
 
-        <!-- 3. Site (parking location) -->
-        <label>
-          <span>Site</span>
-          <select bind:value={form.parkingLocation} required>
-            {#each parkingLocations as location}
-              <option value={location}>{location}</option>
-            {/each}
-          </select>
-        </label>
-
-        <label>
-          <span>Status</span>
-          <div class="status-select-wrapper">
-            <span
-              class="status-indicator"
-              style="background: {STATUS_COLORS[form.status]}"
-              aria-hidden="true"
-            ></span>
-            <select bind:value={form.status} required aria-label="Reservation status">
-              {#each RESERVATION_STATUSES as statusValue}
-                <option value={statusValue}>{STATUS_LABELS[statusValue]}</option>
-              {/each}
-            </select>
+            <div class="date-row">
+              <label class="date-label">
+                <span>Arrival</span>
+                <input bind:value={form.startDate} type="date" required />
+              </label>
+              <label class="date-label">
+                <span>Departure</span>
+                <input
+                  bind:value={form.endDate}
+                  type="date"
+                  required
+                  min={form.startDate ? addDays(form.startDate, 1) : undefined}
+                />
+              </label>
+              {#if nightsLabel}
+                <span class="nights-badge" data-testid="nights-display">{nightsLabel}</span>
+              {/if}
+            </div>
           </div>
-        </label>
 
-        <!-- 5. Phone Number -->
-        <label>
-          <span>Phone Number</span>
-          <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
-        </label>
+          <div class="column-right">
+            <label>
+              <span>Name</span>
+              <AutocompleteInput
+                bind:this={autocompleteRef}
+                bind:value={form.name}
+                suggestions={customerSuggestions}
+                placeholder="Guest name"
+                required
+                maxlength={80}
+                testid="guest-name-input"
+                on:select={handleCustomerSelect}
+              />
+            </label>
 
-        <!-- 6. Notes -->
-        <label>
-          <span class="notes-label-row">
-            <span>Notes</span>
-            <small>{form.notes.length}/{MAX_RESERVATION_NOTES_LENGTH}</small>
-          </span>
-          <textarea
-            bind:value={form.notes}
-            rows="3"
-            maxlength={MAX_RESERVATION_NOTES_LENGTH}
-            placeholder="Optional notes"
-          ></textarea>
-        </label>
+            <label>
+              <span>Site</span>
+              <select bind:value={form.parkingLocation} required>
+                {#each parkingLocations as location}
+                  <option value={location}>{location}</option>
+                {/each}
+              </select>
+            </label>
+
+            <label>
+              <span>Status</span>
+              <div class="status-select-wrapper">
+                <span
+                  class="status-indicator"
+                  style="background: {STATUS_COLORS[form.status]}"
+                  aria-hidden="true"
+                ></span>
+                <select bind:value={form.status} required aria-label="Reservation status">
+                  {#each RESERVATION_STATUSES as statusValue}
+                    <option value={statusValue}>{STATUS_LABELS[statusValue]}</option>
+                  {/each}
+                </select>
+              </div>
+            </label>
+
+            <label>
+              <span>Phone Number</span>
+              <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
+            </label>
+
+            <label>
+              <span class="notes-label-row">
+                <span>Notes</span>
+                <small>{form.notes.length}/{MAX_RESERVATION_NOTES_LENGTH}</small>
+              </span>
+              <textarea
+                bind:value={form.notes}
+                rows="3"
+                maxlength={MAX_RESERVATION_NOTES_LENGTH}
+                placeholder="Optional notes"
+              ></textarea>
+            </label>
+          </div>
+        </div>
 
         <footer class="modal-actions">
           {#if mode === 'edit' && typeof form.index === 'number'}
@@ -310,8 +311,8 @@
 
   .modal {
     position: relative;
-    width: min(38rem, 100%);
-    max-height: min(95vh, 52rem);
+    width: min(52rem, 100%);
+    max-height: min(90vh, 52rem);
     overflow-y: auto;
     background: white;
     border-radius: 14px;
@@ -384,6 +385,19 @@
   .modal-form {
     display: grid;
     gap: 0.8rem;
+  }
+
+  .form-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .column-left,
+  .column-right {
+    display: grid;
+    gap: 0.8rem;
+    align-content: start;
   }
 
   .date-row {
@@ -535,6 +549,10 @@
   }
 
   @media (max-width: 640px) {
+    .form-columns {
+      grid-template-columns: 1fr;
+    }
+
     .modal-actions {
       flex-wrap: wrap;
     }
