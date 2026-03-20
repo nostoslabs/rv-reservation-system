@@ -14,6 +14,9 @@ export interface DesktopCapabilities {
 	/** Get the app data directory for persistent storage (Tauri only). */
 	getAppDataDir(): Promise<string | null>;
 
+	/** Get the application version from the runtime environment. */
+	getVersion(): Promise<string | null>;
+
 	/** Show a save-file dialog and write content. Returns true if saved. */
 	saveFile(defaultName: string, content: string, filters?: FileFilter[]): Promise<boolean>;
 

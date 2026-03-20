@@ -55,10 +55,17 @@ test.describe('Settings page', () => {
 		await expect(page.locator('h1')).toHaveText('Park Settings');
 
 		// Should not contain "hidden" language
-		const headerText = await page.locator('.admin-header').textContent();
+		const headerText = await page.locator('.toolbar').textContent();
 		expect(headerText?.toLowerCase()).not.toContain('hidden');
 		expect(headerText?.toLowerCase()).not.toContain('secret');
 		expect(headerText?.toLowerCase()).not.toContain('not linked');
+	});
+
+	test('version footer is not shown in web build', async ({ page }) => {
+		await page.goto('/admin');
+		await expect(page.locator('h1')).toHaveText('Park Settings');
+		// Web fallback returns null for getVersion(), so the footer should not render
+		await expect(page.locator('[data-testid="app-version"]')).not.toBeVisible();
 	});
 
 	test('change site name', async ({ page }) => {

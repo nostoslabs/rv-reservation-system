@@ -11,6 +11,8 @@
 
   const SITE_NAME_MAX_LENGTH = 80;
 
+  let appVersion = '';
+
   let siteNameDraft = DEFAULT_SITE_NAME;
   let errorMessage = '';
   let successMessage = '';
@@ -34,11 +36,14 @@
     Object.fromEntries($rvReservationStore.parkingLocations.map((loc) => [loc, 0]))
   );
 
-  onMount(() => {
+  onMount(async () => {
     siteSettingsStore.hydrate();
     customerStore.hydrate();
     rvReservationStore.hydrate();
     siteNameDraft = $siteSettingsStore.siteName;
+
+    const { desktop } = getAppServices();
+    appVersion = (await desktop.getVersion()) ?? '';
   });
 
   function handleCsvFileChange(event: Event): void {
@@ -242,13 +247,14 @@
   <meta name="description" content="Park settings for {$siteSettingsStore.siteName}." />
 </svelte:head>
 
-<div class="admin-shell">
-  <header class="admin-header">
-    <a href="/" class="back-link" data-testid="back-to-schedule">&larr; Back to Schedule</a>
-    <h1>Park Settings</h1>
-    <p>
-      Manage your park name, sites, and customer data.
-    </p>
+<div class="page-shell">
+  <header class="toolbar">
+    <a href="/" class="back-link" aria-label="Back to schedule" data-testid="back-to-schedule">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
+        <path d="M19 12H5M12 19l-7-7 7-7" />
+      </svg>
+    </a>
+    <h1 class="toolbar-title">Park Settings</h1>
   </header>
 
   {#if errorMessage}
@@ -351,51 +357,72 @@
       on:clearerror={() => (locationPanelError = '')}
     />
   </div>
+
+  {#if appVersion}
+    <footer class="app-version" data-testid="app-version">
+      Version {appVersion}
+    </footer>
+  {/if}
 </div>
 
 <style>
-  .admin-shell {
+  .page-shell {
+    padding: 0.5rem 1rem;
+    display: grid;
+    gap: 0.75rem;
     max-width: 46rem;
     margin: 0 auto;
-    padding: 1rem;
-    display: grid;
-    gap: 0.9rem;
   }
 
-  .admin-header,
+  .toolbar {
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(214, 222, 234, 0.9);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 0.4rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    backdrop-filter: blur(6px);
+    min-height: 48px;
+  }
+
+  .toolbar-title {
+    margin: 0;
+    font-size: 1.1rem;
+    white-space: nowrap;
+  }
+
+  .back-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid #d9e1ec;
+    background: #f6f9fd;
+    color: #5c6c80;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .back-link:hover {
+    color: #0a63e0;
+    border-color: #0a63e0;
+    background: #edf3fd;
+  }
+
   .panel {
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid #d6dfeb;
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(214, 222, 234, 0.9);
+    border-radius: 14px;
     box-shadow: var(--shadow);
     padding: 1rem;
   }
 
-  .back-link {
-    display: inline-block;
-    margin: 0 0 0.3rem;
-    color: #0c5fdb;
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-decoration: none;
-  }
-
-  .back-link:hover {
-    text-decoration: underline;
-  }
-
-  h1,
   h2 {
     margin: 0;
-  }
-
-  .admin-header h1 {
-    margin-top: 0.2rem;
-  }
-
-  .admin-header p:last-child {
-    margin: 0.45rem 0 0;
-    color: #5c6c80;
   }
 
   .panel p {
@@ -423,10 +450,17 @@
   input {
     width: 100%;
     border-radius: 10px;
-    border: 1px solid #c8d1de;
-    padding: 0.55rem 0.65rem;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    color: #1c2e45;
+    min-height: 44px;
+  }
+
+  input:focus {
     background: white;
-    color: #102033;
+    border-color: #0a63e0;
   }
 
   button {
@@ -435,14 +469,20 @@
     border: 1px solid #c1cada;
     background: #f6f8fb;
     color: #203045;
-    padding: 0.55rem 0.8rem;
+    padding: 0.6rem 0.85rem;
     cursor: pointer;
+    font-weight: 600;
+    min-height: 44px;
   }
 
   button.primary {
     background: #0c5fdb;
     border-color: #0c5fdb;
     color: white;
+  }
+
+  button.primary:hover {
+    background: #0757c8;
   }
 
   .meta {
@@ -488,6 +528,7 @@
     cursor: pointer;
     text-decoration: underline;
     width: fit-content;
+    min-height: auto;
   }
 
   .error-list {
@@ -509,6 +550,13 @@
     border: 1px dashed #c8d1de;
     border-radius: 10px;
     background: #fafbfd;
+  }
+
+  .app-version {
+    text-align: center;
+    color: #8995a5;
+    font-size: 0.8rem;
+    padding: 0.5rem 0 0.25rem;
   }
 
 </style>

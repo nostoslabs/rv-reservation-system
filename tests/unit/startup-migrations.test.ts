@@ -7,6 +7,7 @@ function makeStubServices(): AppServices {
 		desktop: {
 			isDesktop: false,
 			getAppDataDir: async () => null,
+			getVersion: async () => null,
 			saveFile: async () => false,
 			openFile: async () => null
 		},
