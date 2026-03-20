@@ -1,7 +1,6 @@
 import type { CustomerRepository } from '$lib/application/ports/customer';
 import type { Customer } from '$lib/domain/customers';
 import type { Database } from './types';
-import type { SqliteWriteQueue } from './write-queue';
 
 interface CustomerRow {
 	id: string;
@@ -52,9 +51,8 @@ async function deleteFromDb(db: Database, id: string): Promise<void> {
 	await db.execute('DELETE FROM customers WHERE id = ?', [id]);
 }
 
-export function createSqliteCustomerRepository(db: Database, writes: SqliteWriteQueue): CustomerRepository & {
+export function createSqliteCustomerRepository(db: Database): CustomerRepository & {
 	init(): Promise<void>;
-	flush(): Promise<void>;
 } {
 	let cache: Customer[] = [];
 
@@ -71,35 +69,36 @@ export function createSqliteCustomerRepository(db: Database, writes: SqliteWrite
 			return cache.find((c) => c.id === id) ?? null;
 		},
 
-		save(customer: Customer): void {
+		async save(customer: Customer): Promise<void> {
 			const snapshot = { ...customer };
+			await upsertToDb(db, snapshot);
 			const idx = cache.findIndex((c) => c.id === customer.id);
 			if (idx >= 0) {
 				cache[idx] = snapshot;
 			} else {
 				cache.push(snapshot);
 			}
-			writes.enqueue(() => upsertToDb(db, snapshot));
 		},
 
-		remove(id: string): void {
+		async remove(id: string): Promise<void> {
+			await deleteFromDb(db, id);
 			cache = cache.filter((c) => c.id !== id);
-			writes.enqueue(() => deleteFromDb(db, id));
 		},
 
-		replaceAll(customers: Customer[]): void {
+		async replaceAll(customers: Customer[]): Promise<void> {
 			const snapshot = customers.map((customer) => ({ ...customer }));
-			cache = snapshot;
-			writes.enqueue(async () => {
+			await db.execute('BEGIN TRANSACTION');
+			try {
 				await db.execute('DELETE FROM customers');
 				for (const customer of snapshot) {
 					await upsertToDb(db, customer);
 				}
-			});
-		},
-
-		async flush(): Promise<void> {
-			await writes.flush();
+				await db.execute('COMMIT');
+			} catch (err) {
+				await db.execute('ROLLBACK').catch(() => {});
+				throw err;
+			}
+			cache = snapshot;
 		}
 	};
 }

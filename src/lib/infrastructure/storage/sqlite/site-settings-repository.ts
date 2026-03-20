@@ -2,7 +2,6 @@ import type { SiteSettingsRepository } from '$lib/application/ports';
 import type { SiteSettings } from '$lib/domain/models';
 import { DEFAULT_SITE_NAME } from '$lib/storage';
 import type { Database } from './types';
-import type { SqliteWriteQueue } from './write-queue';
 
 interface SettingRow {
 	key: string;
@@ -38,9 +37,8 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
  * Create a SQLite-backed SiteSettingsRepository.
  * Must be initialized with `init()` before use.
  */
-export function createSqliteSiteSettingsRepository(db: Database, writes: SqliteWriteQueue): SiteSettingsRepository & {
+export function createSqliteSiteSettingsRepository(db: Database): SiteSettingsRepository & {
 	init(): Promise<void>;
-	flush(): Promise<void>;
 } {
 	let cache: SiteSettings = defaultSettings();
 
@@ -53,15 +51,11 @@ export function createSqliteSiteSettingsRepository(db: Database, writes: SqliteW
 			return cache;
 		},
 
-		save(settings: SiteSettings): SiteSettings {
+		async save(settings: SiteSettings): Promise<SiteSettings> {
 			const sanitized = sanitize(settings);
+			await saveToDb(db, sanitized);
 			cache = sanitized;
-			writes.enqueue(() => saveToDb(db, sanitized));
 			return sanitized;
-		},
-
-		async flush(): Promise<void> {
-			await writes.flush();
 		}
 	};
 }

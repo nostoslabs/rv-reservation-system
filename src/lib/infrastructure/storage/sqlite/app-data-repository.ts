@@ -3,7 +3,6 @@ import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus
 import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
 import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
 import type { Database } from './types';
-import type { SqliteWriteQueue } from './write-queue';
 
 const DATA_VERSION = 3;
 
@@ -102,27 +101,42 @@ async function loadFromDb(db: Database): Promise<PersistedAppData> {
 async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 	const savedAt = Date.now();
 
-	// Use a transaction for atomicity — prevents partial writes on crash
 	await db.execute('BEGIN TRANSACTION');
 	try {
-		// Delete reservations FIRST (they reference parking_locations via FK)
-		await db.execute('DELETE FROM reservations');
-
-		// Now safe to delete and re-insert parking locations
-		await db.execute('DELETE FROM parking_locations');
-		for (let i = 0; i < data.parkingLocations.length; i++) {
-			await db.execute('INSERT INTO parking_locations (name, sort_order) VALUES (?, ?)', [
-				data.parkingLocations[i],
-				i
-			]);
-		}
-
-		// Re-insert reservations (parking_locations rows exist now)
+		// Upsert each reservation
 		for (const r of data.reservations) {
 			await db.execute(
-				'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				`INSERT OR REPLACE INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
 			);
+		}
+
+		// Delete reservations not in current set
+		if (data.reservations.length > 0) {
+			const ids = data.reservations.map((r) => r.index);
+			const placeholders = ids.map(() => '?').join(',');
+			await db.execute(`DELETE FROM reservations WHERE id NOT IN (${placeholders})`, ids);
+		} else {
+			await db.execute('DELETE FROM reservations');
+		}
+
+		// Upsert parking locations
+		for (let i = 0; i < data.parkingLocations.length; i++) {
+			await db.execute(
+				'INSERT OR REPLACE INTO parking_locations (name, sort_order) VALUES (?, ?)',
+				[data.parkingLocations[i], i]
+			);
+		}
+
+		// Delete locations not in current set
+		if (data.parkingLocations.length > 0) {
+			const placeholders = data.parkingLocations.map(() => '?').join(',');
+			await db.execute(
+				`DELETE FROM parking_locations WHERE name NOT IN (${placeholders})`,
+				data.parkingLocations
+			);
+		} else {
+			await db.execute('DELETE FROM parking_locations');
 		}
 
 		// Sync metadata
@@ -153,11 +167,10 @@ async function clearDb(db: Database): Promise<void> {
 /**
  * Create a SQLite-backed AppDataRepository.
  * Must be initialized with `init()` before use — this pre-loads data
- * into an in-memory cache so the synchronous port interface is satisfied.
+ * into an in-memory cache so the synchronous load() is satisfied.
  */
-export function createSqliteAppDataRepository(db: Database, writes: SqliteWriteQueue): AppDataRepository & {
+export function createSqliteAppDataRepository(db: Database): AppDataRepository & {
 	init(): Promise<void>;
-	flush(): Promise<void>;
 } {
 	let cache: PersistedAppData = getDefaultData();
 
@@ -172,32 +185,16 @@ export function createSqliteAppDataRepository(db: Database, writes: SqliteWriteQ
 			return cache;
 		},
 
-		save(data: PersistedAppData): number {
-			// Write-through: update cache immediately, persist async
+		async save(data: PersistedAppData): Promise<number> {
 			const snapshot = { ...data, version: DATA_VERSION };
-			cache = snapshot;
-			writes.enqueue(
-				() => saveToDb(db, snapshot),
-				(savedAt) => {
-					cache = { ...cache, lastSavedAt: savedAt };
-				}
-			);
-			return Date.now();
+			const savedAt = await saveToDb(db, snapshot);
+			cache = { ...snapshot, lastSavedAt: savedAt };
+			return savedAt;
 		},
 
-		clear(): void {
-			const snapshot = getDefaultData();
-			cache = snapshot;
-			writes.enqueue(
-				() => clearDb(db),
-				() => {
-					cache = snapshot;
-				}
-			);
-		},
-
-		async flush(): Promise<void> {
-			await writes.flush();
+		async clear(): Promise<void> {
+			await clearDb(db);
+			cache = getDefaultData();
 		}
 	};
 }
