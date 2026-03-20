@@ -148,10 +148,15 @@
     const filename = `rv-backup-${dateStr}-${timeStr}.json`;
     const content = JSON.stringify(backup, null, 2);
 
-    const { desktop } = getAppServices();
-    const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
-    if (saved) {
-      successMessage = 'Backup exported successfully.';
+    try {
+      const { desktop } = getAppServices();
+      const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
+      if (saved) {
+        successMessage = 'Backup exported successfully.';
+      }
+    } catch (err) {
+      console.error('Backup export failed:', err);
+      errorMessage = `Export failed: ${err instanceof Error ? err.message : 'unknown error'}`;
     }
   }
 
@@ -236,8 +241,9 @@
       }
 
       successMessage = `Backup restored successfully (${restored.reservations.length} reservations, ${restored.customers.length} customers).`;
-    } catch {
-      errorMessage = 'Failed to import backup file.';
+    } catch (err) {
+      console.error('Backup import failed:', err);
+      errorMessage = `Import failed: ${err instanceof Error ? err.message : 'unknown error'}`;
     } finally {
       backupImporting = false;
     }
