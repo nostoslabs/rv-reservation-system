@@ -1,18 +1,14 @@
 import { browser } from '$app/environment';
 import { get, writable } from 'svelte/store';
 import { getAppServices } from '$lib/app/composition';
+import { getDefaultPersistedAppData } from '$lib/storage';
 import type { AppState, MutationResult, PersistedAppData, ReservationFormValues } from '$lib/types';
 
-function getDefaultState(): AppState {
-	const { repositories } = getAppServices();
-	return {
-		...repositories.appData.getDefaultData(),
-		hydrated: false
-	};
-}
-
 function createRvReservationStore() {
-	const internal = writable<AppState>(getDefaultState());
+	const internal = writable<AppState>({
+		...getDefaultPersistedAppData(),
+		hydrated: false
+	});
 
 	async function commit(next: AppState, persist = true): Promise<void> {
 		if (persist) {
