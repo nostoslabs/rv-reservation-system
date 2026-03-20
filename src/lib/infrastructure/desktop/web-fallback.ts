@@ -10,6 +10,9 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 		async getAppDataDir() {
 			return null;
 		},
+		async getVersion() {
+			return null;
+		},
 		async saveFile(defaultName: string, content: string): Promise<boolean> {
 			try {
 				const blob = new Blob([content], { type: 'application/octet-stream' });

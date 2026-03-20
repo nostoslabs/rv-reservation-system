@@ -11,6 +11,14 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 				return null;
 			}
 		},
+		async getVersion(): Promise<string | null> {
+			try {
+				const { getVersion } = await import('@tauri-apps/api/app');
+				return await getVersion();
+			} catch {
+				return null;
+			}
+		},
 		async saveFile(defaultName: string, content: string, filters?: FileFilter[]): Promise<boolean> {
 			try {
 				const { save } = await import('@tauri-apps/plugin-dialog');
