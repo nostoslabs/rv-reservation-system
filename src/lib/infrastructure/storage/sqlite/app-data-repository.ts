@@ -173,13 +173,11 @@ export function createSqliteAppDataRepository(db: Database, writes: SqliteWriteQ
 		},
 
 		save(data: PersistedAppData): number {
-			// Write-through: update cache immediately, persist async
 			const snapshot = { ...data, version: DATA_VERSION };
-			cache = snapshot;
 			writes.enqueue(
 				() => saveToDb(db, snapshot),
 				(savedAt) => {
-					cache = { ...cache, lastSavedAt: savedAt };
+					cache = { ...snapshot, lastSavedAt: savedAt };
 				}
 			);
 			return Date.now();
@@ -187,7 +185,6 @@ export function createSqliteAppDataRepository(db: Database, writes: SqliteWriteQ
 
 		clear(): void {
 			const snapshot = getDefaultData();
-			cache = snapshot;
 			writes.enqueue(
 				() => clearDb(db),
 				() => {

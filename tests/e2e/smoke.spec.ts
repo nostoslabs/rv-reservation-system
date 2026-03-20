@@ -11,4 +11,10 @@ test.describe('Smoke tests', () => {
 		await page.goto('/admin');
 		await expect(page.locator('h1')).toHaveText('Park Settings');
 	});
+
+	test('main page relies on automatic persistence instead of a manual save button', async ({ page }) => {
+		await page.goto('/');
+		await expect(page.getByText('Changes save automatically')).toBeVisible();
+		await expect(page.locator('.toolbar-right button:has-text("Save")')).toHaveCount(0);
+	});
 });

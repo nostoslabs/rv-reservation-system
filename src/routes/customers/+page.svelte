@@ -147,11 +147,11 @@
     modalOpen = true;
   }
 
-  function handleModalSave(event: CustomEvent<CustomerFormValues>): void {
+  async function handleModalSave(event: CustomEvent<CustomerFormValues>): Promise<void> {
     const form = event.detail;
     const result = modalMode === 'create'
-      ? customerStore.create(form)
-      : customerStore.update(form);
+      ? await customerStore.create(form)
+      : await customerStore.update(form);
 
     if (!result.ok) {
       modalErrors = result.errors;
@@ -162,8 +162,8 @@
     showToast(modalMode === 'create' ? 'Customer added' : 'Customer updated');
   }
 
-  function handleModalDelete(event: CustomEvent<{ id: string }>): void {
-    const result = customerStore.remove(event.detail.id);
+  async function handleModalDelete(event: CustomEvent<{ id: string }>): Promise<void> {
+    const result = await customerStore.remove(event.detail.id);
     if (!result.ok) {
       modalErrors = result.errors;
       return;
@@ -186,9 +186,9 @@
     mergePreviewOpen = true;
   }
 
-  function handleMergeConfirm(event: CustomEvent<{ overrides: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>> }>): void {
+  async function handleMergeConfirm(event: CustomEvent<{ overrides: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>> }>): Promise<void> {
     const ids = mergePreviewCustomers.map((c) => c.id);
-    const result = customerStore.mergeCustomers(ids, event.detail.overrides);
+    const result = await customerStore.mergeCustomers(ids, event.detail.overrides);
     mergePreviewOpen = false;
     if (result.ok) {
       exitSelectMode();

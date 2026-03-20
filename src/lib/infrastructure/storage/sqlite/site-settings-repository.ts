@@ -10,7 +10,7 @@ interface SettingRow {
 }
 
 function defaultSettings(): SiteSettings {
-	return { siteName: DEFAULT_SITE_NAME };
+	return { siteName: DEFAULT_SITE_NAME, compactView: false };
 }
 
 function sanitize(settings: SiteSettings): SiteSettings {
@@ -23,7 +23,8 @@ async function loadFromDb(db: Database): Promise<SiteSettings> {
 	const rows = await db.select<SettingRow>('SELECT * FROM admin_settings');
 	const map = new Map(rows.map((r) => [r.key, r.value]));
 	return sanitize({
-		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME
+		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME,
+		compactView: map.get('compact_view') === '1'
 	});
 }
 
@@ -31,6 +32,10 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
 	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
 		'site_name',
 		settings.siteName
+	]);
+	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+		'compact_view',
+		settings.compactView ? '1' : '0'
 	]);
 }
 
@@ -55,8 +60,9 @@ export function createSqliteSiteSettingsRepository(db: Database, writes: SqliteW
 
 		save(settings: SiteSettings): SiteSettings {
 			const sanitized = sanitize(settings);
-			cache = sanitized;
-			writes.enqueue(() => saveToDb(db, sanitized));
+			writes.enqueue(() => saveToDb(db, sanitized), () => {
+				cache = sanitized;
+			});
 			return sanitized;
 		},
 

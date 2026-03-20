@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createBackup, validateBackup, BACKUP_APP_NAME, BACKUP_SCHEMA_VERSION } from '$lib/domain/backup';
+import { createBackup, normalizeBackupForRestore, validateBackup, BACKUP_APP_NAME, BACKUP_SCHEMA_VERSION } from '$lib/domain/backup';
 import type { Reservation, SiteSettings, Customer } from '$lib/domain/models';
 
 function makeFakeReservation(overrides: Partial<Reservation> = {}): Reservation {
@@ -193,5 +193,33 @@ describe('validateBackup', () => {
 		const result = validateBackup({ schema: 'bad', data: 'bad' });
 		expect(result.valid).toBe(false);
 		expect(result.errors.length).toBeGreaterThanOrEqual(2);
+	});
+});
+
+describe('normalizeBackupForRestore', () => {
+	it('preserves customerId values that exist in the backup customer list', () => {
+		const backup = createBackup(
+			[makeFakeReservation({ customerId: 'c1-uuid' })],
+			['A-01'],
+			{ siteName: 'Test', compactView: false },
+			[makeFakeCustomer({ id: 'c1-uuid' })]
+		);
+
+		const normalized = normalizeBackupForRestore(backup);
+
+		expect(normalized.reservations[0].customerId).toBe('c1-uuid');
+	});
+
+	it('drops customerId values that do not exist in the backup customer list', () => {
+		const backup = createBackup(
+			[makeFakeReservation({ customerId: 'missing-customer' })],
+			['A-01'],
+			{ siteName: 'Test', compactView: false },
+			[makeFakeCustomer({ id: 'different-customer' })]
+		);
+
+		const normalized = normalizeBackupForRestore(backup);
+
+		expect(normalized.reservations[0].customerId).toBeUndefined();
 	});
 });

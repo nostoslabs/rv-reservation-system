@@ -1,12 +1,17 @@
 import { browser } from '$app/environment';
 import { get, writable } from 'svelte/store';
-import { getAppServices } from '$lib/app/composition';
+import { flushPendingWrites, getAppServices } from '$lib/app/composition';
 import { DEFAULT_SITE_NAME } from '$lib/storage';
-import type { SiteSettings } from '$lib/types';
+import type { MutationResult, SiteSettings } from '$lib/types';
+
+const SITE_SETTINGS_PERSISTENCE_ERROR = 'Unable to save settings to disk.';
+
+type SiteSettingsMutationResult = MutationResult & { settings?: SiteSettings };
 
 function getDefaultSettings(): SiteSettings {
 	return {
-		siteName: DEFAULT_SITE_NAME
+		siteName: DEFAULT_SITE_NAME,
+		compactView: false
 	};
 }
 
@@ -21,23 +26,37 @@ function createSiteSettingsStore() {
 		internal.set(adminSettingsUseCases.loadSettings());
 	}
 
-	function setSiteName(siteName: string): SiteSettings {
+	async function persistSettings(settings: SiteSettings): Promise<SiteSettingsMutationResult> {
+		const { repositories } = getAppServices();
+
+		try {
+			repositories.siteSettings.save(settings);
+			await flushPendingWrites();
+			const persisted = repositories.siteSettings.load();
+			internal.set(persisted);
+			return { ok: true, settings: persisted };
+		} catch (error) {
+			console.error('Failed to persist site settings:', error);
+			return { ok: false, errors: [SITE_SETTINGS_PERSISTENCE_ERROR] };
+		}
+	}
+
+	async function setSiteName(siteName: string): Promise<SiteSettingsMutationResult> {
 		const { adminSettingsUseCases } = getAppServices();
 		const current = get(internal);
 		const result = adminSettingsUseCases.updateSiteName(siteName, current);
-		if (result.ok && result.settings) {
-			internal.set(result.settings);
-			return result.settings;
+		if (!result.ok || !result.settings) {
+			return result;
 		}
-		return current;
+
+		return persistSettings(result.settings);
 	}
 
-	function setCompactView(compact: boolean): SiteSettings {
+	async function setCompactView(compact: boolean): Promise<SiteSettingsMutationResult> {
 		const { adminSettingsUseCases } = getAppServices();
 		const current = get(internal);
 		const result = adminSettingsUseCases.setCompactView(compact, current);
-		internal.set(result.settings);
-		return result.settings;
+		return persistSettings(result.settings);
 	}
 
 	return {

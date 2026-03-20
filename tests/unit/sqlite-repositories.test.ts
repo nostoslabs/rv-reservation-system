@@ -80,6 +80,27 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
+describe('SQLite write queue', () => {
+	it('flush rejects on a failed write and still allows later writes to proceed', async () => {
+		const errors: unknown[] = [];
+		const queue = createSqliteWriteQueue((error) => {
+			errors.push(error);
+		});
+
+		queue.enqueue(async () => {
+			throw new Error('disk write failed');
+		});
+
+		await expect(queue.flush()).rejects.toThrow('disk write failed');
+		expect(errors).toHaveLength(1);
+
+		queue.enqueue(async () => undefined);
+
+		await expect(queue.flush()).resolves.toBeUndefined();
+		expect(errors).toHaveLength(1);
+	});
+});
+
 describe('SQLite AppDataRepository', () => {
 	let db: ReturnType<typeof createInMemoryDb>;
 
@@ -214,6 +235,34 @@ describe('SQLite AppDataRepository', () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 	});
+
+	it('persists reservations with customer references after queued customer writes', async () => {
+		const writes = createTestQueue();
+		const appRepo = createSqliteAppDataRepository(db, writes);
+		const customerRepo = createSqliteCustomerRepository(db, writes);
+
+		await appRepo.init();
+		await customerRepo.init();
+
+		customerRepo.replaceAll([makeCustomer({ id: 'linked-customer' })]);
+		appRepo.save({
+			version: 3,
+			reservations: [
+				makeReservation({
+					customerId: 'linked-customer'
+				})
+			],
+			parkingLocations: ['A-01'],
+			nextReservationIndex: 2,
+			lastSavedAt: null
+		});
+
+		await appRepo.flush();
+
+		const reloadedRepo = createSqliteAppDataRepository(db, createTestQueue());
+		await reloadedRepo.init();
+		expect(reloadedRepo.load().reservations[0].customerId).toBe('linked-customer');
+	});
 });
 
 describe('SQLite SiteSettingsRepository', () => {
@@ -230,13 +279,14 @@ describe('SQLite SiteSettingsRepository', () => {
 		const settings = repo.load();
 
 		expect(settings.siteName).toBe('RV Reservation Schedule');
+		expect(settings.compactView).toBe(false);
 	});
 
 	it('round-trips settings through save and reload', async () => {
 		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo.init();
 
-		repo.save({ siteName: 'My Park' });
+		repo.save({ siteName: 'My Park', compactView: true });
 		await new Promise((r) => setTimeout(r, 10));
 
 		const repo2 = createSqliteSiteSettingsRepository(db, createTestQueue());
@@ -244,6 +294,7 @@ describe('SQLite SiteSettingsRepository', () => {
 		const loaded = repo2.load();
 
 		expect(loaded.siteName).toBe('My Park');
+		expect(loaded.compactView).toBe(true);
 	});
 
 	it('sanitizes settings on save', async () => {
