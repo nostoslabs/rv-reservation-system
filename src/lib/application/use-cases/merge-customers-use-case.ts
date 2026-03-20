@@ -23,11 +23,11 @@ export interface MergeCustomersUseCases {
 		customerIds: string[],
 		appData: PersistedAppData,
 		overrides?: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>>
-	): MergeCustomersResult;
+	): Promise<MergeCustomersResult>;
 
 	findDuplicates(): Customer[][];
 
-	deduplicateAll(appData: PersistedAppData): DeduplicateAllResult;
+	deduplicateAll(appData: PersistedAppData): Promise<DeduplicateAllResult>;
 }
 
 export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCustomersUseCases {
@@ -74,7 +74,7 @@ export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCus
 	}
 
 	return {
-		merge(customerIds, appData, overrides) {
+		async merge(customerIds, appData, overrides) {
 			if (customerIds.length < 2) {
 				return { ok: false, errors: ['At least 2 customers are required to merge.'] };
 			}
@@ -100,12 +100,12 @@ export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCus
 			}
 
 			// Persist winner
-			repo.save(resolution.winner);
+			await repo.save(resolution.winner);
 
 			// Remove losers
 			const loserCustomers = customers.filter((c) => c.id !== resolution.winner.id);
 			for (const loserId of resolution.loserIds) {
-				repo.remove(loserId);
+				await repo.remove(loserId);
 			}
 
 			// Re-link reservations
@@ -129,7 +129,7 @@ export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCus
 			return findDuplicateGroups(repo.getAll());
 		},
 
-		deduplicateAll(appData) {
+		async deduplicateAll(appData) {
 			const groups = findDuplicateGroups(repo.getAll());
 			if (groups.length === 0) {
 				return { groupsMerged: 0, reservationsRelinked: 0, data: appData };
@@ -143,10 +143,10 @@ export function createMergeCustomersUseCases(repo: CustomerRepository): MergeCus
 				const now = new Date().toISOString();
 				const resolution = resolveCustomerMerge(group, now);
 
-				repo.save(resolution.winner);
+				await repo.save(resolution.winner);
 				const loserCustomers = group.filter((c) => c.id !== resolution.winner.id);
 				for (const loserId of resolution.loserIds) {
-					repo.remove(loserId);
+					await repo.remove(loserId);
 					loserIdToWinner.set(loserId, resolution.winner.id);
 				}
 				for (const loser of loserCustomers) {

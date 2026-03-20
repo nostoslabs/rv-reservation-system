@@ -13,13 +13,13 @@ import {
 export interface CustomerUseCases {
 	getAll(): Customer[];
 	getById(id: string): Customer | null;
-	create(form: CustomerFormValues): { ok: true; customer: Customer } | { ok: false; errors: string[] };
-	update(form: CustomerFormValues): { ok: true; customer: Customer } | { ok: false; errors: string[] };
-	remove(id: string): { ok: true } | { ok: false; errors: string[] };
+	create(form: CustomerFormValues): Promise<{ ok: true; customer: Customer } | { ok: false; errors: string[] }>;
+	update(form: CustomerFormValues): Promise<{ ok: true; customer: Customer } | { ok: false; errors: string[] }>;
+	remove(id: string): Promise<{ ok: true } | { ok: false; errors: string[] }>;
 	search(query: string): CustomerSearchResult[];
-	findOrCreateFromReservation(name: string, phone: string): Customer | null;
-	importCsv(csvText: string): { imported: number; skipped: number; errors: string[] };
-	replaceAll(customers: Customer[]): void;
+	findOrCreateFromReservation(name: string, phone: string): Promise<Customer | null>;
+	importCsv(csvText: string): Promise<{ imported: number; skipped: number; errors: string[] }>;
+	replaceAll(customers: Customer[]): Promise<void>;
 }
 
 export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCases {
@@ -36,7 +36,7 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 			return repo.getById(id);
 		},
 
-		create(form: CustomerFormValues) {
+		async create(form: CustomerFormValues) {
 			const errors = validateCustomerForm(form);
 			if (errors.length > 0) {
 				return { ok: false as const, errors };
@@ -53,11 +53,11 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 				updatedAt: now
 			};
 
-			repo.save(customer);
+			await repo.save(customer);
 			return { ok: true as const, customer };
 		},
 
-		update(form: CustomerFormValues) {
+		async update(form: CustomerFormValues) {
 			if (!form.id) {
 				return { ok: false as const, errors: ['Customer ID is required.'] };
 			}
@@ -81,17 +81,17 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 				updatedAt: nowIso()
 			};
 
-			repo.save(customer);
+			await repo.save(customer);
 			return { ok: true as const, customer };
 		},
 
-		remove(id: string) {
+		async remove(id: string) {
 			const existing = repo.getById(id);
 			if (!existing) {
 				return { ok: false as const, errors: ['Customer not found.'] };
 			}
 
-			repo.remove(id);
+			await repo.remove(id);
 			return { ok: true as const };
 		},
 
@@ -99,7 +99,7 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 			return searchCustomers(repo.getAll(), query);
 		},
 
-		findOrCreateFromReservation(name: string, phone: string): Customer | null {
+		async findOrCreateFromReservation(name: string, phone: string): Promise<Customer | null> {
 			const normalizedName = normalizeName(name);
 			if (!normalizedName) return null;
 
@@ -120,11 +120,11 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 				updatedAt: now
 			};
 
-			repo.save(customer);
+			await repo.save(customer);
 			return customer;
 		},
 
-		importCsv(csvText: string) {
+		async importCsv(csvText: string) {
 			const parsed = parseCustomerCsv(csvText);
 			let imported = 0;
 			let skipped = 0;
@@ -151,15 +151,15 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 					updatedAt: now
 				};
 
-				repo.save(customer);
+				await repo.save(customer);
 				imported++;
 			}
 
 			return { imported, skipped, errors: parsed.errors };
 		},
 
-		replaceAll(customers: Customer[]): void {
-			repo.replaceAll(customers);
+		async replaceAll(customers: Customer[]): Promise<void> {
+			await repo.replaceAll(customers);
 		}
 	};
 }
