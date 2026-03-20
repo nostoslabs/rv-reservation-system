@@ -61,6 +61,13 @@ test.describe('Settings page', () => {
 		expect(headerText?.toLowerCase()).not.toContain('not linked');
 	});
 
+	test('version footer is not shown in web build', async ({ page }) => {
+		await page.goto('/admin');
+		await expect(page.locator('h1')).toHaveText('Park Settings');
+		// Web fallback returns null for getVersion(), so the footer should not render
+		await expect(page.locator('[data-testid="app-version"]')).not.toBeVisible();
+	});
+
 	test('change site name', async ({ page }) => {
 		await page.goto('/admin');
 
