@@ -7,8 +7,8 @@ import type { PersistedAppData, ReservationFormValues } from '$lib/types';
 function createFakeRepo(): AppDataRepository {
 	return {
 		load: () => ({ version: 4, reservations: [], parkingLocations: [], nextReservationIndex: 1, lastSavedAt: null }),
-		save: () => Date.now(),
-		clear: () => {},
+		save: async () => Date.now(),
+		clear: async () => {},
 		getDefaultData: () => ({ version: 4, reservations: [], parkingLocations: [], nextReservationIndex: 1, lastSavedAt: null })
 	};
 }

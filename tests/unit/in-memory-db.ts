@@ -103,6 +103,14 @@ export function createInMemoryDb(): Database & {
 		if (eqMatch) {
 			return { match: row[eqMatch[1]] === params[paramOffset], consumed: 1 };
 		}
+		// NOT IN: "column NOT IN (?, ?, ...)"
+		const notInMatch = whereClause.match(/^(\w+)\s+NOT\s+IN\s*\(([^)]+)\)$/i);
+		if (notInMatch) {
+			const col = notInMatch[1];
+			const placeholderCount = notInMatch[2].split(',').length;
+			const values = params.slice(paramOffset, paramOffset + placeholderCount);
+			return { match: !values.includes(row[col]), consumed: placeholderCount };
+		}
 		// Fallback: treat as always matching (for MAX queries etc.)
 		return { match: true, consumed: 0 };
 	}

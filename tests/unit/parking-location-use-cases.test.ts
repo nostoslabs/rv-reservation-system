@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createParkingLocationUseCases } from '$lib/application/use-cases/parking-location-use-cases';
 import type { PersistedAppData } from '$lib/domain/models';
 
-const stubRepo = { load: () => baseData(), getDefaultData: () => baseData(), save: () => 0, clear: () => {} };
+const stubRepo = { load: () => baseData(), getDefaultData: () => baseData(), save: async () => 0, clear: async () => {} };
 const useCases = createParkingLocationUseCases(stubRepo);
 
 function baseData(overrides?: Partial<PersistedAppData>): PersistedAppData {

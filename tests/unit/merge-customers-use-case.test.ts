@@ -17,7 +17,7 @@ function createInMemoryCustomerRepository(): CustomerRepository {
 		getById(id: string) {
 			return customers.find((c) => c.id === id) ?? null;
 		},
-		save(customer: Customer) {
+		async save(customer: Customer) {
 			const idx = customers.findIndex((c) => c.id === customer.id);
 			if (idx >= 0) {
 				customers[idx] = customer;
@@ -25,10 +25,10 @@ function createInMemoryCustomerRepository(): CustomerRepository {
 				customers.push(customer);
 			}
 		},
-		remove(id: string) {
+		async remove(id: string) {
 			customers = customers.filter((c) => c.id !== id);
 		},
-		replaceAll(newCustomers: Customer[]) {
+		async replaceAll(newCustomers: Customer[]) {
 			customers = [...newCustomers];
 		}
 	};
@@ -67,13 +67,13 @@ describe('MergeCustomersUseCases', () => {
 	});
 
 	describe('merge', () => {
-		it('merges two customers: winner saved, loser removed from repo', () => {
+		it('merges two customers: winner saved, loser removed from repo', async () => {
 			const a = makeCustomer({ id: 'a', name: 'Bob', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const b = makeCustomer({ id: 'b', name: 'Bobby', updatedAt: '2025-06-01T00:00:00.000Z' });
-			repo.save(a);
-			repo.save(b);
+			await repo.save(a);
+			await repo.save(b);
 
-			const result = useCases.merge(['a', 'b'], makeAppData());
+			const result = await useCases.merge(['a', 'b'], makeAppData());
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 
@@ -83,11 +83,11 @@ describe('MergeCustomersUseCases', () => {
 			expect(repo.getAll()).toHaveLength(1);
 		});
 
-		it('re-links reservations with loser customerId to winner', () => {
+		it('re-links reservations with loser customerId to winner', async () => {
 			const a = makeCustomer({ id: 'a', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const b = makeCustomer({ id: 'b', updatedAt: '2025-06-01T00:00:00.000Z' });
-			repo.save(a);
-			repo.save(b);
+			await repo.save(a);
+			await repo.save(b);
 
 			const appData = makeAppData([
 				{
@@ -105,7 +105,7 @@ describe('MergeCustomersUseCases', () => {
 				}
 			]);
 
-			const result = useCases.merge(['a', 'b'], appData);
+			const result = await useCases.merge(['a', 'b'], appData);
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 
@@ -113,7 +113,7 @@ describe('MergeCustomersUseCases', () => {
 			expect(result.data.reservations[0].customerId).toBe('b');
 		});
 
-		it('legacy reservations (no customerId) matched by name+phone to loser are re-linked', () => {
+		it('legacy reservations (no customerId) matched by name+phone to loser are re-linked', async () => {
 			const a = makeCustomer({
 				id: 'a',
 				name: 'John Smith',
@@ -126,8 +126,8 @@ describe('MergeCustomersUseCases', () => {
 				phone: '555-1234',
 				updatedAt: '2025-06-01T00:00:00.000Z'
 			});
-			repo.save(a);
-			repo.save(b);
+			await repo.save(a);
+			await repo.save(b);
 
 			const appData = makeAppData([
 				{
@@ -145,7 +145,7 @@ describe('MergeCustomersUseCases', () => {
 				}
 			]);
 
-			const result = useCases.merge(['a', 'b'], appData);
+			const result = await useCases.merge(['a', 'b'], appData);
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 
@@ -153,11 +153,11 @@ describe('MergeCustomersUseCases', () => {
 			expect(result.data.reservations[0].customerId).toBe('b');
 		});
 
-		it('unrelated reservations are untouched', () => {
+		it('unrelated reservations are untouched', async () => {
 			const a = makeCustomer({ id: 'a', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const b = makeCustomer({ id: 'b', updatedAt: '2025-06-01T00:00:00.000Z' });
-			repo.save(a);
-			repo.save(b);
+			await repo.save(a);
+			await repo.save(b);
 
 			const appData = makeAppData([
 				{
@@ -175,7 +175,7 @@ describe('MergeCustomersUseCases', () => {
 				}
 			]);
 
-			const result = useCases.merge(['a', 'b'], appData);
+			const result = await useCases.merge(['a', 'b'], appData);
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 
@@ -183,44 +183,44 @@ describe('MergeCustomersUseCases', () => {
 			expect(result.data.reservations[0].customerId).toBe('other-id');
 		});
 
-		it('overrides applied to winner', () => {
+		it('overrides applied to winner', async () => {
 			const a = makeCustomer({ id: 'a', name: 'Bob', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const b = makeCustomer({ id: 'b', name: 'Bobby', updatedAt: '2025-06-01T00:00:00.000Z' });
-			repo.save(a);
-			repo.save(b);
+			await repo.save(a);
+			await repo.save(b);
 
-			const result = useCases.merge(['a', 'b'], makeAppData(), { name: 'Robert Smith' });
+			const result = await useCases.merge(['a', 'b'], makeAppData(), { name: 'Robert Smith' });
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 
 			expect(result.winner.name).toBe('Robert Smith');
 		});
 
-		it('rejects fewer than 2 IDs', () => {
-			const result = useCases.merge(['a'], makeAppData());
+		it('rejects fewer than 2 IDs', async () => {
+			const result = await useCases.merge(['a'], makeAppData());
 			expect(result.ok).toBe(false);
 		});
 
-		it('rejects unknown ID', () => {
+		it('rejects unknown ID', async () => {
 			const a = makeCustomer({ id: 'a' });
-			repo.save(a);
+			await repo.save(a);
 
-			const result = useCases.merge(['a', 'missing'], makeAppData());
+			const result = await useCases.merge(['a', 'missing'], makeAppData());
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
 				expect(result.errors[0]).toContain('missing');
 			}
 		});
 
-		it('three customers merged correctly', () => {
+		it('three customers merged correctly', async () => {
 			const a = makeCustomer({ id: 'a', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const b = makeCustomer({ id: 'b', updatedAt: '2025-06-01T00:00:00.000Z' });
 			const c = makeCustomer({ id: 'c', updatedAt: '2025-03-01T00:00:00.000Z' });
-			repo.save(a);
-			repo.save(b);
-			repo.save(c);
+			await repo.save(a);
+			await repo.save(b);
+			await repo.save(c);
 
-			const result = useCases.merge(['a', 'b', 'c'], makeAppData());
+			const result = await useCases.merge(['a', 'b', 'c'], makeAppData());
 			expect(result.ok).toBe(true);
 			if (!result.ok) return;
 
@@ -230,13 +230,13 @@ describe('MergeCustomersUseCases', () => {
 	});
 
 	describe('findDuplicates', () => {
-		it('delegates correctly to domain logic', () => {
+		it('delegates correctly to domain logic', async () => {
 			const a = makeCustomer({ name: 'John', phone: '555' });
 			const b = makeCustomer({ name: 'John', phone: '555' });
 			const c = makeCustomer({ name: 'Alice', phone: '111' });
-			repo.save(a);
-			repo.save(b);
-			repo.save(c);
+			await repo.save(a);
+			await repo.save(b);
+			await repo.save(c);
 
 			const groups = useCases.findDuplicates();
 			expect(groups).toHaveLength(1);
@@ -245,15 +245,15 @@ describe('MergeCustomersUseCases', () => {
 	});
 
 	describe('deduplicateAll', () => {
-		it('merges multiple groups with correct counts', () => {
+		it('merges multiple groups with correct counts', async () => {
 			const a1 = makeCustomer({ id: 'a1', name: 'Alice', phone: '111', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const a2 = makeCustomer({ id: 'a2', name: 'Alice', phone: '111', updatedAt: '2025-06-01T00:00:00.000Z' });
 			const b1 = makeCustomer({ id: 'b1', name: 'Bob', phone: '222', updatedAt: '2025-01-01T00:00:00.000Z' });
 			const b2 = makeCustomer({ id: 'b2', name: 'Bob', phone: '222', updatedAt: '2025-06-01T00:00:00.000Z' });
-			repo.save(a1);
-			repo.save(a2);
-			repo.save(b1);
-			repo.save(b2);
+			await repo.save(a1);
+			await repo.save(a2);
+			await repo.save(b1);
+			await repo.save(b2);
 
 			const appData = makeAppData([
 				{
@@ -271,20 +271,20 @@ describe('MergeCustomersUseCases', () => {
 				}
 			]);
 
-			const result = useCases.deduplicateAll(appData);
+			const result = await useCases.deduplicateAll(appData);
 			expect(result.groupsMerged).toBe(2);
 			expect(result.reservationsRelinked).toBe(1);
 			expect(repo.getAll()).toHaveLength(2);
 		});
 
-		it('no duplicates: zero changes, data unchanged', () => {
+		it('no duplicates: zero changes, data unchanged', async () => {
 			const a = makeCustomer({ name: 'Alice', phone: '111' });
 			const b = makeCustomer({ name: 'Bob', phone: '222' });
-			repo.save(a);
-			repo.save(b);
+			await repo.save(a);
+			await repo.save(b);
 
 			const appData = makeAppData();
-			const result = useCases.deduplicateAll(appData);
+			const result = await useCases.deduplicateAll(appData);
 			expect(result.groupsMerged).toBe(0);
 			expect(result.reservationsRelinked).toBe(0);
 			expect(result.data).toEqual(appData);

@@ -10,7 +10,7 @@ function createFakeRepo(): SiteSettingsRepository & { data: SiteSettings } {
 		load(): SiteSettings {
 			return { ...state };
 		},
-		save(settings: SiteSettings): SiteSettings {
+		async save(settings: SiteSettings): Promise<SiteSettings> {
 			Object.assign(state, settings);
 			return { ...state };
 		}
@@ -25,33 +25,33 @@ describe('AdminSettingsUseCases', () => {
 		expect(settings.siteName).toBe('Default');
 	});
 
-	it('updateSiteName saves and returns updated settings', () => {
+	it('updateSiteName saves and returns updated settings', async () => {
 		const repo = createFakeRepo();
 		const useCases = createAdminSettingsUseCases(repo);
 		const current = repo.load();
-		const result = useCases.updateSiteName('My Park', current);
+		const result = await useCases.updateSiteName('My Park', current);
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.settings?.siteName).toBe('My Park');
 		}
 	});
 
-	it('updateSiteName rejects empty name', () => {
+	it('updateSiteName rejects empty name', async () => {
 		const repo = createFakeRepo();
 		const useCases = createAdminSettingsUseCases(repo);
 		const current = repo.load();
-		const result = useCases.updateSiteName('  ', current);
+		const result = await useCases.updateSiteName('  ', current);
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
 			expect(result.errors).toContain('Site name is required.');
 		}
 	});
 
-	it('updateSiteName trims whitespace', () => {
+	it('updateSiteName trims whitespace', async () => {
 		const repo = createFakeRepo();
 		const useCases = createAdminSettingsUseCases(repo);
 		const current = repo.load();
-		const result = useCases.updateSiteName('  Padded Name  ', current);
+		const result = await useCases.updateSiteName('  Padded Name  ', current);
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.settings?.siteName).toBe('Padded Name');
