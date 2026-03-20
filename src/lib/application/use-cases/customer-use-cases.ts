@@ -128,13 +128,13 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 			const parsed = parseCustomerCsv(csvText);
 			let imported = 0;
 			let skipped = 0;
+			let knownCustomers = repo.getAll();
 
 			for (const row of parsed.rows) {
 				const normalizedName = normalizeName(row.name);
 				const normalizedPhone = normalizePhoneNumber(row.phone);
-				const allCustomers = repo.getAll();
 
-				const existing = findDuplicateCustomer(allCustomers, normalizedName, normalizedPhone);
+				const existing = findDuplicateCustomer(knownCustomers, normalizedName, normalizedPhone);
 				if (existing) {
 					skipped++;
 					continue;
@@ -152,6 +152,7 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 				};
 
 				repo.save(customer);
+				knownCustomers = [...knownCustomers, customer];
 				imported++;
 			}
 

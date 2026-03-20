@@ -1,8 +1,10 @@
 import { writable, get } from 'svelte/store';
-import { getAppServices } from '$lib/app/composition';
+import { flushPendingWrites, getAppServices } from '$lib/app/composition';
 import { rvReservationStore } from '$lib/state';
 import type { Customer, CustomerFormValues, CustomerSearchResult } from '$lib/domain/customers';
 import type { MergeCustomersResult } from '$lib/application/use-cases';
+
+const CUSTOMER_PERSISTENCE_ERROR = 'Unable to save customer data to disk.';
 
 function createCustomerStore() {
 	const internal = writable<Customer[]>([]);
@@ -12,31 +14,57 @@ function createCustomerStore() {
 		internal.set(customerUseCases.getAll());
 	}
 
-	function create(form: CustomerFormValues) {
+	async function refreshCustomers(): Promise<void> {
+		await flushPendingWrites();
+		internal.set(getAppServices().customerUseCases.getAll());
+	}
+
+	async function create(form: CustomerFormValues) {
 		const { customerUseCases } = getAppServices();
 		const result = customerUseCases.create(form);
-		if (result.ok) {
-			internal.set(customerUseCases.getAll());
+		if (!result.ok) {
+			return result;
 		}
-		return result;
+
+		try {
+			await refreshCustomers();
+			return result;
+		} catch (error) {
+			console.error('Failed to persist customer create:', error);
+			return { ok: false as const, errors: [CUSTOMER_PERSISTENCE_ERROR] };
+		}
 	}
 
-	function update(form: CustomerFormValues) {
+	async function update(form: CustomerFormValues) {
 		const { customerUseCases } = getAppServices();
 		const result = customerUseCases.update(form);
-		if (result.ok) {
-			internal.set(customerUseCases.getAll());
+		if (!result.ok) {
+			return result;
 		}
-		return result;
+
+		try {
+			await refreshCustomers();
+			return result;
+		} catch (error) {
+			console.error('Failed to persist customer update:', error);
+			return { ok: false as const, errors: [CUSTOMER_PERSISTENCE_ERROR] };
+		}
 	}
 
-	function remove(id: string) {
+	async function remove(id: string) {
 		const { customerUseCases } = getAppServices();
 		const result = customerUseCases.remove(id);
-		if (result.ok) {
-			internal.set(customerUseCases.getAll());
+		if (!result.ok) {
+			return result;
 		}
-		return result;
+
+		try {
+			await refreshCustomers();
+			return result;
+		} catch (error) {
+			console.error('Failed to persist customer delete:', error);
+			return { ok: false as const, errors: [CUSTOMER_PERSISTENCE_ERROR] };
+		}
 	}
 
 	function search(query: string): CustomerSearchResult[] {
@@ -53,39 +81,68 @@ function createCustomerStore() {
 		return customerUseCases.getById(id);
 	}
 
-	function findOrCreateFromReservation(name: string, phone: string): Customer | null {
+	async function findOrCreateFromReservation(name: string, phone: string): Promise<Customer | null> {
 		const { customerUseCases } = getAppServices();
 		const customer = customerUseCases.findOrCreateFromReservation(name, phone);
-		if (customer) {
-			internal.set(customerUseCases.getAll());
+		if (!customer) {
+			return null;
 		}
-		return customer;
+
+		try {
+			await refreshCustomers();
+			return customer;
+		} catch (error) {
+			console.error('Failed to persist customer auto-create:', error);
+			return null;
+		}
 	}
 
-	function importCsv(csvText: string) {
+	async function importCsv(csvText: string) {
 		const { customerUseCases } = getAppServices();
 		const result = customerUseCases.importCsv(csvText);
-		internal.set(customerUseCases.getAll());
-		return result;
+
+		try {
+			await refreshCustomers();
+			return result;
+		} catch (error) {
+			console.error('Failed to persist customer CSV import:', error);
+			return {
+				...result,
+				errors: [...result.errors, CUSTOMER_PERSISTENCE_ERROR]
+			};
+		}
 	}
 
-	function replaceAll(customers: Customer[]): void {
+	async function replaceAll(customers: Customer[]): Promise<{ ok: true } | { ok: false; errors: string[] }> {
 		const { customerUseCases } = getAppServices();
 		customerUseCases.replaceAll(customers);
-		internal.set(customerUseCases.getAll());
+
+		try {
+			await refreshCustomers();
+			return { ok: true };
+		} catch (error) {
+			console.error('Failed to persist customer replacement:', error);
+			return { ok: false, errors: [CUSTOMER_PERSISTENCE_ERROR] };
+		}
 	}
 
-	function mergeCustomers(
+	async function mergeCustomers(
 		customerIds: string[],
 		overrides?: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>>
-	): MergeCustomersResult {
+	): Promise<MergeCustomersResult> {
 		const { mergeCustomersUseCases, repositories } = getAppServices();
 		const appData = repositories.appData.load();
 		const result = mergeCustomersUseCases.merge(customerIds, appData, overrides);
-		if (result.ok) {
-			internal.set(getAppServices().customerUseCases.getAll());
-			rvReservationStore.importData(result.data);
+		if (!result.ok) {
+			return result;
 		}
+
+		const persistResult = await rvReservationStore.importData(result.data);
+		if (!persistResult.ok) {
+			return { ok: false, errors: persistResult.errors ?? [CUSTOMER_PERSISTENCE_ERROR] };
+		}
+
+		internal.set(getAppServices().customerUseCases.getAll());
 		return result;
 	}
 
@@ -94,14 +151,24 @@ function createCustomerStore() {
 		return mergeCustomersUseCases.findDuplicates();
 	}
 
-	function deduplicateAll(): { groupsMerged: number; reservationsRelinked: number } {
+	async function deduplicateAll(): Promise<{ groupsMerged: number; reservationsRelinked: number; errors?: string[] }> {
 		const { mergeCustomersUseCases, repositories } = getAppServices();
 		const appData = repositories.appData.load();
 		const result = mergeCustomersUseCases.deduplicateAll(appData);
-		if (result.groupsMerged > 0) {
-			internal.set(getAppServices().customerUseCases.getAll());
-			rvReservationStore.importData(result.data);
+		if (result.groupsMerged === 0) {
+			return { groupsMerged: 0, reservationsRelinked: 0 };
 		}
+
+		const persistResult = await rvReservationStore.importData(result.data);
+		if (!persistResult.ok) {
+			return {
+				groupsMerged: 0,
+				reservationsRelinked: 0,
+				errors: persistResult.errors ?? [CUSTOMER_PERSISTENCE_ERROR]
+			};
+		}
+
+		internal.set(getAppServices().customerUseCases.getAll());
 		return { groupsMerged: result.groupsMerged, reservationsRelinked: result.reservationsRelinked };
 	}
 

@@ -25,6 +25,10 @@ function rowToCustomer(row: CustomerRow): Customer {
 	};
 }
 
+function sortCustomers(customers: Customer[]): Customer[] {
+	return [...customers].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 async function loadAllFromDb(db: Database): Promise<Customer[]> {
 	const rows = await db.select<CustomerRow>(
 		'SELECT id, name, phone, email, notes, created_at, updated_at FROM customers ORDER BY name'
@@ -73,28 +77,27 @@ export function createSqliteCustomerRepository(db: Database, writes: SqliteWrite
 
 		save(customer: Customer): void {
 			const snapshot = { ...customer };
-			const idx = cache.findIndex((c) => c.id === customer.id);
-			if (idx >= 0) {
-				cache[idx] = snapshot;
-			} else {
-				cache.push(snapshot);
-			}
-			writes.enqueue(() => upsertToDb(db, snapshot));
+			writes.enqueue(() => upsertToDb(db, snapshot), () => {
+				const existing = cache.filter((c) => c.id !== snapshot.id);
+				cache = sortCustomers([...existing, snapshot]);
+			});
 		},
 
 		remove(id: string): void {
-			cache = cache.filter((c) => c.id !== id);
-			writes.enqueue(() => deleteFromDb(db, id));
+			writes.enqueue(() => deleteFromDb(db, id), () => {
+				cache = cache.filter((c) => c.id !== id);
+			});
 		},
 
 		replaceAll(customers: Customer[]): void {
 			const snapshot = customers.map((customer) => ({ ...customer }));
-			cache = snapshot;
 			writes.enqueue(async () => {
 				await db.execute('DELETE FROM customers');
 				for (const customer of snapshot) {
 					await upsertToDb(db, customer);
 				}
+			}, () => {
+				cache = sortCustomers(snapshot);
 			});
 		},
 

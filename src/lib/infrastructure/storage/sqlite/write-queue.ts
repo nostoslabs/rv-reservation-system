@@ -12,6 +12,7 @@ export function createSqliteWriteQueue(onError: (error: unknown) => void): Sqlit
 			onSuccess?.(result);
 		} catch (error) {
 			onError(error);
+			throw error;
 		}
 	}
 

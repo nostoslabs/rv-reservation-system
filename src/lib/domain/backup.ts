@@ -48,6 +48,30 @@ export function createBackup(
 	};
 }
 
+export function normalizeBackupForRestore(backup: AppBackup): BackupData {
+	const knownCustomerIds = new Set(backup.data.customers.map((customer) => customer.id));
+	const reservations = backup.data.reservations.map((reservation) => {
+		if (!reservation.customerId || knownCustomerIds.has(reservation.customerId)) {
+			return reservation;
+		}
+
+		return {
+			...reservation,
+			customerId: undefined
+		};
+	});
+
+	return {
+		reservations,
+		parkingLocations: [...backup.data.parkingLocations],
+		siteSettings: {
+			siteName: backup.data.siteSettings.siteName,
+			compactView: backup.data.siteSettings.compactView
+		},
+		customers: backup.data.customers.map((customer) => ({ ...customer }))
+	};
+}
+
 export function validateBackup(data: unknown): { valid: boolean; errors: string[] } {
 	const errors: string[] = [];
 

@@ -258,7 +258,8 @@ test.describe('Backup export/import functional tests', () => {
 						endDate: '2025-07-03',
 						parkingLocation: 'Import-Site',
 						color: 'blue',
-						status: 'reserved'
+						status: 'reserved',
+						customerId: 'imported-c1'
 					}
 				],
 				parkingLocations: ['Import-Site'],

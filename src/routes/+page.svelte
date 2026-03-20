@@ -34,7 +34,7 @@
   let nowMs = Date.now();
   let occupancyMap: Map<string, Reservation> = new Map();
   let reservationCountsByLocation: Record<string, number> = {};
-  let autosaveStatus = 'Autosave pending';
+  let saveStatus = 'Changes save automatically';
 
   // Column virtualization — only render visible date columns + buffer
   const COLUMN_BUFFER = 10;
@@ -174,15 +174,15 @@
       $rvReservationStore.reservations.filter((reservation) => reservation.parkingLocation === location).length
     ])
   ) as Record<string, number>;
-  $: autosaveStatus = getAutosaveStatus($rvReservationStore.lastSavedAt, nowMs);
+  $: saveStatus = getSaveStatus($rvReservationStore.lastSavedAt, nowMs);
   $: dailySummary = computeDailySummary(
     $rvReservationStore.reservations,
     $rvReservationStore.parkingLocations,
     todayIso
   );
 
-  function getAutosaveStatus(lastSavedAt: number | null, nowTimestamp: number): string {
-    if (!lastSavedAt) return 'Autosave pending';
+  function getSaveStatus(lastSavedAt: number | null, nowTimestamp: number): string {
+    if (!lastSavedAt) return 'Changes save automatically';
     const ageMs = Math.max(0, nowTimestamp - lastSavedAt);
     const ageMinutes = Math.floor(ageMs / 60000);
     if (ageMinutes <= 0) {
@@ -277,8 +277,8 @@
     modalErrors = [];
   }
 
-  function handleModalSave(event: CustomEvent<ReservationFormValues>): void {
-    const result = rvReservationStore.saveReservation(event.detail);
+  async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
+    const result = await rvReservationStore.saveReservation(event.detail);
     if (!result.ok) {
       modalErrors = result.errors;
       return;
@@ -286,15 +286,15 @@
 
     // Auto-create or link customer
     if (!event.detail.customerId && event.detail.name.trim()) {
-      customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
+      await customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
     }
 
     closeModal();
     showToast('Reservation saved');
   }
 
-  function handleModalDelete(event: CustomEvent<{ index: number }>): void {
-    const result = rvReservationStore.deleteReservation(event.detail.index);
+  async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
+    const result = await rvReservationStore.deleteReservation(event.detail.index);
     if (!result.ok) {
       modalErrors = result.errors;
       return;
@@ -343,13 +343,13 @@
     return lines.join('\n');
   }
 
-  function saveNow(): void {
-    rvReservationStore.forceSave();
-    nowMs = Date.now();
-  }
-
   async function toggleCompactView(): Promise<void> {
-    siteSettingsStore.setCompactView(!compactView);
+    const result = await siteSettingsStore.setCompactView(!compactView);
+    if (!result.ok) {
+      showToast(result.errors?.[0] ?? 'Unable to save settings');
+      return;
+    }
+
     await tick();
     updateVisibleColumns();
     await alignToToday();
@@ -375,24 +375,12 @@
       nowMs = Date.now();
     }, 60_000);
 
-    const autosaveTicker = window.setInterval(() => {
-      rvReservationStore.forceSave();
-      nowMs = Date.now();
-    }, 15 * 60_000);
-
-    const handleBeforeUnload = (): void => {
-      rvReservationStore.forceSave();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleSearchClickOutside);
 
     return () => {
       scroller?.removeEventListener('scroll', handleGridScroll);
       retryTimers.forEach((t) => window.clearTimeout(t));
       window.clearInterval(displayTicker);
-      window.clearInterval(autosaveTicker);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleSearchClickOutside);
       if (toastTimer) clearTimeout(toastTimer);
     };
@@ -403,7 +391,7 @@
   <title>{$siteSettingsStore.siteName}</title>
   <meta
     name="description"
-    content="RV reservation schedule with localStorage persistence."
+    content="RV reservation schedule with automatic local persistence."
   />
 </svelte:head>
 
@@ -484,8 +472,7 @@
       <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
       <span class="badge">{ $rvReservationStore.reservations.length } res</span>
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
-      <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
-      <button type="button" class="save-btn" on:click={saveNow}>Save</button>
+      <span class="badge save-badge" aria-live="polite">{saveStatus}</span>
       <a href="/customers" class="settings-link" title="Customers" aria-label="Customers" data-testid="customers-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -800,21 +787,6 @@
 
   .save-badge {
     color: #3d5a78;
-  }
-
-  .save-btn {
-    border-radius: 8px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    min-height: 36px;
-  }
-
-  .save-btn:hover {
-    background: #edf3fd;
   }
 
   .sr-only {

@@ -6,7 +6,7 @@
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
-  import { createBackup, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { createBackup, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { getAppServices } from '$lib/app/composition';
 
   const SITE_NAME_MAX_LENGTH = 80;
@@ -55,7 +55,7 @@
 
     try {
       const text = await csvFile.text();
-      csvImportResult = customerStore.importCsv(text);
+      csvImportResult = await customerStore.importCsv(text);
       csvErrorsExpanded = false;
     } catch {
       csvImportResult = { imported: 0, skipped: 0, errors: ['Failed to read file.'] };
@@ -75,7 +75,7 @@
     successMessage = '';
   }
 
-  function handleSaveSiteName(): void {
+  async function handleSaveSiteName(): Promise<void> {
     clearMessages();
     const nextSiteName = siteNameDraft.trim();
     if (!nextSiteName) {
@@ -83,8 +83,17 @@
       return;
     }
 
-    const saved = siteSettingsStore.setSiteName(nextSiteName);
-    siteNameDraft = saved.siteName;
+    const result = await siteSettingsStore.setSiteName(nextSiteName);
+    if (!result.ok) {
+      errorMessage = result.errors?.[0] ?? 'Unable to update site name.';
+      return;
+    }
+    if (!result.settings) {
+      errorMessage = 'Unable to update site name.';
+      return;
+    }
+
+    siteNameDraft = result.settings.siteName;
     successMessage = 'Site name updated.';
   }
 
@@ -96,20 +105,20 @@
     locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
   }
 
-  function handleAddLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name));
+  async function handleAddLocation(event: CustomEvent<{ name: string }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.addParkingLocation(event.detail.name));
   }
 
-  function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
-    applyLocationMutation(rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
+  async function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
   }
 
-  function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
+  async function handleDeleteLocation(event: CustomEvent<{ name: string }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.deleteParkingLocation(event.detail.name));
   }
 
-  function handleReorderLocations(event: CustomEvent<{ orderedNames: string[] }>): void {
-    applyLocationMutation(rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
+  async function handleReorderLocations(event: CustomEvent<{ orderedNames: string[] }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
   }
 
   const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
@@ -166,34 +175,60 @@
       if (!confirmed) return;
 
       const backup = parsed as AppBackup;
+      const restored = normalizeBackupForRestore(backup);
+
+      // Import customers first so reservation.customerId foreign keys are valid in SQLite.
+      const customerResult = await customerStore.replaceAll(restored.customers);
+      if (!customerResult.ok) {
+        errorMessage = customerResult.errors[0] ?? 'Failed to restore customers.';
+        return;
+      }
 
       // Import reservation data (reservations + parking locations)
       const currentState = get(rvReservationStore);
-      const maxIndex = backup.data.reservations.reduce(
+      const maxIndex = restored.reservations.reduce(
         (max, r) => Math.max(max, r.index),
         0
       );
-      rvReservationStore.importData({
+      const appDataResult = await rvReservationStore.importData({
         version: currentState.version,
-        reservations: backup.data.reservations,
-        parkingLocations: backup.data.parkingLocations,
+        reservations: restored.reservations,
+        parkingLocations: restored.parkingLocations,
         nextReservationIndex: Math.max(maxIndex + 1, 1),
         lastSavedAt: currentState.lastSavedAt
       });
-
-      // Import customers
-      customerStore.replaceAll(backup.data.customers);
-
-      // Import site settings
-      if (backup.data.siteSettings) {
-        siteSettingsStore.setSiteName(backup.data.siteSettings.siteName);
-        if (typeof backup.data.siteSettings.compactView === 'boolean') {
-          siteSettingsStore.setCompactView(backup.data.siteSettings.compactView);
-        }
-        siteNameDraft = backup.data.siteSettings.siteName;
+      if (!appDataResult.ok) {
+        errorMessage = appDataResult.errors?.[0] ?? 'Failed to restore reservations.';
+        return;
       }
 
-      successMessage = `Backup restored successfully (${backup.data.reservations.length} reservations, ${backup.data.customers.length} customers).`;
+      // Import site settings
+      if (restored.siteSettings) {
+        const siteNameResult = await siteSettingsStore.setSiteName(restored.siteSettings.siteName);
+        if (!siteNameResult.ok) {
+          errorMessage = siteNameResult.errors?.[0] ?? 'Failed to restore site settings.';
+          return;
+        }
+        if (!siteNameResult.settings) {
+          errorMessage = 'Failed to restore site settings.';
+          return;
+        }
+
+        if (typeof restored.siteSettings.compactView === 'boolean') {
+          const compactViewResult = await siteSettingsStore.setCompactView(restored.siteSettings.compactView);
+          if (!compactViewResult.ok) {
+            errorMessage = compactViewResult.errors?.[0] ?? 'Failed to restore site settings.';
+            return;
+          }
+          if (!compactViewResult.settings) {
+            errorMessage = 'Failed to restore site settings.';
+            return;
+          }
+        }
+        siteNameDraft = siteNameResult.settings.siteName;
+      }
+
+      successMessage = `Backup restored successfully (${restored.reservations.length} reservations, ${restored.customers.length} customers).`;
     } catch {
       errorMessage = 'Failed to import backup file.';
     } finally {
