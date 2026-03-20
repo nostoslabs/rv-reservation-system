@@ -16,9 +16,11 @@ function getDefaultSettings(): SiteSettings {
 }
 
 function createSiteSettingsStore() {
-	const internal = writable<SiteSettings>(
-		browser ? getAppServices().adminSettingsUseCases.loadSettings() : getDefaultSettings()
-	);
+	// Always start with defaults. In Tauri, the module loads before
+	// initAppServices() completes, so getAppServices() would return the
+	// localStorage fallback (which has no data). hydrate() — called in
+	// onMount after initAppServices() — reads from the correct backend.
+	const internal = writable<SiteSettings>(getDefaultSettings());
 
 	function hydrate(): void {
 		if (!browser) return;
