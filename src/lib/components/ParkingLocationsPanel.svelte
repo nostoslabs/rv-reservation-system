@@ -320,8 +320,6 @@
     padding: 0;
     display: grid;
     gap: 0.45rem;
-    max-height: min(32rem, 60vh);
-    overflow-y: auto;
   }
 
   .location-list li {
