@@ -194,8 +194,9 @@
       }
 
       successMessage = `Backup restored successfully (${backup.data.reservations.length} reservations, ${backup.data.customers.length} customers).`;
-    } catch {
-      errorMessage = 'Failed to import backup file.';
+    } catch (err) {
+      console.error('Backup import failed:', err);
+      errorMessage = 'Failed to import backup file.' + (err instanceof Error ? ' ' + err.message : '');
     } finally {
       backupImporting = false;
     }

@@ -103,38 +103,23 @@ async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 
 	await db.execute('BEGIN TRANSACTION');
 	try {
-		// Delete removed reservations first (FK child)
-		if (data.reservations.length > 0) {
-			const ids = data.reservations.map((r) => r.index);
-			const placeholders = ids.map(() => '?').join(',');
-			await db.execute(`DELETE FROM reservations WHERE id NOT IN (${placeholders})`, ids);
-		} else {
-			await db.execute('DELETE FROM reservations');
-		}
+		// Clear FK children first, then parents, then re-insert.
+		// Within a transaction this is safe — interrupted = rollback, not empty.
+		await db.execute('DELETE FROM reservations');
+		await db.execute('DELETE FROM parking_locations');
 
-		// Upsert parking locations (must exist before reservation FKs)
+		// Insert parking locations (must exist before reservations for FK)
 		for (let i = 0; i < data.parkingLocations.length; i++) {
 			await db.execute(
-				'INSERT OR REPLACE INTO parking_locations (name, sort_order) VALUES (?, ?)',
+				'INSERT INTO parking_locations (name, sort_order) VALUES (?, ?)',
 				[data.parkingLocations[i], i]
 			);
 		}
 
-		// Delete removed locations
-		if (data.parkingLocations.length > 0) {
-			const placeholders = data.parkingLocations.map(() => '?').join(',');
-			await db.execute(
-				`DELETE FROM parking_locations WHERE name NOT IN (${placeholders})`,
-				data.parkingLocations
-			);
-		} else {
-			await db.execute('DELETE FROM parking_locations');
-		}
-
-		// Upsert reservations (parking_locations rows exist now)
+		// Insert reservations
 		for (const r of data.reservations) {
 			await db.execute(
-				`INSERT OR REPLACE INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
 				[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
 			);
 		}
