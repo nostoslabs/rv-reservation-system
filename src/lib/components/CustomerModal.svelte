@@ -183,6 +183,8 @@
   .modal {
     position: relative;
     width: min(32rem, 100%);
+    max-height: min(90vh, 52rem);
+    overflow-y: auto;
     background: white;
     border-radius: 14px;
     border: 1px solid #d7dce4;
@@ -191,11 +193,17 @@
   }
 
   .modal-header {
+    position: sticky;
+    top: -1rem;
+    background: white;
+    z-index: 10;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 0.75rem;
+    margin: -1rem -1rem 0;
+    padding: 1rem 1rem 0.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   }
 
   h2 {
