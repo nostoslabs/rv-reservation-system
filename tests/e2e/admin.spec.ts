@@ -229,7 +229,7 @@ test.describe('Backup export/import functional tests', () => {
 			page.click('[data-testid="backup-export-btn"]')
 		]);
 
-		expect(download.suggestedFilename()).toMatch(/^rv-backup-\d{4}-\d{2}-\d{2}\.json$/);
+		expect(download.suggestedFilename()).toMatch(/^rv-backup-\d{4}-\d{2}-\d{2}-\d{6}\.json$/);
 
 		// Read and validate the backup content
 		const filePath = await download.path();
