@@ -6,7 +6,6 @@
     diffDays,
     formatReservationDetail,
     formatScheduleHeader,
-    formatTimestamp,
     getTodayIsoLocal
   } from '$lib/date';
   import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
@@ -31,10 +30,9 @@
   const dateColumns = Array.from({ length: TOTAL_DATE_COLUMNS }, (_, index) => addDays(gridStartDate, index));
 
   let gridScroller: HTMLDivElement | null = null;
-  let nowMs = Date.now();
   let occupancyMap: Map<string, Reservation> = new Map();
   let reservationCountsByLocation: Record<string, number> = {};
-  let autosaveStatus = 'Autosave pending';
+  let saving = false;
 
   // Column virtualization — only render visible date columns + buffer
   const COLUMN_BUFFER = 10;
@@ -174,29 +172,11 @@
       $rvReservationStore.reservations.filter((reservation) => reservation.parkingLocation === location).length
     ])
   ) as Record<string, number>;
-  $: autosaveStatus = getAutosaveStatus($rvReservationStore.lastSavedAt, nowMs);
   $: dailySummary = computeDailySummary(
     $rvReservationStore.reservations,
     $rvReservationStore.parkingLocations,
     todayIso
   );
-
-  function getAutosaveStatus(lastSavedAt: number | null, nowTimestamp: number): string {
-    if (!lastSavedAt) return 'Autosave pending';
-    const ageMs = Math.max(0, nowTimestamp - lastSavedAt);
-    const ageMinutes = Math.floor(ageMs / 60000);
-    if (ageMinutes <= 0) {
-      return `Saved just now (${formatTimestamp(lastSavedAt)})`;
-    }
-    if (ageMinutes === 1) {
-      return `Saved 1 minute ago (${formatTimestamp(lastSavedAt)})`;
-    }
-    if (ageMinutes < 60) {
-      return `Saved ${ageMinutes} minutes ago (${formatTimestamp(lastSavedAt)})`;
-    }
-    const ageHours = Math.floor(ageMinutes / 60);
-    return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
-  }
 
   async function alignToToday(): Promise<void> {
     await tick();
@@ -277,31 +257,41 @@
     modalErrors = [];
   }
 
-  function handleModalSave(event: CustomEvent<ReservationFormValues>): void {
-    const result = rvReservationStore.saveReservation(event.detail);
-    if (!result.ok) {
-      modalErrors = result.errors;
-      return;
-    }
+  async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
+    saving = true;
+    try {
+      const result = await rvReservationStore.saveReservation(event.detail);
+      if (!result.ok) {
+        modalErrors = result.errors;
+        return;
+      }
 
-    // Auto-create or link customer
-    if (!event.detail.customerId && event.detail.name.trim()) {
-      customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
-    }
+      // Auto-create or link customer
+      if (!event.detail.customerId && event.detail.name.trim()) {
+        await customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
+      }
 
-    closeModal();
-    showToast('Reservation saved');
+      closeModal();
+      showToast('Reservation saved');
+    } finally {
+      saving = false;
+    }
   }
 
-  function handleModalDelete(event: CustomEvent<{ index: number }>): void {
-    const result = rvReservationStore.deleteReservation(event.detail.index);
-    if (!result.ok) {
-      modalErrors = result.errors;
-      return;
-    }
+  async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
+    saving = true;
+    try {
+      const result = await rvReservationStore.deleteReservation(event.detail.index);
+      if (!result.ok) {
+        modalErrors = result.errors;
+        return;
+      }
 
-    closeModal();
-    showToast('Reservation deleted');
+      closeModal();
+      showToast('Reservation deleted');
+    } finally {
+      saving = false;
+    }
   }
 
   function handleModalBookAgain(event: CustomEvent<ReservationFormValues>): void {
@@ -343,13 +333,8 @@
     return lines.join('\n');
   }
 
-  function saveNow(): void {
-    rvReservationStore.forceSave();
-    nowMs = Date.now();
-  }
-
   async function toggleCompactView(): Promise<void> {
-    siteSettingsStore.setCompactView(!compactView);
+    await siteSettingsStore.setCompactView(!compactView);
     await tick();
     updateVisibleColumns();
     await alignToToday();
@@ -371,28 +356,11 @@
       window.setTimeout(() => void alignToToday(), delay)
     );
 
-    const displayTicker = window.setInterval(() => {
-      nowMs = Date.now();
-    }, 60_000);
-
-    const autosaveTicker = window.setInterval(() => {
-      rvReservationStore.forceSave();
-      nowMs = Date.now();
-    }, 15 * 60_000);
-
-    const handleBeforeUnload = (): void => {
-      rvReservationStore.forceSave();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('click', handleSearchClickOutside);
 
     return () => {
       scroller?.removeEventListener('scroll', handleGridScroll);
       retryTimers.forEach((t) => window.clearTimeout(t));
-      window.clearInterval(displayTicker);
-      window.clearInterval(autosaveTicker);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('click', handleSearchClickOutside);
       if (toastTimer) clearTimeout(toastTimer);
     };
@@ -484,8 +452,6 @@
       <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
       <span class="badge">{ $rvReservationStore.reservations.length } res</span>
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
-      <span class="badge save-badge" aria-live="polite">{autosaveStatus}</span>
-      <button type="button" class="save-btn" on:click={saveNow}>Save</button>
       <a href="/customers" class="settings-link" title="Customers" aria-label="Customers" data-testid="customers-link">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="20" height="20">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -795,25 +761,6 @@
   }
 
   .new-reservation-btn:hover {
-    background: #edf3fd;
-  }
-
-  .save-badge {
-    color: #3d5a78;
-  }
-
-  .save-btn {
-    border-radius: 8px;
-    border: 1px solid #c3cddd;
-    background: #f4f7fc;
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    min-height: 36px;
-  }
-
-  .save-btn:hover {
     background: #edf3fd;
   }
 
@@ -1259,10 +1206,6 @@
   @media (max-width: 1100px) {
     .toolbar {
       gap: 0.5rem;
-    }
-
-    .save-badge {
-      display: none;
     }
 
     .search-container {

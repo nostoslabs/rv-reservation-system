@@ -55,7 +55,7 @@
 
     try {
       const text = await csvFile.text();
-      csvImportResult = customerStore.importCsv(text);
+      csvImportResult = await customerStore.importCsv(text);
       csvErrorsExpanded = false;
     } catch {
       csvImportResult = { imported: 0, skipped: 0, errors: ['Failed to read file.'] };
@@ -75,7 +75,7 @@
     successMessage = '';
   }
 
-  function handleSaveSiteName(): void {
+  async function handleSaveSiteName(): Promise<void> {
     clearMessages();
     const nextSiteName = siteNameDraft.trim();
     if (!nextSiteName) {
@@ -83,7 +83,7 @@
       return;
     }
 
-    const saved = siteSettingsStore.setSiteName(nextSiteName);
+    const saved = await siteSettingsStore.setSiteName(nextSiteName);
     siteNameDraft = saved.siteName;
     successMessage = 'Site name updated.';
   }
@@ -96,20 +96,20 @@
     locationPanelError = result.errors?.[0] ?? 'Unable to update sites.';
   }
 
-  function handleAddLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.addParkingLocation(event.detail.name));
+  async function handleAddLocation(event: CustomEvent<{ name: string }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.addParkingLocation(event.detail.name));
   }
 
-  function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): void {
-    applyLocationMutation(rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
+  async function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
   }
 
-  function handleDeleteLocation(event: CustomEvent<{ name: string }>): void {
-    applyLocationMutation(rvReservationStore.deleteParkingLocation(event.detail.name));
+  async function handleDeleteLocation(event: CustomEvent<{ name: string }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.deleteParkingLocation(event.detail.name));
   }
 
-  function handleReorderLocations(event: CustomEvent<{ orderedNames: string[] }>): void {
-    applyLocationMutation(rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
+  async function handleReorderLocations(event: CustomEvent<{ orderedNames: string[] }>): Promise<void> {
+    applyLocationMutation(await rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
   }
 
   const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
@@ -173,7 +173,7 @@
         (max, r) => Math.max(max, r.index),
         0
       );
-      rvReservationStore.importData({
+      await rvReservationStore.importData({
         version: currentState.version,
         reservations: backup.data.reservations,
         parkingLocations: backup.data.parkingLocations,
@@ -182,13 +182,13 @@
       });
 
       // Import customers
-      customerStore.replaceAll(backup.data.customers);
+      await customerStore.replaceAll(backup.data.customers);
 
       // Import site settings
       if (backup.data.siteSettings) {
-        siteSettingsStore.setSiteName(backup.data.siteSettings.siteName);
+        await siteSettingsStore.setSiteName(backup.data.siteSettings.siteName);
         if (typeof backup.data.siteSettings.compactView === 'boolean') {
-          siteSettingsStore.setCompactView(backup.data.siteSettings.compactView);
+          await siteSettingsStore.setCompactView(backup.data.siteSettings.compactView);
         }
         siteNameDraft = backup.data.siteSettings.siteName;
       }
