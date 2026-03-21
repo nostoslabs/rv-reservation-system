@@ -6,7 +6,7 @@
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
-  import { createBackup, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { getAppServices } from '$lib/app/composition';
 
   const SITE_NAME_MAX_LENGTH = 80;
@@ -142,10 +142,7 @@
       customers
     );
 
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-    const filename = `rv-backup-${dateStr}-${timeStr}.json`;
+    const filename = generateBackupFilename();
     const content = JSON.stringify(backup, null, 2);
 
     try {

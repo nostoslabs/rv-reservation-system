@@ -1,8 +1,10 @@
-export { RESERVATION_COLORS, RESERVATION_STATUSES } from '$lib/types';
+export { AUTO_BACKUP_INTERVALS, RESERVATION_COLORS, RESERVATION_STATUSES } from '$lib/types';
 export type {
   ActionError,
   ActionResult,
   AppState,
+  AutoBackupConfig,
+  AutoBackupIntervalMinutes,
   MutationResult,
   PersistedAppData,
   Reservation,
