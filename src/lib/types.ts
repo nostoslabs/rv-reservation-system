@@ -53,9 +53,19 @@ export interface ReservationFormValues {
   customerId?: string;
 }
 
+export const AUTO_BACKUP_INTERVALS = [0, 5, 10, 30, 60, 120, 240, 480, 1440] as const;
+export type AutoBackupIntervalMinutes = (typeof AUTO_BACKUP_INTERVALS)[number];
+
+export interface AutoBackupConfig {
+  intervalMinutes: AutoBackupIntervalMinutes;
+  directoryPath: string | null;
+  lastBackupAt: string | null;
+}
+
 export interface SiteSettings {
   siteName: string;
   compactView?: boolean;
+  autoBackup?: AutoBackupConfig;
 }
 
 export interface ActionResult {

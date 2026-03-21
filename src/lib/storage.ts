@@ -1,7 +1,8 @@
 import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
 import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
-import type { PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
+import type { AutoBackupIntervalMinutes, PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
+import { AUTO_BACKUP_INTERVALS } from '$lib/types';
 
 const STORAGE_KEY = 'rv-reservation-demo:v1';
 const DATA_VERSION = 4;
@@ -168,10 +169,23 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
 
   const compactView = typeof raw.compactView === 'boolean' ? raw.compactView : false;
 
-  return {
-    siteName,
-    compactView
-  };
+  const result: SiteSettings = { siteName, compactView };
+
+  if (raw.autoBackup && typeof raw.autoBackup === 'object') {
+    const ab = raw.autoBackup as Record<string, unknown>;
+    const rawInterval = typeof ab.intervalMinutes === 'number' ? ab.intervalMinutes : 0;
+    const intervalMinutes: AutoBackupIntervalMinutes =
+      (AUTO_BACKUP_INTERVALS as readonly number[]).includes(rawInterval)
+        ? (rawInterval as AutoBackupIntervalMinutes)
+        : 0;
+    result.autoBackup = {
+      intervalMinutes,
+      directoryPath: typeof ab.directoryPath === 'string' ? ab.directoryPath : null,
+      lastBackupAt: typeof ab.lastBackupAt === 'string' ? ab.lastBackupAt : null
+    };
+  }
+
+  return result;
 }
 
 export function loadSiteSettings(): SiteSettings {

@@ -6,12 +6,26 @@
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
-  import { createBackup, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { getAppServices } from '$lib/app/composition';
+  import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
+  const INTERVAL_LABELS: Record<number, string> = {
+    0: 'Off',
+    5: 'Every 5 minutes',
+    10: 'Every 10 minutes',
+    30: 'Every 30 minutes',
+    60: 'Every hour',
+    120: 'Every 2 hours',
+    240: 'Every 4 hours',
+    480: 'Every 8 hours',
+    1440: 'Every 24 hours'
+  };
+
   let appVersion = '';
+  let isDesktop = false;
 
   let siteNameDraft = DEFAULT_SITE_NAME;
   let errorMessage = '';
@@ -43,6 +57,7 @@
     siteNameDraft = $siteSettingsStore.siteName;
 
     const { desktop } = getAppServices();
+    isDesktop = desktop.isDesktop;
     appVersion = (await desktop.getVersion()) ?? '';
   });
 
@@ -142,10 +157,7 @@
       customers
     );
 
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-    const filename = `rv-backup-${dateStr}-${timeStr}.json`;
+    const filename = generateBackupFilename();
     const content = JSON.stringify(backup, null, 2);
 
     try {
@@ -246,6 +258,42 @@
       errorMessage = `Import failed: ${err instanceof Error ? err.message : 'unknown error'}`;
     } finally {
       backupImporting = false;
+    }
+  }
+
+  async function handlePickBackupDirectory(): Promise<void> {
+    clearMessages();
+    const { desktop } = getAppServices();
+    const dir = await desktop.pickDirectory();
+    if (dir) {
+      const result = await siteSettingsStore.setAutoBackupDirectory(dir);
+      if (!result.ok) {
+        errorMessage = result.errors?.[0] ?? 'Unable to set backup directory.';
+      }
+    }
+  }
+
+  async function handleClearBackupDirectory(): Promise<void> {
+    clearMessages();
+    await siteSettingsStore.setAutoBackupDirectory(null);
+    await siteSettingsStore.setAutoBackupInterval(0);
+  }
+
+  async function handleIntervalChange(event: Event): Promise<void> {
+    clearMessages();
+    const value = Number((event.target as HTMLSelectElement).value) as AutoBackupIntervalMinutes;
+    const result = await siteSettingsStore.setAutoBackupInterval(value);
+    if (!result.ok) {
+      errorMessage = result.errors?.[0] ?? 'Unable to set backup interval.';
+    }
+  }
+
+  function formatLastBackup(iso: string | null | undefined): string {
+    if (!iso) return 'Never';
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return 'Never';
     }
   }
 </script>
@@ -352,6 +400,54 @@
       </button>
     </div>
   </section>
+
+  {#if isDesktop}
+    <section class="panel" data-testid="auto-backup-panel">
+      <h2>Automatic Backup</h2>
+      <p>Silently write backups to a folder on a schedule.</p>
+
+      <div class="stack">
+        <label>
+          <span>Backup Folder</span>
+          <div class="folder-row">
+            <input
+              type="text"
+              readonly
+              value={$siteSettingsStore.autoBackup?.directoryPath ?? ''}
+              placeholder="No folder selected"
+              data-testid="auto-backup-directory"
+            />
+            <button type="button" on:click={handlePickBackupDirectory} data-testid="auto-backup-pick-dir">
+              Choose Folder
+            </button>
+            {#if $siteSettingsStore.autoBackup?.directoryPath}
+              <button type="button" on:click={handleClearBackupDirectory} data-testid="auto-backup-clear-dir">
+                Clear
+              </button>
+            {/if}
+          </div>
+        </label>
+
+        <label>
+          <span>Backup Interval</span>
+          <select
+            value={$siteSettingsStore.autoBackup?.intervalMinutes ?? 0}
+            on:change={handleIntervalChange}
+            disabled={!$siteSettingsStore.autoBackup?.directoryPath}
+            data-testid="auto-backup-interval"
+          >
+            {#each AUTO_BACKUP_INTERVALS as interval}
+              <option value={interval}>{INTERVAL_LABELS[interval]}</option>
+            {/each}
+          </select>
+        </label>
+
+        <div class="meta" data-testid="auto-backup-last">
+          Last auto-backup: {formatLastBackup($siteSettingsStore.autoBackup?.lastBackupAt)}
+        </div>
+      </div>
+    </section>
+  {/if}
 
   <div data-testid="sites-management">
     <ParkingLocationsPanel
@@ -565,6 +661,39 @@
     color: #8995a5;
     font-size: 0.8rem;
     padding: 0.5rem 0 0.25rem;
+  }
+
+  .folder-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .folder-row input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  select {
+    font: inherit;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    color: #1c2e45;
+    min-height: 44px;
+  }
+
+  select:focus {
+    background: white;
+    border-color: #0a63e0;
+  }
+
+  select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
 </style>

@@ -24,6 +24,13 @@ export interface AppBackup {
 export const BACKUP_APP_NAME = 'rv-reservation-system';
 export const BACKUP_SCHEMA_VERSION = 1;
 
+export function generateBackupFilename(): string {
+	const now = new Date();
+	const dateStr = now.toISOString().slice(0, 10);
+	const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+	return `rv-backup-${dateStr}-${timeStr}.json`;
+}
+
 export function createBackup(
 	reservations: Reservation[],
 	parkingLocations: string[],
