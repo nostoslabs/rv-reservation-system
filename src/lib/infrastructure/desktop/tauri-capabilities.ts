@@ -40,6 +40,15 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			});
 			if (!path) return null;
 			return await readTextFile(path);
+		},
+		async writeFileToPath(filePath: string, content: string): Promise<void> {
+			const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+			await writeTextFile(filePath, content);
+		},
+		async pickDirectory(): Promise<string | null> {
+			const { open } = await import('@tauri-apps/plugin-dialog');
+			const path = await open({ multiple: false, directory: true });
+			return path ?? null;
 		}
 	};
 }

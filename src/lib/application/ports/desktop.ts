@@ -22,4 +22,10 @@ export interface DesktopCapabilities {
 
 	/** Show an open-file dialog and read content. Returns file text or null if cancelled. */
 	openFile(filters?: FileFilter[]): Promise<string | null>;
+
+	/** Write content to a file path without showing a dialog (for background auto-backup). */
+	writeFileToPath(filePath: string, content: string): Promise<void>;
+
+	/** Show a native folder picker. Returns the selected directory path or null if cancelled. */
+	pickDirectory(): Promise<string | null>;
 }
