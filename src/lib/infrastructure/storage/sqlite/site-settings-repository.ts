@@ -1,5 +1,6 @@
 import type { SiteSettingsRepository } from '$lib/application/ports';
-import type { SiteSettings } from '$lib/domain/models';
+import type { AutoBackupConfig, AutoBackupIntervalMinutes, SiteSettings } from '$lib/domain/models';
+import { AUTO_BACKUP_INTERVALS } from '$lib/domain/models';
 import { DEFAULT_SITE_NAME } from '$lib/storage';
 import type { Database } from './types';
 import type { SqliteWriteQueue } from './write-queue';
@@ -9,22 +10,38 @@ interface SettingRow {
 	value: string;
 }
 
+function defaultAutoBackup(): AutoBackupConfig {
+	return { intervalMinutes: 0, directoryPath: null, lastBackupAt: null };
+}
+
 function defaultSettings(): SiteSettings {
-	return { siteName: DEFAULT_SITE_NAME, compactView: false };
+	return { siteName: DEFAULT_SITE_NAME, compactView: false, autoBackup: defaultAutoBackup() };
 }
 
 function sanitize(settings: SiteSettings): SiteSettings {
 	const siteName =
 		settings.siteName?.trim().slice(0, 80) || DEFAULT_SITE_NAME;
-	return { siteName, compactView: settings.compactView };
+	const autoBackup = settings.autoBackup ?? defaultAutoBackup();
+	return { siteName, compactView: settings.compactView, autoBackup };
 }
 
 async function loadFromDb(db: Database): Promise<SiteSettings> {
 	const rows = await db.select<SettingRow>('SELECT * FROM admin_settings');
 	const map = new Map(rows.map((r) => [r.key, r.value]));
+
+	const rawInterval = Number(map.get('auto_backup_interval') ?? '0');
+	const intervalMinutes = (AUTO_BACKUP_INTERVALS as readonly number[]).includes(rawInterval)
+		? (rawInterval as AutoBackupIntervalMinutes)
+		: 0;
+
 	return sanitize({
 		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME,
-		compactView: map.get('compact_view') === '1'
+		compactView: map.get('compact_view') === '1',
+		autoBackup: {
+			intervalMinutes,
+			directoryPath: map.get('auto_backup_directory') ?? null,
+			lastBackupAt: map.get('auto_backup_last_at') ?? null
+		}
 	});
 }
 
@@ -37,6 +54,28 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
 		'compact_view',
 		settings.compactView ? '1' : '0'
 	]);
+
+	const ab = settings.autoBackup ?? defaultAutoBackup();
+	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+		'auto_backup_interval',
+		String(ab.intervalMinutes)
+	]);
+	if (ab.directoryPath != null) {
+		await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+			'auto_backup_directory',
+			ab.directoryPath
+		]);
+	} else {
+		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['auto_backup_directory']);
+	}
+	if (ab.lastBackupAt != null) {
+		await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+			'auto_backup_last_at',
+			ab.lastBackupAt
+		]);
+	} else {
+		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['auto_backup_last_at']);
+	}
 }
 
 /**
