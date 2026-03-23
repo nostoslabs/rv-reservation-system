@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import { get, writable } from 'svelte/store';
 import { flushPendingWrites, getAppServices } from '$lib/app/composition';
 import { DEFAULT_SITE_NAME } from '$lib/storage';
-import type { MutationResult, SiteSettings } from '$lib/types';
+import type { AutoBackupIntervalMinutes, MutationResult, SiteSettings } from '$lib/types';
 
 const SITE_SETTINGS_PERSISTENCE_ERROR = 'Unable to save settings to disk.';
 
@@ -61,11 +61,35 @@ function createSiteSettingsStore() {
 		return persistSettings(result.settings);
 	}
 
+	async function setAutoBackupInterval(intervalMinutes: AutoBackupIntervalMinutes): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.setAutoBackupInterval(intervalMinutes, current);
+		return persistSettings(result.settings);
+	}
+
+	async function setAutoBackupDirectory(directoryPath: string | null): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.setAutoBackupDirectory(directoryPath, current);
+		return persistSettings(result.settings);
+	}
+
+	async function recordAutoBackup(timestamp: string): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.recordAutoBackupTimestamp(timestamp, current);
+		return persistSettings(result.settings);
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
 		setSiteName,
-		setCompactView
+		setCompactView,
+		setAutoBackupInterval,
+		setAutoBackupDirectory,
+		recordAutoBackup
 	};
 }
 

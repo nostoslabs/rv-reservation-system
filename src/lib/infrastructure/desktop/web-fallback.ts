@@ -26,6 +26,12 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 			setTimeout(() => URL.revokeObjectURL(url), 1000);
 			return true;
 		},
+		async writeFileToPath(): Promise<void> {
+			// No-op in web — auto-backup is desktop-only
+		},
+		async pickDirectory(): Promise<string | null> {
+			return null;
+		},
 		async openFile(filters?: FileFilter[]): Promise<string | null> {
 			return new Promise((resolve) => {
 				let resolved = false;
