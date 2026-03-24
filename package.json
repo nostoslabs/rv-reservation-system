@@ -1,6 +1,6 @@
 {
   "name": "rv-reservation-system",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,6 +14,8 @@
     "tauri": "tauri",
     "tauri:dev": "npx tauri dev",
     "tauri:build": "npx tauri build",
+    "tauri:install": "pkill -x 'RV Reservation System' 2>/dev/null; sleep 1; rm -rf '/Applications/RV Reservation System.app' && cp -R 'src-tauri/target/release/bundle/macos/RV Reservation System.app' /Applications/ && echo 'Installed to /Applications'",
+    "tauri:build-and-install": "npm run tauri:build && npm run tauri:install",
     "deploy": "npx vercel --prod"
   },
   "devDependencies": {
