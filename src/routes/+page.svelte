@@ -23,6 +23,11 @@
   import { rvReservationStore } from '$lib/state';
   import { customerStore } from '$lib/customer-state';
   import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import {
+    deleteReservationWithUndo,
+    saveReservationWithUndo,
+    moveReservationWithUndo
+  } from '$lib/app/undoable-actions';
 
   const DAYS_BEFORE_TODAY = 45;
   const TOTAL_DATE_COLUMNS = 540;
@@ -261,7 +266,7 @@
     if (currentDaysDelta === 0 && currentSite === reservation.parkingLocation) return;
 
     const newSite = currentSite !== reservation.parkingLocation ? currentSite : undefined;
-    const result = await rvReservationStore.moveReservation(reservation.index, currentDaysDelta, newSite);
+    const result = await moveReservationWithUndo(reservation.index, currentDaysDelta, newSite);
     if (!result.ok) {
       showToast(result.errors?.[0] ?? 'Cannot move reservation');
     } else {
@@ -399,7 +404,7 @@
   }
 
   async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
-    const result = await rvReservationStore.saveReservation(event.detail);
+    const result = await saveReservationWithUndo(event.detail);
     if (!result.ok) {
       modalErrors = result.errors;
       return;
@@ -415,7 +420,7 @@
   }
 
   async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
-    const result = await rvReservationStore.deleteReservation(event.detail.index);
+    const result = await deleteReservationWithUndo(event.detail.index);
     if (!result.ok) {
       modalErrors = result.errors;
       return;

@@ -9,6 +9,7 @@
   import { normalizeName, normalizePhoneNumber } from '$lib/domain/customers';
   import type { Customer, CustomerFormValues } from '$lib/domain/customers';
   import type { Reservation } from '$lib/types';
+  import { deleteCustomerWithUndo, updateCustomerWithUndo } from '$lib/app/undoable-actions';
 
   let searchQuery = '';
   let sortBy: 'name' | 'lastVisit' | 'reservations' = 'name';
@@ -153,10 +154,10 @@
     const form = event.detail;
     const result = modalMode === 'create'
       ? await customerStore.create(form)
-      : await customerStore.update(form);
+      : await updateCustomerWithUndo(form);
 
     if (!result.ok) {
-      modalErrors = result.errors;
+      modalErrors = result.errors ?? ['An error occurred.'];
       return;
     }
 
@@ -165,9 +166,9 @@
   }
 
   async function handleModalDelete(event: CustomEvent<{ id: string }>): Promise<void> {
-    const result = await customerStore.remove(event.detail.id);
+    const result = await deleteCustomerWithUndo(event.detail.id);
     if (!result.ok) {
-      modalErrors = result.errors;
+      modalErrors = result.errors ?? ['An error occurred.'];
       return;
     }
 
