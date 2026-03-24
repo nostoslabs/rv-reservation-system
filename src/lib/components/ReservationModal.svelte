@@ -14,6 +14,7 @@
   export let customers: Customer[] = [];
   export let draft: ReservationFormValues = {
     name: '',
+    rvType: '',
     phoneNumber: '',
     notes: '',
     startDate: '',
@@ -33,7 +34,7 @@
     bookagain: ReservationFormValues;
   }>();
 
-  const emptyExtras = { phoneNumber: '', notes: '' };
+  const emptyExtras = { phoneNumber: '', rvType: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
   let confirmingDelete = false;
   let autocompleteRef: AutocompleteInput;
@@ -45,14 +46,12 @@
     data: c
   }));
 
-  let selectedRvType = '';
-
   function handleCustomerSelect(event: CustomEvent<{ suggestion: { label: string; sublabel?: string; data: unknown } }>): void {
     const customer = event.detail.suggestion.data as Customer;
     form.name = customer.name;
+    form.rvType = customer.rvType || form.rvType;
     form.phoneNumber = customer.phone || form.phoneNumber;
     form.customerId = customer.id;
-    selectedRvType = customer.rvType;
   }
 
   /** Computed nights display */
@@ -76,9 +75,6 @@
     form = { ...emptyExtras, ...draft };
     lastStartDate = '';  // Allow auto-advance to run on open if endDate is invalid
     confirmingDelete = false;
-    selectedRvType = draft.customerId
-      ? (customers.find((c) => c.id === draft.customerId)?.rvType ?? '')
-      : '';
   }
 
   afterUpdate(() => {
@@ -140,6 +136,7 @@
   function handleBookAgain(): void {
     dispatch('bookagain', {
       name: form.name,
+      rvType: form.rvType,
       phoneNumber: form.phoneNumber,
       notes: form.notes,
       parkingLocation: form.parkingLocation,
@@ -228,12 +225,10 @@
               />
             </label>
 
-            {#if selectedRvType}
-              <label>
-                <span>RV Type</span>
-                <input value={selectedRvType} type="text" readonly tabindex="-1" data-testid="rv-type-display" />
-              </label>
-            {/if}
+            <label>
+              <span>RV Type</span>
+              <input bind:value={form.rvType} type="text" placeholder="e.g. Fifth Wheel, Class A" maxlength="60" data-testid="rv-type-input" />
+            </label>
 
             <label>
               <span>Phone Number</span>

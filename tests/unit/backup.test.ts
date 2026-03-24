@@ -7,6 +7,7 @@ function makeFakeReservation(overrides: Partial<Reservation> = {}): Reservation 
 		index: 1,
 		firstCellId: 'A-01_2025-06-01',
 		name: 'Test Guest',
+		rvType: '',
 		phoneNumber: '555-1234',
 		notes: '',
 		startDate: '2025-06-01',

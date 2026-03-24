@@ -7,6 +7,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 		index: 1,
 		firstCellId: 'A|2025-06-01',
 		name: 'John Smith',
+		rvType: '',
 		phoneNumber: '555-1234',
 		notes: '',
 		startDate: '2025-06-01',

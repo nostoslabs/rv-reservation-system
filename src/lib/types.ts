@@ -18,6 +18,7 @@ export interface Reservation {
   index: number;
   firstCellId: string;
   name: string;
+  rvType: string;
   phoneNumber: string;
   notes: string;
   startDate: string;
@@ -43,6 +44,7 @@ export interface AppState extends PersistedAppData {
 export interface ReservationFormValues {
   index?: number;
   name: string;
+  rvType: string;
   phoneNumber: string;
   notes: string;
   startDate: string;

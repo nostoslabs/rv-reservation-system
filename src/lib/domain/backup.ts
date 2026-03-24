@@ -58,12 +58,13 @@ export function createBackup(
 export function normalizeBackupForRestore(backup: AppBackup): BackupData {
 	const knownCustomerIds = new Set(backup.data.customers.map((customer) => customer.id));
 	const reservations = backup.data.reservations.map((reservation) => {
-		if (!reservation.customerId || knownCustomerIds.has(reservation.customerId)) {
-			return reservation;
+		const normalized = { ...reservation, rvType: reservation.rvType ?? '' };
+		if (!normalized.customerId || knownCustomerIds.has(normalized.customerId)) {
+			return normalized;
 		}
 
 		return {
-			...reservation,
+			...normalized,
 			customerId: undefined
 		};
 	});

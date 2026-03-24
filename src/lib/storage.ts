@@ -74,10 +74,13 @@ export function sanitizeReservation(value: unknown): Reservation | null {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const customerId = typeof raw.customerId === 'string' && UUID_RE.test(raw.customerId) ? raw.customerId : undefined;
 
+  const rvType = typeof raw.rvType === 'string' ? raw.rvType.trim() : '';
+
   return {
     index: raw.index,
     firstCellId: raw.firstCellId,
     name: raw.name.trim(),
+    rvType,
     phoneNumber,
     notes,
     startDate: raw.startDate,
