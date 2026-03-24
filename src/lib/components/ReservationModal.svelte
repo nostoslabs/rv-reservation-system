@@ -41,15 +41,18 @@
 
   $: customerSuggestions = customers.map((c) => ({
     label: c.name,
-    sublabel: c.phone || c.email || undefined,
+    sublabel: [c.rvType, c.phone].filter(Boolean).join(' \u00b7 ') || c.email || undefined,
     data: c
   }));
+
+  let selectedRvType = '';
 
   function handleCustomerSelect(event: CustomEvent<{ suggestion: { label: string; sublabel?: string; data: unknown } }>): void {
     const customer = event.detail.suggestion.data as Customer;
     form.name = customer.name;
     form.phoneNumber = customer.phone || form.phoneNumber;
     form.customerId = customer.id;
+    selectedRvType = customer.rvType;
   }
 
   /** Computed nights display */
@@ -73,6 +76,9 @@
     form = { ...emptyExtras, ...draft };
     lastStartDate = '';  // Allow auto-advance to run on open if endDate is invalid
     confirmingDelete = false;
+    selectedRvType = draft.customerId
+      ? (customers.find((c) => c.id === draft.customerId)?.rvType ?? '')
+      : '';
   }
 
   afterUpdate(() => {
@@ -222,13 +228,29 @@
               />
             </label>
 
+            {#if selectedRvType}
+              <label>
+                <span>RV Type</span>
+                <input value={selectedRvType} type="text" readonly tabindex="-1" data-testid="rv-type-display" />
+              </label>
+            {/if}
+
             <label>
-              <span>Site</span>
-              <select bind:value={form.parkingLocation} required>
-                {#each parkingLocations as location}
-                  <option value={location}>{location}</option>
-                {/each}
-              </select>
+              <span>Phone Number</span>
+              <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
+            </label>
+
+            <label>
+              <span class="notes-label-row">
+                <span>Notes</span>
+                <small>{form.notes.length}/{MAX_RESERVATION_NOTES_LENGTH}</small>
+              </span>
+              <textarea
+                bind:value={form.notes}
+                rows="3"
+                maxlength={MAX_RESERVATION_NOTES_LENGTH}
+                placeholder="Optional notes"
+              ></textarea>
             </label>
 
             <label>
@@ -248,21 +270,12 @@
             </label>
 
             <label>
-              <span>Phone Number</span>
-              <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
-            </label>
-
-            <label>
-              <span class="notes-label-row">
-                <span>Notes</span>
-                <small>{form.notes.length}/{MAX_RESERVATION_NOTES_LENGTH}</small>
-              </span>
-              <textarea
-                bind:value={form.notes}
-                rows="3"
-                maxlength={MAX_RESERVATION_NOTES_LENGTH}
-                placeholder="Optional notes"
-              ></textarea>
+              <span>Site</span>
+              <select bind:value={form.parkingLocation} required>
+                {#each parkingLocations as location}
+                  <option value={location}>{location}</option>
+                {/each}
+              </select>
             </label>
           </div>
         </div>
