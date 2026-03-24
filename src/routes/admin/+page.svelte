@@ -378,7 +378,7 @@
 
   <section class="panel" data-testid="backup-panel">
     <h2>Backup &amp; Restore</h2>
-    <p>Export all app data as JSON, or restore from a previous backup.</p>
+    <p>Export all app data as JSON, or restore from a previous backup. To protect against data loss, save a backup to a USB drive or cloud folder. To recover on a new computer, install the app and use Restore Backup with your saved file.</p>
 
     <div class="stack">
       <button
@@ -404,7 +404,7 @@
   {#if isDesktop}
     <section class="panel" data-testid="auto-backup-panel">
       <h2>Automatic Backup</h2>
-      <p>Silently write backups to a folder on a schedule.</p>
+      <p>Silently write backups to a folder on a schedule. For best protection, choose a folder that syncs to the cloud (e.g. iCloud, Google Drive, or Dropbox).</p>
 
       <div class="stack">
         <label>
