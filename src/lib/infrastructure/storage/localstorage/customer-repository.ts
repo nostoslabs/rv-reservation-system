@@ -4,6 +4,7 @@ import type { Customer } from '$lib/domain/customers';
 import {
 	MAX_CUSTOMER_NAME_LENGTH,
 	MAX_CUSTOMER_PHONE_LENGTH,
+	MAX_CUSTOMER_RV_TYPE_LENGTH,
 	MAX_CUSTOMER_EMAIL_LENGTH,
 	MAX_CUSTOMER_NOTES_LENGTH
 } from '$lib/domain/customers';
@@ -23,6 +24,7 @@ function sanitizeCustomer(value: unknown): Customer | null {
 		id: raw.id,
 		name: raw.name.trim().slice(0, MAX_CUSTOMER_NAME_LENGTH),
 		phone: typeof raw.phone === 'string' ? raw.phone.trim().slice(0, MAX_CUSTOMER_PHONE_LENGTH) : '',
+		rvType: typeof raw.rvType === 'string' ? raw.rvType.trim().slice(0, MAX_CUSTOMER_RV_TYPE_LENGTH) : '',
 		email: typeof raw.email === 'string' ? raw.email.trim().slice(0, MAX_CUSTOMER_EMAIL_LENGTH) : '',
 		notes: typeof raw.notes === 'string' ? raw.notes.trim().slice(0, MAX_CUSTOMER_NOTES_LENGTH) : '',
 		createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString(),
