@@ -44,6 +44,7 @@ describe('CustomerUseCases', () => {
 			const result = useCases.create({
 				name: 'John Smith',
 				phone: '555-1234',
+				rvType: '',
 				email: 'john@test.com',
 				notes: 'Good customer'
 			});
@@ -60,6 +61,7 @@ describe('CustomerUseCases', () => {
 			const result = useCases.create({
 				name: '  John   Smith  ',
 				phone: '  555-1234  ',
+				rvType: '',
 				email: '  JOHN@TEST.COM  ',
 				notes: '  Good customer  '
 			});
@@ -76,6 +78,7 @@ describe('CustomerUseCases', () => {
 			const result = useCases.create({
 				name: '',
 				phone: '',
+				rvType: '',
 				email: '',
 				notes: ''
 			});
@@ -86,14 +89,14 @@ describe('CustomerUseCases', () => {
 		});
 
 		it('persists the customer', () => {
-			useCases.create({ name: 'John', phone: '', email: '', notes: '' });
+			useCases.create({ name: 'John', phone: '', rvType: '', email: '', notes: '' });
 			expect(useCases.getAll()).toHaveLength(1);
 		});
 	});
 
 	describe('update', () => {
 		it('updates an existing customer', () => {
-			const createResult = useCases.create({ name: 'John', phone: '555-1234', email: '', notes: '' });
+			const createResult = useCases.create({ name: 'John', phone: '555-1234', rvType: '', email: '', notes: '' });
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) return;
 
@@ -101,6 +104,7 @@ describe('CustomerUseCases', () => {
 				id: createResult.customer.id,
 				name: 'John Smith',
 				phone: '555-5678',
+				rvType: '',
 				email: 'john@test.com',
 				notes: 'Updated'
 			});
@@ -112,19 +116,19 @@ describe('CustomerUseCases', () => {
 		});
 
 		it('rejects missing id', () => {
-			const result = useCases.update({ name: 'John', phone: '', email: '', notes: '' });
+			const result = useCases.update({ name: 'John', phone: '', rvType: '', email: '', notes: '' });
 			expect(result.ok).toBe(false);
 		});
 
 		it('rejects non-existent customer', () => {
-			const result = useCases.update({ id: 'missing', name: 'John', phone: '', email: '', notes: '' });
+			const result = useCases.update({ id: 'missing', name: 'John', phone: '', rvType: '', email: '', notes: '' });
 			expect(result.ok).toBe(false);
 		});
 	});
 
 	describe('remove', () => {
 		it('removes an existing customer', () => {
-			const createResult = useCases.create({ name: 'John', phone: '', email: '', notes: '' });
+			const createResult = useCases.create({ name: 'John', phone: '', rvType: '', email: '', notes: '' });
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) return;
 
@@ -141,8 +145,8 @@ describe('CustomerUseCases', () => {
 
 	describe('search', () => {
 		it('searches customers by name', () => {
-			useCases.create({ name: 'Alice Johnson', phone: '555-1111', email: '', notes: '' });
-			useCases.create({ name: 'Bob Smith', phone: '555-2222', email: '', notes: '' });
+			useCases.create({ name: 'Alice Johnson', phone: '555-1111', rvType: '', email: '', notes: '' });
+			useCases.create({ name: 'Bob Smith', phone: '555-2222', rvType: '', email: '', notes: '' });
 
 			const results = useCases.search('alice');
 			expect(results).toHaveLength(1);
@@ -159,7 +163,7 @@ describe('CustomerUseCases', () => {
 		});
 
 		it('returns existing customer on exact match', () => {
-			useCases.create({ name: 'John Smith', phone: '555-1234', email: '', notes: '' });
+			useCases.create({ name: 'John Smith', phone: '555-1234', rvType: '', email: '', notes: '' });
 			const customer = useCases.findOrCreateFromReservation('John Smith', '555-1234');
 			expect(customer).not.toBeNull();
 			expect(useCases.getAll()).toHaveLength(1);
@@ -191,7 +195,7 @@ Jane Doe,555-5678,jane@test.com,Also good`;
 		});
 
 		it('skips duplicates', () => {
-			useCases.create({ name: 'John Smith', phone: '555-1234', email: '', notes: '' });
+			useCases.create({ name: 'John Smith', phone: '555-1234', rvType: '', email: '', notes: '' });
 
 			const csv = `name,phone
 John Smith,555-1234

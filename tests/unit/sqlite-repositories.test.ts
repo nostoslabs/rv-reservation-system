@@ -38,6 +38,7 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
 		id: 'customer-1',
 		name: 'Test Guest',
 		phone: '555-1234',
+		rvType: '',
 		email: '',
 		notes: '',
 		createdAt: '2025-03-01T00:00:00.000Z',

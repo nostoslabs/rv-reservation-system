@@ -13,12 +13,14 @@ Jane Doe,555-5678,jane@example.com,Prefers pull-through`;
 		expect(result.rows[0]).toEqual({
 			name: 'John Smith',
 			phone: '555-1234',
+			rvType: '',
 			email: 'john@example.com',
 			notes: 'Good customer'
 		});
 		expect(result.rows[1]).toEqual({
 			name: 'Jane Doe',
 			phone: '555-5678',
+			rvType: '',
 			email: 'jane@example.com',
 			notes: 'Prefers pull-through'
 		});
@@ -34,6 +36,7 @@ John Smith,555-1234`;
 		expect(result.rows[0]).toEqual({
 			name: 'John Smith',
 			phone: '555-1234',
+			rvType: '',
 			email: '',
 			notes: ''
 		});

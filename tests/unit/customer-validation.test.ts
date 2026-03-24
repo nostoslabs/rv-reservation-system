@@ -6,6 +6,7 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: 'John Smith',
 			phone: '555-1234',
+			rvType: 'Fifth Wheel',
 			email: 'john@example.com',
 			notes: 'Good customer'
 		});
@@ -16,6 +17,7 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: '',
 			phone: '',
+			rvType: '',
 			email: '',
 			notes: ''
 		});
@@ -26,6 +28,7 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: '   ',
 			phone: '',
+			rvType: '',
 			email: '',
 			notes: ''
 		});
@@ -36,6 +39,7 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: 'A'.repeat(81),
 			phone: '',
+			rvType: '',
 			email: '',
 			notes: ''
 		});
@@ -46,16 +50,29 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: 'John',
 			phone: '1'.repeat(41),
+			rvType: '',
 			email: '',
 			notes: ''
 		});
 		expect(errors).toContain('Phone must be 40 characters or fewer.');
 	});
 
+	it('enforces max rv type length', () => {
+		const errors = validateCustomerForm({
+			name: 'John',
+			phone: '',
+			rvType: 'X'.repeat(61),
+			email: '',
+			notes: ''
+		});
+		expect(errors).toContain('RV type must be 60 characters or fewer.');
+	});
+
 	it('enforces max email length', () => {
 		const errors = validateCustomerForm({
 			name: 'John',
 			phone: '',
+			rvType: '',
 			email: 'a'.repeat(121),
 			notes: ''
 		});
@@ -66,6 +83,7 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: 'John',
 			phone: '',
+			rvType: '',
 			email: '',
 			notes: 'N'.repeat(501)
 		});
@@ -76,6 +94,7 @@ describe('validateCustomerForm', () => {
 		const errors = validateCustomerForm({
 			name: 'John',
 			phone: '',
+			rvType: '',
 			email: '',
 			notes: ''
 		});

@@ -23,6 +23,7 @@ function makeFakeCustomer(overrides: Partial<Customer> = {}): Customer {
 		id: 'c1-uuid',
 		name: 'Jane Doe',
 		phone: '555-9999',
+		rvType: '',
 		email: 'jane@example.com',
 		notes: '',
 		createdAt: '2025-01-01T00:00:00.000Z',
