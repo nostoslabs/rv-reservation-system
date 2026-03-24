@@ -15,6 +15,7 @@ export async function deleteReservationWithUndo(index: number): Promise<Mutation
 	const savedForm: ReservationFormValues = {
 		index: reservation.index,
 		name: reservation.name,
+		rvType: reservation.rvType,
 		phoneNumber: reservation.phoneNumber,
 		notes: reservation.notes,
 		startDate: reservation.startDate,
@@ -49,6 +50,7 @@ export async function saveReservationWithUndo(formInput: ReservationFormValues):
 	const previousForm: ReservationFormValues = {
 		index: existing.index,
 		name: existing.name,
+		rvType: existing.rvType,
 		phoneNumber: existing.phoneNumber,
 		notes: existing.notes,
 		startDate: existing.startDate,
@@ -103,6 +105,7 @@ export async function deleteCustomerWithUndo(id: string): Promise<{ ok: boolean;
 			await customerStore.create({
 				name: savedCustomer.name,
 				phone: savedCustomer.phone,
+				rvType: savedCustomer.rvType,
 				email: savedCustomer.email,
 				notes: savedCustomer.notes
 			});
@@ -125,6 +128,7 @@ export async function updateCustomerWithUndo(form: CustomerFormValues): Promise<
 		id: existing.id,
 		name: existing.name,
 		phone: existing.phone,
+		rvType: existing.rvType,
 		email: existing.email,
 		notes: existing.notes
 	};
