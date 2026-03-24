@@ -10,6 +10,7 @@ const DATA_VERSION = 3;
 interface ReservationRow {
 	id: number;
 	name: string;
+	rv_type: string;
 	phone_number: string;
 	notes: string;
 	start_date: string;
@@ -50,6 +51,7 @@ function rowToReservation(row: ReservationRow): Reservation {
 		index: row.id,
 		firstCellId: buildFirstCellId(row.parking_location, row.start_date),
 		name: row.name,
+		rvType: row.rv_type ?? '',
 		phoneNumber: row.phone_number,
 		notes: row.notes,
 		startDate: row.start_date,
@@ -120,8 +122,8 @@ async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 		// Re-insert reservations (parking_locations rows exist now)
 		for (const r of data.reservations) {
 			await db.execute(
-				'INSERT INTO reservations (id, name, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-				[r.index, r.name, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
+				'INSERT INTO reservations (id, name, rv_type, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				[r.index, r.name, r.rvType, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
 			);
 		}
 

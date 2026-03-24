@@ -61,6 +61,7 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 				index,
 				firstCellId: buildFirstCellId(form.parkingLocation, form.startDate),
 				name: form.name,
+				rvType: (form.rvType ?? '').trim(),
 				phoneNumber: form.phoneNumber,
 				notes: form.notes,
 				startDate: form.startDate,

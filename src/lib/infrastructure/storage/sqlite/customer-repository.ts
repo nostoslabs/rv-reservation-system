@@ -7,6 +7,7 @@ interface CustomerRow {
 	id: string;
 	name: string;
 	phone: string;
+	rv_type: string;
 	email: string;
 	notes: string;
 	created_at: string;
@@ -18,6 +19,7 @@ function rowToCustomer(row: CustomerRow): Customer {
 		id: row.id,
 		name: row.name,
 		phone: row.phone,
+		rvType: row.rv_type,
 		email: row.email,
 		notes: row.notes,
 		createdAt: row.created_at,
@@ -31,19 +33,20 @@ function sortCustomers(customers: Customer[]): Customer[] {
 
 async function loadAllFromDb(db: Database): Promise<Customer[]> {
 	const rows = await db.select<CustomerRow>(
-		'SELECT id, name, phone, email, notes, created_at, updated_at FROM customers ORDER BY name'
+		'SELECT id, name, phone, rv_type, email, notes, created_at, updated_at FROM customers ORDER BY name'
 	);
 	return rows.map(rowToCustomer);
 }
 
 async function upsertToDb(db: Database, customer: Customer): Promise<void> {
 	await db.execute(
-		`INSERT OR REPLACE INTO customers (id, name, phone, email, notes, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT OR REPLACE INTO customers (id, name, phone, rv_type, email, notes, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		[
 			customer.id,
 			customer.name,
 			customer.phone,
+			customer.rvType,
 			customer.email,
 			customer.notes,
 			customer.createdAt,

@@ -46,7 +46,7 @@ describe('reorder', () => {
 		const data = baseData({
 			reservations: [{
 				index: 1, firstCellId: 'A-01|2026-03-01', name: 'Test',
-				phoneNumber: '', notes: '', startDate: '2026-03-01', endDate: '2026-03-02',
+				rvType: '', phoneNumber: '', notes: '', startDate: '2026-03-01', endDate: '2026-03-02',
 				parkingLocation: 'A-01', color: 'blue', status: 'reserved'
 			}]
 		});

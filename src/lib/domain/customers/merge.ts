@@ -38,6 +38,9 @@ export function resolveCustomerMerge(
 	// Phone: first non-empty from most-recent-first
 	const phone = pickFirstNonEmpty(sorted, (c) => c.phone);
 
+	// RV Type: first non-empty from most-recent-first
+	const rvType = pickFirstNonEmpty(sorted, (c) => c.rvType);
+
 	// Email: first non-empty from most-recent-first
 	const email = pickFirstNonEmpty(sorted, (c) => c.email);
 
@@ -63,6 +66,7 @@ export function resolveCustomerMerge(
 		id: winnerId,
 		name,
 		phone,
+		rvType,
 		email,
 		notes,
 		createdAt,

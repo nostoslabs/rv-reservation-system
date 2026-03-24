@@ -57,7 +57,7 @@
   let modalOpen = false;
   let modalMode: 'create' | 'edit' = 'create';
   let modalErrors: string[] = [];
-  let modalDraft: CustomerFormValues = { name: '', phone: '', email: '', notes: '' };
+  let modalDraft: CustomerFormValues = { name: '', phone: '', rvType: '', email: '', notes: '' };
 
   // Toast
   let toastMessage = '';
@@ -105,6 +105,7 @@
         (c) =>
           c.name.toLowerCase().includes(q) ||
           c.phone.toLowerCase().includes(q) ||
+          c.rvType.toLowerCase().includes(q) ||
           c.email.toLowerCase().includes(q)
       );
     }
@@ -129,7 +130,7 @@
 
   function openCreateModal(): void {
     modalMode = 'create';
-    modalDraft = { name: '', phone: '', email: '', notes: '' };
+    modalDraft = { name: '', phone: '', rvType: '', email: '', notes: '' };
     modalErrors = [];
     modalOpen = true;
   }
@@ -140,6 +141,7 @@
       id: customer.id,
       name: customer.name,
       phone: customer.phone,
+      rvType: customer.rvType,
       email: customer.email,
       notes: customer.notes
     };
@@ -296,6 +298,7 @@
             {/if}
             <th>Name</th>
             <th>Phone</th>
+            <th class="col-rv-type">RV Type</th>
             <th>Email</th>
             <th class="col-count">Reservations</th>
             <th class="col-date">Last Visit</th>
@@ -323,13 +326,14 @@
               {/if}
               <td class="customer-name">{customer.name}</td>
               <td>{customer.phone || '—'}</td>
+              <td class="col-rv-type">{customer.rvType || '—'}</td>
               <td>{customer.email || '—'}</td>
               <td class="col-count">{resCount}</td>
               <td class="col-date">{lastVisit ? formatReservationDetail(lastVisit) : '—'}</td>
             </tr>
           {:else}
             <tr>
-              <td colspan={selectMode ? 6 : 5} class="no-results">No customers match your search.</td>
+              <td colspan={selectMode ? 7 : 6} class="no-results">No customers match your search.</td>
             </tr>
           {/each}
         </tbody>
@@ -624,8 +628,12 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  .col-rv-type {
+    white-space: nowrap;
+  }
+
   @media (max-width: 768px) {
-    .col-date, .col-count {
+    .col-date, .col-count, .col-rv-type {
       display: none;
     }
   }

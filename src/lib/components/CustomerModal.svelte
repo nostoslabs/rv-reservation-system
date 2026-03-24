@@ -8,6 +8,7 @@
   export let draft: CustomerFormValues = {
     name: '',
     phone: '',
+    rvType: '',
     email: '',
     notes: ''
   };
@@ -118,6 +119,17 @@
             placeholder="(555) 555-5555"
             maxlength="40"
             data-testid="customer-phone-input"
+          />
+        </label>
+
+        <label>
+          <span>RV Type</span>
+          <input
+            bind:value={form.rvType}
+            type="text"
+            placeholder="e.g. Fifth Wheel, Class A, Travel Trailer"
+            maxlength="60"
+            data-testid="customer-rv-type-input"
           />
         </label>
 

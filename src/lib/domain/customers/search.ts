@@ -18,11 +18,12 @@ export function searchCustomers(
 	for (const customer of customers) {
 		const lowerName = customer.name.toLowerCase();
 		const lowerPhone = customer.phone.toLowerCase();
+		const lowerRvType = customer.rvType.toLowerCase();
 		const lowerEmail = customer.email.toLowerCase();
 
 		let bestScore = Infinity;
 
-		for (const field of [lowerName, lowerPhone, lowerEmail]) {
+		for (const field of [lowerName, lowerPhone, lowerRvType, lowerEmail]) {
 			if (field === lowerQuery) {
 				bestScore = Math.min(bestScore, 0);
 			} else if (field.startsWith(lowerQuery)) {

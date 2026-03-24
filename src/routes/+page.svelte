@@ -77,6 +77,7 @@
   let modalTriggerElement: HTMLElement | null = null;
   let modalDraft: ReservationFormValues = {
     name: '',
+    rvType: '',
     phoneNumber: '',
     notes: '',
     startDate: todayIso,
@@ -130,6 +131,7 @@
     modalDraft = {
       index: reservation.index,
       name: reservation.name,
+      rvType: reservation.rvType,
       phoneNumber: reservation.phoneNumber,
       notes: reservation.notes,
       startDate: reservation.startDate,
@@ -337,6 +339,7 @@
     modalMode = 'create';
     modalDraft = {
       name: '',
+      rvType: '',
       phoneNumber: '',
       notes: '',
       startDate: todayIso,
@@ -361,6 +364,7 @@
       modalDraft = {
         index: reservation.index,
         name: reservation.name,
+        rvType: reservation.rvType,
         phoneNumber: reservation.phoneNumber,
         notes: reservation.notes,
         startDate: reservation.startDate,
@@ -374,6 +378,7 @@
       modalMode = 'create';
       modalDraft = {
         name: '',
+        rvType: '',
         phoneNumber: '',
         notes: '',
         startDate: dateIso,
@@ -421,10 +426,11 @@
   }
 
   function handleModalBookAgain(event: CustomEvent<ReservationFormValues>): void {
-    const { name, phoneNumber, notes, parkingLocation, color, customerId } = event.detail;
+    const { name, rvType, phoneNumber, notes, parkingLocation, color, customerId } = event.detail;
     modalMode = 'create';
     modalDraft = {
       name,
+      rvType,
       phoneNumber,
       notes,
       startDate: todayIso,

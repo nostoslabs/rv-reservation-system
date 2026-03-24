@@ -14,6 +14,7 @@
   export let customers: Customer[] = [];
   export let draft: ReservationFormValues = {
     name: '',
+    rvType: '',
     phoneNumber: '',
     notes: '',
     startDate: '',
@@ -33,7 +34,7 @@
     bookagain: ReservationFormValues;
   }>();
 
-  const emptyExtras = { phoneNumber: '', notes: '' };
+  const emptyExtras = { phoneNumber: '', rvType: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
   let confirmingDelete = false;
   let autocompleteRef: AutocompleteInput;
@@ -41,13 +42,14 @@
 
   $: customerSuggestions = customers.map((c) => ({
     label: c.name,
-    sublabel: c.phone || c.email || undefined,
+    sublabel: [c.rvType, c.phone].filter(Boolean).join(' \u00b7 ') || c.email || undefined,
     data: c
   }));
 
   function handleCustomerSelect(event: CustomEvent<{ suggestion: { label: string; sublabel?: string; data: unknown } }>): void {
     const customer = event.detail.suggestion.data as Customer;
     form.name = customer.name;
+    form.rvType = customer.rvType || form.rvType;
     form.phoneNumber = customer.phone || form.phoneNumber;
     form.customerId = customer.id;
   }
@@ -134,6 +136,7 @@
   function handleBookAgain(): void {
     dispatch('bookagain', {
       name: form.name,
+      rvType: form.rvType,
       phoneNumber: form.phoneNumber,
       notes: form.notes,
       parkingLocation: form.parkingLocation,
@@ -223,12 +226,26 @@
             </label>
 
             <label>
-              <span>Site</span>
-              <select bind:value={form.parkingLocation} required>
-                {#each parkingLocations as location}
-                  <option value={location}>{location}</option>
-                {/each}
-              </select>
+              <span>RV Type</span>
+              <input bind:value={form.rvType} type="text" placeholder="e.g. Fifth Wheel, Class A" maxlength="60" data-testid="rv-type-input" />
+            </label>
+
+            <label>
+              <span>Phone Number</span>
+              <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
+            </label>
+
+            <label>
+              <span class="notes-label-row">
+                <span>Notes</span>
+                <small>{form.notes.length}/{MAX_RESERVATION_NOTES_LENGTH}</small>
+              </span>
+              <textarea
+                bind:value={form.notes}
+                rows="3"
+                maxlength={MAX_RESERVATION_NOTES_LENGTH}
+                placeholder="Optional notes"
+              ></textarea>
             </label>
 
             <label>
@@ -248,21 +265,12 @@
             </label>
 
             <label>
-              <span>Phone Number</span>
-              <input bind:value={form.phoneNumber} type="tel" placeholder="(555) 555-5555" maxlength="40" />
-            </label>
-
-            <label>
-              <span class="notes-label-row">
-                <span>Notes</span>
-                <small>{form.notes.length}/{MAX_RESERVATION_NOTES_LENGTH}</small>
-              </span>
-              <textarea
-                bind:value={form.notes}
-                rows="3"
-                maxlength={MAX_RESERVATION_NOTES_LENGTH}
-                placeholder="Optional notes"
-              ></textarea>
+              <span>Site</span>
+              <select bind:value={form.parkingLocation} required>
+                {#each parkingLocations as location}
+                  <option value={location}>{location}</option>
+                {/each}
+              </select>
             </label>
           </div>
         </div>
