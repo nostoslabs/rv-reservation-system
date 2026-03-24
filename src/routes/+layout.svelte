@@ -8,6 +8,7 @@
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
   import { customerStore } from '$lib/customer-state';
+  import UndoToast from '$lib/components/UndoToast.svelte';
 
   onMount(() => {
     let dispose: (() => void) | null = null;
@@ -51,3 +52,4 @@
 </script>
 
 <slot />
+<UndoToast />

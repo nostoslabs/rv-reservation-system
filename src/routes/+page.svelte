@@ -23,6 +23,12 @@
   import { rvReservationStore } from '$lib/state';
   import { customerStore } from '$lib/customer-state';
   import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import {
+    deleteReservationWithUndo,
+    saveReservationWithUndo,
+    moveReservationWithUndo
+  } from '$lib/app/undoable-actions';
+  import { canUndo, lastLabel, undo } from '$lib/app/undo';
 
   const DAYS_BEFORE_TODAY = 45;
   const TOTAL_DATE_COLUMNS = 540;
@@ -261,7 +267,7 @@
     if (currentDaysDelta === 0 && currentSite === reservation.parkingLocation) return;
 
     const newSite = currentSite !== reservation.parkingLocation ? currentSite : undefined;
-    const result = await rvReservationStore.moveReservation(reservation.index, currentDaysDelta, newSite);
+    const result = await moveReservationWithUndo(reservation.index, currentDaysDelta, newSite);
     if (!result.ok) {
       showToast(result.errors?.[0] ?? 'Cannot move reservation');
     } else {
@@ -399,7 +405,7 @@
   }
 
   async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
-    const result = await rvReservationStore.saveReservation(event.detail);
+    const result = await saveReservationWithUndo(event.detail);
     if (!result.ok) {
       modalErrors = result.errors;
       return;
@@ -415,7 +421,7 @@
   }
 
   async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
-    const result = await rvReservationStore.deleteReservation(event.detail.index);
+    const result = await deleteReservationWithUndo(event.detail.index);
     if (!result.ok) {
       modalErrors = result.errors;
       return;
@@ -463,6 +469,13 @@
     }
 
     return lines.join('\n');
+  }
+
+  async function handleToolbarUndo(): Promise<void> {
+    const result = await undo();
+    if (result.ok && result.label) {
+      showToast(`Undid: ${result.label}`);
+    }
   }
 
   async function toggleCompactView(): Promise<void> {
@@ -542,6 +555,20 @@
         </svg>
         {compactView ? 'Normal' : 'Compact'}
       </button>
+      {#if $canUndo}
+        <button
+          type="button"
+          class="undo-toolbar-btn"
+          on:click={handleToolbarUndo}
+          title={$lastLabel ? `Undo: ${$lastLabel}` : 'Undo'}
+          data-testid="undo-toolbar-btn"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" width="14" height="14">
+            <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 110 14H8a1 1 0 110-2h3a5 5 0 100-10H5.414l2.293 2.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+          Undo
+        </button>
+      {/if}
     </nav>
 
     <div class="toolbar-right">
@@ -885,6 +912,24 @@
 
   .toolbar-nav .compact-toggle-btn.primary:hover {
     background: #0757c8;
+  }
+
+  .toolbar-nav .undo-toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    animation: fade-in 0.15s ease-out;
+  }
+
+  .toolbar-nav .undo-toolbar-btn:hover {
+    background: #edf3fd;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .toolbar-right {
