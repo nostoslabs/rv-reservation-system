@@ -75,7 +75,7 @@ export function normalizeBackupForRestore(backup: AppBackup): BackupData {
 			siteName: backup.data.siteSettings.siteName,
 			compactView: backup.data.siteSettings.compactView
 		},
-		customers: backup.data.customers.map((customer) => ({ ...customer }))
+		customers: backup.data.customers.map((customer) => ({ ...customer, rvType: customer.rvType ?? '' }))
 	};
 }
 
