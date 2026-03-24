@@ -2,6 +2,7 @@ export type { Customer, CustomerFormValues, CustomerSearchResult } from './types
 export {
 	MAX_CUSTOMER_NAME_LENGTH,
 	MAX_CUSTOMER_PHONE_LENGTH,
+	MAX_CUSTOMER_RV_TYPE_LENGTH,
 	MAX_CUSTOMER_EMAIL_LENGTH,
 	MAX_CUSTOMER_NOTES_LENGTH
 } from './types';

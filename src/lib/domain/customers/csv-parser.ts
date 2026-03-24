@@ -2,6 +2,7 @@ import type { CustomerFormValues } from './types';
 import {
 	MAX_CUSTOMER_NAME_LENGTH,
 	MAX_CUSTOMER_PHONE_LENGTH,
+	MAX_CUSTOMER_RV_TYPE_LENGTH,
 	MAX_CUSTOMER_EMAIL_LENGTH,
 	MAX_CUSTOMER_NOTES_LENGTH
 } from './types';
@@ -54,7 +55,7 @@ function parseCsvLine(line: string): string[] {
 /**
  * Map header names (case-insensitive) to column indices.
  */
-function mapHeaders(headers: string[]): { name: number; phone: number; email: number; notes: number } {
+function mapHeaders(headers: string[]): { name: number; phone: number; rvType: number; email: number; notes: number } {
 	const map: Record<string, number> = {};
 	for (let i = 0; i < headers.length; i++) {
 		map[headers[i].toLowerCase().trim()] = i;
@@ -63,6 +64,7 @@ function mapHeaders(headers: string[]): { name: number; phone: number; email: nu
 	return {
 		name: map['name'] ?? -1,
 		phone: map['phone'] ?? -1,
+		rvType: map['rv_type'] ?? map['rvtype'] ?? map['rv type'] ?? -1,
 		email: map['email'] ?? -1,
 		notes: map['notes'] ?? -1
 	};
@@ -103,6 +105,7 @@ export function parseCustomerCsv(text: string): CsvParseResult {
 
 		const name = (fields[indices.name] ?? '').trim();
 		const phone = indices.phone >= 0 ? (fields[indices.phone] ?? '').trim() : '';
+		const rvType = indices.rvType >= 0 ? (fields[indices.rvType] ?? '').trim() : '';
 		const email = indices.email >= 0 ? (fields[indices.email] ?? '').trim() : '';
 		const notes = indices.notes >= 0 ? (fields[indices.notes] ?? '').trim() : '';
 
@@ -121,6 +124,11 @@ export function parseCustomerCsv(text: string): CsvParseResult {
 			continue;
 		}
 
+		if (rvType.length > MAX_CUSTOMER_RV_TYPE_LENGTH) {
+			errors.push(`Row ${lineNum}: RV type exceeds ${MAX_CUSTOMER_RV_TYPE_LENGTH} characters.`);
+			continue;
+		}
+
 		if (email.length > MAX_CUSTOMER_EMAIL_LENGTH) {
 			errors.push(`Row ${lineNum}: Email exceeds ${MAX_CUSTOMER_EMAIL_LENGTH} characters.`);
 			continue;
@@ -131,7 +139,7 @@ export function parseCustomerCsv(text: string): CsvParseResult {
 			continue;
 		}
 
-		rows.push({ name, phone, email, notes });
+		rows.push({ name, phone, rvType, email, notes });
 	}
 
 	return { rows, errors };

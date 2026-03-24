@@ -2,6 +2,7 @@ import type { CustomerFormValues } from './types';
 import {
 	MAX_CUSTOMER_NAME_LENGTH,
 	MAX_CUSTOMER_PHONE_LENGTH,
+	MAX_CUSTOMER_RV_TYPE_LENGTH,
 	MAX_CUSTOMER_EMAIL_LENGTH,
 	MAX_CUSTOMER_NOTES_LENGTH
 } from './types';
@@ -22,6 +23,11 @@ export function validateCustomerForm(form: CustomerFormValues): string[] {
 
 	if (phone.length > MAX_CUSTOMER_PHONE_LENGTH) {
 		errors.push(`Phone must be ${MAX_CUSTOMER_PHONE_LENGTH} characters or fewer.`);
+	}
+
+	const rvType = (form.rvType ?? '').trim();
+	if (rvType.length > MAX_CUSTOMER_RV_TYPE_LENGTH) {
+		errors.push(`RV type must be ${MAX_CUSTOMER_RV_TYPE_LENGTH} characters or fewer.`);
 	}
 
 	if (email.length > MAX_CUSTOMER_EMAIL_LENGTH) {
