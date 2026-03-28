@@ -32,6 +32,13 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 		async pickDirectory(): Promise<string | null> {
 			return null;
 		},
+		async checkForUpdate() {
+			return null;
+		},
+		async downloadAndInstallUpdate() {
+			return false;
+		},
+		async relaunch() {},
 		async openFile(filters?: FileFilter[]): Promise<string | null> {
 			return new Promise((resolve) => {
 				let resolved = false;

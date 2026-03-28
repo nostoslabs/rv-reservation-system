@@ -11,7 +11,10 @@ function makeStubServices(): AppServices {
 			saveFile: async () => false,
 			openFile: async () => null,
 			writeFileToPath: async () => {},
-			pickDirectory: async () => null
+			pickDirectory: async () => null,
+			checkForUpdate: async () => null,
+			downloadAndInstallUpdate: async () => false,
+			relaunch: async () => {}
 		},
 		repositories: {
 			appData: {

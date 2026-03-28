@@ -55,7 +55,10 @@ describe('startAutoBackupTimer', () => {
 				saveFile: async () => false,
 				openFile: async () => null,
 				writeFileToPath: async (path: string) => { written.push(path); },
-				pickDirectory: async () => null
+				pickDirectory: async () => null,
+				checkForUpdate: async () => null,
+				downloadAndInstallUpdate: async () => false,
+				relaunch: async () => {}
 			},
 			onSuccess: async () => {},
 			onError: (err) => errors.push(err),
@@ -102,7 +105,10 @@ describe('startAutoBackupTimer', () => {
 				saveFile: async () => false,
 				openFile: async () => null,
 				writeFileToPath: async () => { throw new Error('disk full'); },
-				pickDirectory: async () => null
+				pickDirectory: async () => null,
+				checkForUpdate: async () => null,
+				downloadAndInstallUpdate: async () => false,
+				relaunch: async () => {}
 			}
 		});
 		const stop = startAutoBackupTimer(deps);
