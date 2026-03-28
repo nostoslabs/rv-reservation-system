@@ -17,6 +17,8 @@
       "identifier": "fs:scope",
       "allow": ["$HOME/**"]
     },
-    "window-state:default"
+    "window-state:default",
+    "updater:default",
+    "process:default"
   ]
 }

@@ -25,7 +25,16 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxQjZGNDlFOUU1MkI0RTIKUldUaXRGS2VudlMyWWFMVHVDdWQ2ci9PRGI4MnZFWWgwSFp1MWVncUhBNTFSMU5nZ3MyVVJYcnkK",
+      "endpoints": [
+        "https://github.com/nostoslabs/rv-reservation-system/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
+    "createUpdaterArtifacts": "v2",
     "active": true,
     "targets": "all",
     "icon": [
