@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, getContext } from 'svelte';
   import { get } from 'svelte/store';
   import { DEFAULT_SITE_NAME } from '$lib/storage';
   import { siteSettingsStore } from '$lib/site-settings';
@@ -9,6 +9,8 @@
   import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { getAppServices } from '$lib/app/composition';
   import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
+  import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
+  import { readable } from 'svelte/store';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -26,6 +28,9 @@
 
   let appVersion = '';
   let isDesktop = false;
+  const updateChecker = getContext<UpdateChecker | undefined>('updateChecker');
+  const noUpdateState: UpdateState = { checking: false, available: null, downloading: false, downloadProgress: 0, installed: false, error: null };
+  const updateState = updateChecker?.state ?? readable(noUpdateState);
 
   let siteNameDraft = DEFAULT_SITE_NAME;
   let errorMessage = '';
@@ -447,6 +452,56 @@
         </div>
       </div>
     </section>
+
+    {#if updateChecker}
+      <section class="panel" data-testid="updates-panel">
+        <h2>Updates</h2>
+        <p>Current version: {appVersion || 'unknown'}</p>
+
+        <div class="stack">
+          {#if $updateState.installed}
+            <div class="update-status success" data-testid="update-installed">
+              Update installed. Restart to apply.
+            </div>
+            <button type="button" class="primary" on:click={() => updateChecker.relaunch()} data-testid="update-restart-btn">
+              Restart Now
+            </button>
+          {:else if $updateState.downloading}
+            <div class="update-status" data-testid="update-downloading">
+              Downloading update... {$updateState.downloadProgress}%
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: {$updateState.downloadProgress}%"></div>
+            </div>
+          {:else if $updateState.available}
+            <div class="update-status" data-testid="update-available">
+              Update available: v{$updateState.available.version}
+            </div>
+            <button type="button" class="primary" on:click={() => updateChecker.downloadAndInstall()} data-testid="update-download-btn">
+              Download &amp; Install
+            </button>
+          {:else if $updateState.checking}
+            <div class="update-status" data-testid="update-checking">
+              Checking for updates...
+            </div>
+          {:else if $updateState.error}
+            <div class="update-status error" data-testid="update-error">
+              {$updateState.error}
+            </div>
+            <button type="button" on:click={() => updateChecker.checkForUpdate()} data-testid="update-retry-btn">
+              Retry
+            </button>
+          {:else}
+            <div class="update-status" data-testid="update-up-to-date">
+              You're up to date.
+            </div>
+            <button type="button" on:click={() => updateChecker.checkForUpdate()} data-testid="update-check-btn">
+              Check for Updates
+            </button>
+          {/if}
+        </div>
+      </section>
+    {/if}
   {/if}
 
   <div data-testid="sites-management">
@@ -661,6 +716,34 @@
     color: #8995a5;
     font-size: 0.8rem;
     padding: 0.5rem 0 0.25rem;
+  }
+
+  .update-status {
+    font-size: 0.9rem;
+    color: #3d5a78;
+  }
+
+  .update-status.success {
+    color: #166534;
+    font-weight: 600;
+  }
+
+  .update-status.error {
+    color: #892727;
+  }
+
+  .progress-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #0c5fdb;
+    border-radius: 3px;
+    transition: width 0.3s ease;
   }
 
   .folder-row {

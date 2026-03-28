@@ -1,9 +1,10 @@
 <script lang="ts">
   import '../app.css';
   import { get } from 'svelte/store';
-  import { onMount } from 'svelte';
+  import { onMount, setContext } from 'svelte';
   import { getAppServices, registerPersistenceLifecycleHandlers } from '$lib/app/composition';
   import { startAutoBackupTimer } from '$lib/app/auto-backup';
+  import { createUpdateChecker } from '$lib/app/update-checker';
   import { createBackup } from '$lib/domain/backup';
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
@@ -24,6 +25,10 @@
 
       const { desktop } = getAppServices();
       if (!desktop.isDesktop) return;
+
+      const updater = createUpdateChecker(desktop);
+      setContext('updateChecker', updater);
+      updater.checkForUpdate();
 
       stopAutoBackup = startAutoBackupTimer({
         getConfig: () => {
