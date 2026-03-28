@@ -11,7 +11,7 @@ export interface UpdateInfo {
 }
 
 export interface UpdateProgress {
-	chunkLength: number;
+	downloadedLength: number;
 	contentLength: number | null;
 }
 

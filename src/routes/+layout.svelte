@@ -11,6 +11,14 @@
   import { customerStore } from '$lib/customer-state';
   import UndoToast from '$lib/components/UndoToast.svelte';
 
+  // Create update checker at component init so setContext works for child routes.
+  // The actual check is deferred to onMount after persistence is ready.
+  const { desktop } = getAppServices();
+  const updateChecker = desktop.isDesktop ? createUpdateChecker(desktop) : null;
+  if (updateChecker) {
+    setContext('updateChecker', updateChecker);
+  }
+
   onMount(() => {
     let dispose: (() => void) | null = null;
     let stopAutoBackup: (() => void) | null = null;
@@ -23,12 +31,9 @@
       }
       dispose = cleanup;
 
-      const { desktop } = getAppServices();
       if (!desktop.isDesktop) return;
 
-      const updater = createUpdateChecker(desktop);
-      setContext('updateChecker', updater);
-      updater.checkForUpdate();
+      updateChecker?.checkForUpdate();
 
       stopAutoBackup = startAutoBackupTimer({
         getConfig: () => {
