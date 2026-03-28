@@ -42,7 +42,7 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 				const info = await desktop.checkForUpdate();
 				patch({ checking: false, available: info });
 			} catch (err) {
-				patch({ checking: false, error: 'Failed to check for updates.' });
+				patch({ checking: false, available: null, error: 'Failed to check for updates.' });
 				console.error('Update check error:', err);
 			}
 		},
@@ -52,17 +52,17 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 			try {
 				const ok = await desktop.downloadAndInstallUpdate((progress) => {
 					if (progress.contentLength && progress.contentLength > 0) {
-						const pct = Math.round((progress.chunkLength / progress.contentLength) * 100);
+						const pct = Math.round((progress.downloadedLength / progress.contentLength) * 100);
 						patch({ downloadProgress: Math.min(pct, 100) });
 					}
 				});
 				if (ok) {
 					patch({ downloading: false, downloadProgress: 100, installed: true });
 				} else {
-					patch({ downloading: false, error: 'Update installation failed.' });
+					patch({ downloading: false, available: null, error: 'Update installation failed.' });
 				}
 			} catch (err) {
-				patch({ downloading: false, error: 'Update download failed.' });
+				patch({ downloading: false, available: null, error: 'Update download failed.' });
 				console.error('Update download error:', err);
 			}
 		},
