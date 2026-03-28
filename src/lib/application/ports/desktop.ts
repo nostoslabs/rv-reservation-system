@@ -3,6 +3,18 @@ export interface FileFilter {
 	extensions: string[];
 }
 
+export interface UpdateInfo {
+	version: string;
+	currentVersion: string;
+	date: string | null;
+	body: string | null;
+}
+
+export interface UpdateProgress {
+	chunkLength: number;
+	contentLength: number | null;
+}
+
 /**
  * Port for desktop-specific capabilities.
  * In the browser, these are no-ops or use web APIs. In Tauri, they delegate to native APIs.
@@ -28,4 +40,13 @@ export interface DesktopCapabilities {
 
 	/** Show a native folder picker. Returns the selected directory path or null if cancelled. */
 	pickDirectory(): Promise<string | null>;
+
+	/** Check for available updates. Returns update info or null if up to date. */
+	checkForUpdate(): Promise<UpdateInfo | null>;
+
+	/** Download and install an available update. Returns true on success. */
+	downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean>;
+
+	/** Relaunch the application after an update has been installed. */
+	relaunch(): Promise<void>;
 }

@@ -1,5 +1,5 @@
 export type { CustomerRepository } from './customer';
-export type { DesktopCapabilities, FileFilter } from './desktop';
+export type { DesktopCapabilities, FileFilter, UpdateInfo, UpdateProgress } from './desktop';
 export type {
   AppDataRepository,
   SiteSettingsRepository,
