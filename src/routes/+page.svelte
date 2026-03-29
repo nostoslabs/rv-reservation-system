@@ -14,12 +14,11 @@
   import { buildCellId, buildOccupancyMap, rangesOverlap } from '$lib/reservations';
   import { enumerateDates } from '$lib/date';
   import {
-    STATUS_BACKGROUND_COLORS,
     STATUS_COLORS,
     STATUS_ICONS,
     STATUS_LABELS,
-    STATUS_PATTERNS,
-    STATUS_PATTERN_SIZES
+    getStatusCellStyle,
+    getStatusSwatchStyle
   } from '$lib/domain/reservations/status';
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
@@ -662,7 +661,7 @@
           <span class="legend-item">
             <span
               class="legend-swatch"
-              style="background-color: {STATUS_BACKGROUND_COLORS[statusKey]}; background-image: {STATUS_PATTERNS[statusKey]}; background-size: {STATUS_PATTERN_SIZES[statusKey]}; border-left: 3px solid {STATUS_COLORS[statusKey]};"
+              style={getStatusCellStyle(statusKey)}
               aria-hidden="true"
             ></span>
             <span aria-hidden="true">{STATUS_ICONS[statusKey]}</span> {STATUS_LABELS[statusKey]}
@@ -740,7 +739,7 @@
                   {@const isDragPreview = dragPreviewCells.has(cellId)}
                   <td
                     class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''}`}
-                    style={reservation && !isDragSource ? `background-color: ${STATUS_BACKGROUND_COLORS[reservation.status]}; background-image: ${STATUS_PATTERNS[reservation.status]}; background-size: ${STATUS_PATTERN_SIZES[reservation.status]}; border-left: 3px solid ${STATUS_COLORS[reservation.status]};` : ''}
+                    style={reservation && !isDragSource ? getStatusCellStyle(reservation.status) : ''}
                     on:click={(e) => openModalForCell(location, dateIso, e)}
                     on:pointerdown={(e) => handleCellPointerDown(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}

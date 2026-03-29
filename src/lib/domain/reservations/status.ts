@@ -92,3 +92,11 @@ export function getStatusPattern(status: ReservationStatus): string {
 export function getStatusPatternSize(status: ReservationStatus): string {
 	return STATUS_PATTERN_SIZES[status];
 }
+
+export function getStatusCellStyle(status: ReservationStatus): string {
+	return `background-color: ${STATUS_BACKGROUND_COLORS[status]}; background-image: ${STATUS_PATTERNS[status]}; background-size: ${STATUS_PATTERN_SIZES[status]}; border-left: 3px solid ${STATUS_COLORS[status]};`;
+}
+
+export function getStatusSwatchStyle(status: ReservationStatus): string {
+	return `background-color: ${STATUS_BACKGROUND_COLORS[status]}; background-image: ${STATUS_PATTERNS[status]}; background-size: ${STATUS_PATTERN_SIZES[status]}; border: 2px solid ${STATUS_COLORS[status]};`;
+}
