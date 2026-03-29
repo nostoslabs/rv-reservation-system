@@ -12,7 +12,7 @@ export const STATUS_COLORS: Record<ReservationStatus, string> = {
 	'group-two': '#F0E442',
 	'special': '#CC79A7',
 	'alert': '#D55E00',
-	'maintenance': '#56B4E9'
+	'maintenance': '#7B8A99'
 };
 
 export const STATUS_BACKGROUND_COLORS: Record<ReservationStatus, string> = {
@@ -22,7 +22,7 @@ export const STATUS_BACKGROUND_COLORS: Record<ReservationStatus, string> = {
 	'group-two': '#f0ec8a',
 	'special': '#e8c2d9',
 	'alert': '#f0bfa5',
-	'maintenance': '#aad8f0'
+	'maintenance': '#c8ced6'
 };
 
 export const STATUS_PATTERNS: Record<ReservationStatus, string> = {
