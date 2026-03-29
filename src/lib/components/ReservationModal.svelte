@@ -2,7 +2,7 @@
   import { createEventDispatcher, afterUpdate } from 'svelte';
   import { addDays, compareIsoDates, diffDays } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
-  import { STATUS_COLORS, STATUS_LABELS } from '$lib/domain/reservations/status';
+  import { STATUS_LABELS, getStatusSwatchStyle } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
   import type { Customer } from '$lib/domain/customers';
   import AutocompleteInput from './AutocompleteInput.svelte';
@@ -253,7 +253,7 @@
               <div class="status-select-wrapper">
                 <span
                   class="status-indicator"
-                  style="background: {STATUS_COLORS[form.status]}"
+                  style={getStatusSwatchStyle(form.status)}
                   aria-hidden="true"
                 ></span>
                 <select bind:value={form.status} required aria-label="Reservation status">

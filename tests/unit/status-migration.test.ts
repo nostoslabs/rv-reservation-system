@@ -72,8 +72,8 @@ describe('STATUS_COLORS (Wong colorblind-safe palette)', () => {
 		expect(STATUS_COLORS['alert']).toBe('#D55E00');
 	});
 
-	it('maps maintenance to sky blue (#56B4E9)', () => {
-		expect(STATUS_COLORS['maintenance']).toBe('#56B4E9');
+	it('maps maintenance to gray (#7B8A99)', () => {
+		expect(STATUS_COLORS['maintenance']).toBe('#7B8A99');
 	});
 });
 
@@ -106,7 +106,7 @@ describe('getStatusColor', () => {
 		expect(getStatusColor('group-two')).toBe('#F0E442');
 		expect(getStatusColor('special')).toBe('#CC79A7');
 		expect(getStatusColor('alert')).toBe('#D55E00');
-		expect(getStatusColor('maintenance')).toBe('#56B4E9');
+		expect(getStatusColor('maintenance')).toBe('#7B8A99');
 	});
 });
 
