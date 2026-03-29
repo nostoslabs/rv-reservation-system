@@ -34,7 +34,7 @@
     }
   },
   "bundle": {
-    "createUpdaterArtifacts": "v2",
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [
