@@ -16,13 +16,33 @@ export const STATUS_COLORS: Record<ReservationStatus, string> = {
 };
 
 export const STATUS_BACKGROUND_COLORS: Record<ReservationStatus, string> = {
-	'reserved': '#d4eaf7',
-	'checked-in': '#ccefe6',
-	'group-one': '#faecd0',
-	'group-two': '#fcf9d6',
-	'special': '#f5e0ed',
-	'alert': '#f8ddd0',
-	'maintenance': '#daeef9'
+	'reserved': '#b0d4f1',
+	'checked-in': '#9edbc8',
+	'group-one': '#f5d898',
+	'group-two': '#f0ec8a',
+	'special': '#e8c2d9',
+	'alert': '#f0bfa5',
+	'maintenance': '#aad8f0'
+};
+
+export const STATUS_PATTERNS: Record<ReservationStatus, string> = {
+	'reserved': 'none',
+	'checked-in': 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.08) 4px, rgba(0,0,0,0.08) 6px)',
+	'group-one': 'radial-gradient(circle, rgba(0,0,0,0.10) 1px, transparent 1px)',
+	'group-two': 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.07) 4px, rgba(0,0,0,0.07) 6px), repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.07) 4px, rgba(0,0,0,0.07) 6px)',
+	'special': 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.08) 4px, rgba(0,0,0,0.08) 6px)',
+	'alert': 'repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.10) 3px, rgba(0,0,0,0.10) 5px)',
+	'maintenance': 'repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.08) 4px, rgba(0,0,0,0.08) 6px)'
+};
+
+export const STATUS_PATTERN_SIZES: Record<ReservationStatus, string> = {
+	'reserved': 'auto',
+	'checked-in': 'auto',
+	'group-one': '8px 8px',
+	'group-two': 'auto',
+	'special': 'auto',
+	'alert': 'auto',
+	'maintenance': 'auto'
 };
 
 export const STATUS_ICONS: Record<ReservationStatus, string> = {
@@ -63,4 +83,12 @@ export function getStatusIcon(status: ReservationStatus): string {
 
 export function getStatusLabel(status: ReservationStatus): string {
 	return STATUS_LABELS[status];
+}
+
+export function getStatusPattern(status: ReservationStatus): string {
+	return STATUS_PATTERNS[status];
+}
+
+export function getStatusPatternSize(status: ReservationStatus): string {
+	return STATUS_PATTERN_SIZES[status];
 }
