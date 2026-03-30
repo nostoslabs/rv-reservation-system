@@ -12,7 +12,7 @@ import {
 	getStatusIcon
 } from '$lib/domain/reservations/status';
 import { RESERVATION_STATUSES } from '$lib/domain/models';
-import { sanitizeReservation } from '$lib/storage';
+import { sanitizeReservation } from '$lib/infrastructure/storage/localstorage/app-data-repository';
 
 describe('ReservationStatus type', () => {
 	it('defines exactly seven statuses', () => {
