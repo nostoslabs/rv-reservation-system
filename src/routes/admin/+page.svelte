@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, getContext } from 'svelte';
   import { get } from 'svelte/store';
-  import { DEFAULT_SITE_NAME } from '$lib/storage';
+  import { DEFAULT_SITE_NAME } from '$lib/domain/defaults';
   import { siteSettingsStore } from '$lib/site-settings';
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';

@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { get, writable } from 'svelte/store';
 import { flushPendingWrites, getAppServices } from '$lib/app/composition';
-import { DEFAULT_SITE_NAME } from '$lib/storage';
+import { DEFAULT_SITE_NAME } from '$lib/domain/defaults';
 import type { AutoBackupIntervalMinutes, MutationResult, SiteSettings } from '$lib/types';
 
 const SITE_SETTINGS_PERSISTENCE_ERROR = 'Unable to save settings to disk.';

@@ -1,7 +1,7 @@
 import type { AppDataRepository } from '$lib/application/ports';
 import type { PersistedAppData, Reservation, ReservationColor, ReservationStatus } from '$lib/domain/models';
 import { buildFirstCellId, DEFAULT_RESERVATION_STATUS, isReservationStatus } from '$lib/domain/reservations';
-import { DEFAULT_PARKING_LOCATIONS } from '$lib/storage';
+import { DEFAULT_PARKING_LOCATIONS } from '$lib/domain/defaults';
 import type { Database } from './types';
 import type { SqliteWriteQueue } from './write-queue';
 

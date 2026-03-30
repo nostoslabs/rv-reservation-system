@@ -1,27 +1,13 @@
 import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
 import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/domain/reservations';
+import { DEFAULT_PARKING_LOCATIONS, DEFAULT_SITE_NAME } from '$lib/domain/defaults';
 import type { AutoBackupIntervalMinutes, PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
 import { AUTO_BACKUP_INTERVALS } from '$lib/types';
 
 const STORAGE_KEY = 'rv-reservation-demo:v1';
 const DATA_VERSION = 4;
 const SETTINGS_STORAGE_KEY = 'rv-reservation-demo:settings:v1';
-
-export const DEFAULT_SITE_NAME = 'RV Reservation Schedule';
-
-export const DEFAULT_PARKING_LOCATIONS = [
-  'A-01',
-  'A-02',
-  'A-03',
-  'A-04',
-  'B-01',
-  'B-02',
-  'B-03',
-  'C-01',
-  'C-02',
-  'Overflow'
-];
 
 function defaultData(): PersistedAppData {
   return {
