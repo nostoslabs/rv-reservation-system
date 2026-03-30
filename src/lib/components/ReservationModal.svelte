@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, afterUpdate } from 'svelte';
   import { addDays, compareIsoDates, diffDays } from '$lib/date';
-  import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
+  import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/domain/reservations';
   import { STATUS_LABELS, getStatusSwatchStyle } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
   import type { Customer } from '$lib/domain/customers';

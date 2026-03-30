@@ -11,7 +11,7 @@
   } from '$lib/date';
   import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
   import { filterReservations } from '$lib/domain/reservations/search';
-  import { buildCellId, buildOccupancyMap, rangesOverlap } from '$lib/reservations';
+  import { buildCellId, buildOccupancyMap, checkOverlap as rangesOverlap } from '$lib/domain/reservations';
   import { enumerateDates } from '$lib/date';
   import {
     STATUS_COLORS,

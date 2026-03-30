@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
-import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
+import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/domain/reservations';
 import type { AutoBackupIntervalMinutes, PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
 import { AUTO_BACKUP_INTERVALS } from '$lib/types';
 
