@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createReservationUseCases } from '$lib/application/use-cases/reservation-use-cases';
 import { buildFirstCellId } from '$lib/domain/reservations';
 import type { AppDataRepository } from '$lib/application/ports';
-import type { PersistedAppData, ReservationFormValues } from '$lib/types';
+import type { PersistedAppData, ReservationFormValues } from '$lib/domain/models';
 
 function createFakeRepo(): AppDataRepository {
 	return {

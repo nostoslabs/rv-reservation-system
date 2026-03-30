@@ -8,7 +8,7 @@
   import { rvReservationStore } from '$lib/state';
   import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { getAppServices } from '$lib/app/composition';
-  import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
+  import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/domain/models';
   import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
   import { readable } from 'svelte/store';
 

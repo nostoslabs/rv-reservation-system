@@ -5,7 +5,7 @@ import {
 } from '$lib/application/use-cases/merge-customers-use-case';
 import type { CustomerRepository } from '$lib/application/ports/customer';
 import type { Customer } from '$lib/domain/customers';
-import type { PersistedAppData } from '$lib/types';
+import type { PersistedAppData } from '$lib/domain/models';
 
 function createInMemoryCustomerRepository(): CustomerRepository {
 	let customers: Customer[] = [];

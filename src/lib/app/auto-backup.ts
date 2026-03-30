@@ -1,4 +1,4 @@
-import type { AutoBackupConfig } from '$lib/types';
+import type { AutoBackupConfig } from '$lib/domain/models';
 import type { DesktopCapabilities } from '$lib/application/ports';
 import { generateBackupFilename } from '$lib/domain/backup';
 

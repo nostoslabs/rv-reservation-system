@@ -23,7 +23,7 @@
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
   import { customerStore } from '$lib/customer-state';
-  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/domain/models';
   import {
     deleteReservationWithUndo,
     saveReservationWithUndo,

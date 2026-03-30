@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
-import type { Reservation } from '$lib/types';
+import type { Reservation } from '$lib/domain/models';
 
 function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 	return {

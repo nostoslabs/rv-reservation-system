@@ -6,7 +6,7 @@ import { createSqliteSiteSettingsRepository } from '$lib/infrastructure/storage/
 import { createSqliteCustomerRepository } from '$lib/infrastructure/storage/sqlite/customer-repository';
 import { createSqliteWriteQueue } from '$lib/infrastructure/storage/sqlite/write-queue';
 import type { SqliteWriteQueue } from '$lib/infrastructure/storage/sqlite/write-queue';
-import type { PersistedAppData, Reservation } from '$lib/types';
+import type { PersistedAppData, Reservation } from '$lib/domain/models';
 import { createInMemoryDb } from './in-memory-db';
 import type { Database } from '$lib/infrastructure/storage/sqlite/types';
 import type { Customer } from '$lib/domain/customers';

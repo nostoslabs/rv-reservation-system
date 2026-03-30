@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createAdminSettingsUseCases } from '$lib/application/use-cases/admin';
 import type { SiteSettingsRepository } from '$lib/application/ports';
-import type { SiteSettings } from '$lib/types';
+import type { SiteSettings } from '$lib/domain/models';
 
 function createFakeRepo(): SiteSettingsRepository & { data: SiteSettings } {
 	const state: SiteSettings = { siteName: 'Default' };

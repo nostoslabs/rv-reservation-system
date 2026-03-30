@@ -2,8 +2,8 @@ import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
 import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/domain/reservations';
 import { DEFAULT_PARKING_LOCATIONS, DEFAULT_SITE_NAME } from '$lib/domain/defaults';
-import type { AutoBackupIntervalMinutes, PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
-import { AUTO_BACKUP_INTERVALS } from '$lib/types';
+import type { AutoBackupIntervalMinutes, PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/domain/models';
+import { AUTO_BACKUP_INTERVALS } from '$lib/domain/models';
 
 const STORAGE_KEY = 'rv-reservation-demo:v1';
 const DATA_VERSION = 4;

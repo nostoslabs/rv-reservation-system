@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isBackupDue, startAutoBackupTimer, type AutoBackupDeps } from '$lib/app/auto-backup';
-import type { AutoBackupConfig } from '$lib/types';
+import type { AutoBackupConfig } from '$lib/domain/models';
 
 describe('isBackupDue', () => {
 	it('returns false when interval is 0 (off)', () => {
