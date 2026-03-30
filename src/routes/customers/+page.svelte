@@ -8,7 +8,7 @@
   import { formatReservationDetail } from '$lib/date';
   import { normalizeName, normalizePhoneNumber } from '$lib/domain/customers';
   import type { Customer, CustomerFormValues } from '$lib/domain/customers';
-  import type { Reservation } from '$lib/types';
+  import type { Reservation } from '$lib/domain/models';
   import { deleteCustomerWithUndo, updateCustomerWithUndo } from '$lib/app/undoable-actions';
 
   let searchQuery = '';

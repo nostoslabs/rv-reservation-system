@@ -11,7 +11,7 @@
   } from '$lib/date';
   import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
   import { filterReservations } from '$lib/domain/reservations/search';
-  import { buildCellId, buildOccupancyMap, rangesOverlap } from '$lib/reservations';
+  import { buildCellId, buildOccupancyMap, checkOverlap as rangesOverlap } from '$lib/domain/reservations';
   import { enumerateDates } from '$lib/date';
   import {
     STATUS_COLORS,
@@ -23,7 +23,7 @@
   import { siteSettingsStore } from '$lib/site-settings';
   import { rvReservationStore } from '$lib/state';
   import { customerStore } from '$lib/customer-state';
-  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/domain/models';
   import {
     deleteReservationWithUndo,
     saveReservationWithUndo,

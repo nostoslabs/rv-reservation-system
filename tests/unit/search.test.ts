@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filterReservations } from '$lib/domain/reservations/search';
-import type { Reservation } from '$lib/types';
+import type { Reservation } from '$lib/domain/models';
 
 function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 	return {

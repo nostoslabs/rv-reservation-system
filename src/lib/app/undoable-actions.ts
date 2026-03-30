@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { rvReservationStore } from '$lib/state';
 import { customerStore } from '$lib/customer-state';
 import { pushUndo } from './undo';
-import type { MutationResult, ReservationFormValues } from '$lib/types';
+import type { MutationResult, ReservationFormValues } from '$lib/domain/models';
 import type { CustomerFormValues } from '$lib/domain/customers';
 
 export async function deleteReservationWithUndo(index: number): Promise<MutationResult> {

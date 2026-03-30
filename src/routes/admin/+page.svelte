@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount, getContext } from 'svelte';
   import { get } from 'svelte/store';
-  import { DEFAULT_SITE_NAME } from '$lib/storage';
+  import { DEFAULT_SITE_NAME } from '$lib/domain/defaults';
   import { siteSettingsStore } from '$lib/site-settings';
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
   import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { getAppServices } from '$lib/app/composition';
-  import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
+  import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/domain/models';
   import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
   import { readable } from 'svelte/store';
 

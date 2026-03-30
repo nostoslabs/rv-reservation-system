@@ -1,6 +1,6 @@
 import type { CustomerRepository } from '$lib/application/ports/customer';
 import type { Customer } from '$lib/domain/customers';
-import type { PersistedAppData } from '$lib/types';
+import type { PersistedAppData } from '$lib/domain/models';
 import {
 	resolveCustomerMerge,
 	findDuplicateGroups,

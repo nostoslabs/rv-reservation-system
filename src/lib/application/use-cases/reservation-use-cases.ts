@@ -1,4 +1,3 @@
-import type { AppDataRepository } from '$lib/application/ports';
 import type { MutationResult, PersistedAppData, Reservation, ReservationFormValues } from '$lib/domain/models';
 import { addDays, diffDays } from '$lib/date';
 import {
@@ -28,7 +27,7 @@ export interface ReservationUseCases {
 	move(index: number, daysDelta: number, newSite: string | undefined, currentData: PersistedAppData): MutationResult & { data?: PersistedAppData };
 }
 
-export function createReservationUseCases(_repo: AppDataRepository): ReservationUseCases {
+export function createReservationUseCases(): ReservationUseCases {
 	return {
 		save(formInput: ReservationFormValues, currentData: PersistedAppData) {
 			const form: ReservationFormValues = {

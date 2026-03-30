@@ -1,7 +1,7 @@
 import type { SiteSettingsRepository } from '$lib/application/ports';
 import type { AutoBackupConfig, AutoBackupIntervalMinutes, SiteSettings } from '$lib/domain/models';
 import { AUTO_BACKUP_INTERVALS } from '$lib/domain/models';
-import { DEFAULT_SITE_NAME } from '$lib/storage';
+import { DEFAULT_SITE_NAME } from '$lib/domain/defaults';
 import type { Database } from './types';
 import type { SqliteWriteQueue } from './write-queue';
 

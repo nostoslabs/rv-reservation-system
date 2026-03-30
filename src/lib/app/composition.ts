@@ -50,8 +50,8 @@ function createLocalStorageServices(): AppServices {
 	return {
 		desktop: createWebFallbackDesktopCapabilities(),
 		repositories,
-		reservationUseCases: createReservationUseCases(appDataRepo),
-		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
+		reservationUseCases: createReservationUseCases(),
+		parkingLocationUseCases: createParkingLocationUseCases(),
 		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
 		customerUseCases: createCustomerUseCases(customerRepo),
 		mergeCustomersUseCases: createMergeCustomersUseCases(customerRepo)
@@ -109,8 +109,8 @@ async function createSqliteServices(): Promise<AppServices> {
 	return {
 		desktop: createTauriDesktopCapabilities(),
 		repositories,
-		reservationUseCases: createReservationUseCases(appDataRepo),
-		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
+		reservationUseCases: createReservationUseCases(),
+		parkingLocationUseCases: createParkingLocationUseCases(),
 		adminSettingsUseCases: createAdminSettingsUseCases(siteSettingsRepo),
 		customerUseCases: createCustomerUseCases(customerRepo),
 		mergeCustomersUseCases: createMergeCustomersUseCases(customerRepo)

@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createReservationUseCases } from '$lib/application/use-cases/reservation-use-cases';
 import { buildFirstCellId } from '$lib/domain/reservations';
-import type { AppDataRepository } from '$lib/application/ports';
-import type { PersistedAppData, ReservationFormValues } from '$lib/types';
-
-function createFakeRepo(): AppDataRepository {
-	return {
-		load: () => ({ version: 4, reservations: [], parkingLocations: [], nextReservationIndex: 1, lastSavedAt: null }),
-		save: () => Date.now(),
-		clear: () => {},
-		getDefaultData: () => ({ version: 4, reservations: [], parkingLocations: [], nextReservationIndex: 1, lastSavedAt: null })
-	};
-}
+import type { PersistedAppData, ReservationFormValues } from '$lib/domain/models';
 
 function makeAppData(overrides: Partial<PersistedAppData> = {}): PersistedAppData {
 	return {
@@ -42,7 +32,7 @@ function makeForm(overrides: Partial<ReservationFormValues> = {}): ReservationFo
 describe('ReservationUseCases', () => {
 	describe('customerId round-trip', () => {
 		it('persists customerId on new reservation', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeAppData();
 			const form = makeForm({ customerId: 'cust-123' });
 
@@ -54,7 +44,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('persists customerId on edit', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeAppData({
 				reservations: [{
 					index: 1,
@@ -83,7 +73,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('handles undefined customerId gracefully', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeAppData();
 			const form = makeForm(); // no customerId
 
@@ -118,7 +108,7 @@ describe('ReservationUseCases', () => {
 		}
 
 		it('moves reservation forward by days', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeDataWithReservation();
 			const result = useCases.move(1, 3, undefined, data);
 			expect(result.ok).toBe(true);
@@ -131,7 +121,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('moves reservation backward by days', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeDataWithReservation();
 			const result = useCases.move(1, -5, undefined, data);
 			expect(result.ok).toBe(true);
@@ -143,7 +133,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('moves reservation to a different site', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeDataWithReservation();
 			const result = useCases.move(1, 0, 'B-02', data);
 			expect(result.ok).toBe(true);
@@ -155,7 +145,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('rejects move that would cause overlap', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeDataWithReservation({
 				reservations: [
 					{
@@ -195,7 +185,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('rejects move for non-existent reservation', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeDataWithReservation();
 			const result = useCases.move(999, 1, undefined, data);
 			expect(result.ok).toBe(false);
@@ -205,7 +195,7 @@ describe('ReservationUseCases', () => {
 		});
 
 		it('rejects no-op move (same position)', () => {
-			const useCases = createReservationUseCases(createFakeRepo());
+			const useCases = createReservationUseCases();
 			const data = makeDataWithReservation();
 			const result = useCases.move(1, 0, undefined, data);
 			expect(result.ok).toBe(false);

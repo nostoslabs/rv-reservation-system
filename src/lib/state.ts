@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { get, writable } from 'svelte/store';
 import { flushPendingWrites, getAppServices } from '$lib/app/composition';
-import type { AppState, MutationResult, PersistedAppData, ReservationFormValues } from '$lib/types';
+import type { AppState, MutationResult, PersistedAppData, ReservationFormValues } from '$lib/domain/models';
 
 const APP_DATA_PERSISTENCE_ERROR = 'Unable to save changes to disk.';
 
