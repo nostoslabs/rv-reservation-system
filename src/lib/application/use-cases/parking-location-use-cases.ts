@@ -1,4 +1,3 @@
-import type { AppDataRepository } from '$lib/application/ports';
 import type { MutationResult, PersistedAppData, Reservation } from '$lib/domain/models';
 import { buildFirstCellId, normalizeName } from '$lib/domain/reservations';
 
@@ -21,7 +20,7 @@ export interface ParkingLocationUseCases {
 	reorder(orderedNames: string[], currentData: PersistedAppData): MutationResult & { data?: PersistedAppData };
 }
 
-export function createParkingLocationUseCases(_repo: AppDataRepository): ParkingLocationUseCases {
+export function createParkingLocationUseCases(): ParkingLocationUseCases {
 	return {
 		add(nameInput: string, currentData: PersistedAppData) {
 			const name = normalizeName(nameInput);
