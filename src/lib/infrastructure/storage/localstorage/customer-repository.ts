@@ -58,10 +58,6 @@ function saveToStorage(customers: Customer[]): void {
 export function createLocalStorageCustomerRepository(): CustomerRepository {
 	let customers = loadFromStorage();
 
-	function persist(): void {
-		saveToStorage(customers);
-	}
-
 	return {
 		getAll(): Customer[] {
 			return [...customers];
@@ -72,23 +68,27 @@ export function createLocalStorageCustomerRepository(): CustomerRepository {
 		},
 
 		save(customer: Customer): void {
-			const idx = customers.findIndex((c) => c.id === customer.id);
+			const next = [...customers];
+			const idx = next.findIndex((c) => c.id === customer.id);
 			if (idx >= 0) {
-				customers[idx] = customer;
+				next[idx] = customer;
 			} else {
-				customers.push(customer);
+				next.push(customer);
 			}
-			persist();
+			saveToStorage(next);
+			customers = next;
 		},
 
 		remove(id: string): void {
-			customers = customers.filter((c) => c.id !== id);
-			persist();
+			const next = customers.filter((c) => c.id !== id);
+			saveToStorage(next);
+			customers = next;
 		},
 
 		replaceAll(newCustomers: Customer[]): void {
-			customers = [...newCustomers];
-			persist();
+			const next = [...newCustomers];
+			saveToStorage(next);
+			customers = next;
 		}
 	};
 }
