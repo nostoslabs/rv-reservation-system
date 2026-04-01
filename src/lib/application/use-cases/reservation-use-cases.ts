@@ -52,11 +52,7 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 					? currentData.reservations.find((r) => r.index === form.index)
 					: undefined;
 
-			if (typeof form.index === 'number' && !existing) {
-				return { ok: false as const, errors: ['Reservation not found.'] };
-			}
-
-			const index = existing?.index ?? currentData.nextReservationIndex;
+			const index = existing?.index ?? form.index ?? currentData.nextReservationIndex;
 			const nextReservation: Reservation = {
 				index,
 				firstCellId: buildFirstCellId(form.parkingLocation, form.startDate),
@@ -78,11 +74,12 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 					)
 				: [...currentData.reservations, nextReservation];
 
+			const usedExistingIndex = existing || (typeof form.index === 'number');
 			const data: PersistedAppData = {
 				...currentData,
 				reservations: sortReservations(reservations),
-				nextReservationIndex: existing
-					? currentData.nextReservationIndex
+				nextReservationIndex: usedExistingIndex
+					? Math.max(currentData.nextReservationIndex, index + 1)
 					: currentData.nextReservationIndex + 1
 			};
 

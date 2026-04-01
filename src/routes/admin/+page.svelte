@@ -7,6 +7,7 @@
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
   import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { restoreBackup, type RestoreStores } from '$lib/application/use-cases/restore-backup';
   import { getAppServices } from '$lib/app/composition';
   import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
   import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
@@ -206,58 +207,42 @@
       const backup = parsed as AppBackup;
       const restored = normalizeBackupForRestore(backup);
 
-      // Import customers first so reservation.customerId foreign keys are valid in SQLite.
-      const customerResult = await customerStore.replaceAll(restored.customers);
-      if (!customerResult.ok) {
-        errorMessage = customerResult.errors[0] ?? 'Failed to restore customers.';
-        return;
-      }
-
-      // Import reservation data (reservations + parking locations)
       const currentState = get(rvReservationStore);
-      const maxIndex = restored.reservations.reduce(
-        (max, r) => Math.max(max, r.index),
-        0
-      );
-      const appDataResult = await rvReservationStore.importData({
-        version: currentState.version,
+      const maxIndex = restored.reservations.reduce((max, r) => Math.max(max, r.index), 0);
+
+      const stores: RestoreStores = {
+        getCustomers: () => customerStore.getAll(),
+        getAppData: () => {
+          const s = get(rvReservationStore);
+          return { version: s.version, reservations: s.reservations, parkingLocations: s.parkingLocations, nextReservationIndex: s.nextReservationIndex, lastSavedAt: s.lastSavedAt };
+        },
+        getSettings: () => get(siteSettingsStore),
+        replaceCustomers: (c) => customerStore.replaceAll(c),
+        importAppData: (d) => rvReservationStore.importData(d),
+        setSiteName: (n) => siteSettingsStore.setSiteName(n),
+        setCompactView: (v) => siteSettingsStore.setCompactView(v)
+      };
+
+      const result = await restoreBackup({
+        customers: restored.customers,
         reservations: restored.reservations,
         parkingLocations: restored.parkingLocations,
         nextReservationIndex: Math.max(maxIndex + 1, 1),
-        lastSavedAt: currentState.lastSavedAt
-      });
-      if (!appDataResult.ok) {
-        errorMessage = appDataResult.errors?.[0] ?? 'Failed to restore reservations.';
+        version: currentState.version,
+        lastSavedAt: currentState.lastSavedAt,
+        siteSettings: restored.siteSettings
+      }, stores);
+
+      if (!result.ok) {
+        errorMessage = result.error;
         return;
       }
 
-      // Import site settings
-      if (restored.siteSettings) {
-        const siteNameResult = await siteSettingsStore.setSiteName(restored.siteSettings.siteName);
-        if (!siteNameResult.ok) {
-          errorMessage = siteNameResult.errors?.[0] ?? 'Failed to restore site settings.';
-          return;
-        }
-        if (!siteNameResult.settings) {
-          errorMessage = 'Failed to restore site settings.';
-          return;
-        }
-
-        if (typeof restored.siteSettings.compactView === 'boolean') {
-          const compactViewResult = await siteSettingsStore.setCompactView(restored.siteSettings.compactView);
-          if (!compactViewResult.ok) {
-            errorMessage = compactViewResult.errors?.[0] ?? 'Failed to restore site settings.';
-            return;
-          }
-          if (!compactViewResult.settings) {
-            errorMessage = 'Failed to restore site settings.';
-            return;
-          }
-        }
-        siteNameDraft = siteNameResult.settings.siteName;
+      if (result.siteName) {
+        siteNameDraft = result.siteName;
       }
 
-      successMessage = `Backup restored successfully (${restored.reservations.length} reservations, ${restored.customers.length} customers).`;
+      successMessage = `Backup restored successfully (${result.reservationCount} reservations, ${result.customerCount} customers).`;
     } catch (err) {
       console.error('Backup import failed:', err);
       errorMessage = `Import failed: ${err instanceof Error ? err.message : 'unknown error'}`;

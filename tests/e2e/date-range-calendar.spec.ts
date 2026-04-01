@@ -41,6 +41,13 @@ function dayButton(page: Page, dayNum: number) {
 	return modal(page).locator('.calendar .day').filter({ hasText: new RegExp(`^${dayNum}$`) });
 }
 
+async function clearPrefilledDates(page: Page) {
+	const startInput = modal(page).locator('input[type="date"]').first();
+	const endInput = modal(page).locator('input[type="date"]').nth(1);
+	await startInput.fill('');
+	await endInput.fill('');
+}
+
 test.describe('DateRangeCalendar', () => {
 	test.beforeEach(async ({ page }) => {
 		await resetApp(page);
@@ -49,12 +56,12 @@ test.describe('DateRangeCalendar', () => {
 	test('clicking a day sets it as arrival with range-start class', async ({ page }) => {
 		await clickCellAtDate(page, getTodayIso());
 		await expect(modal(page)).toBeVisible();
+		await clearPrefilledDates(page);
 
-		const today = new Date();
 		const day15 = 15;
 		const btn = dayButton(page, day15);
 		await btn.click();
-		
+
 		// Should have range-start class
 		await expect(btn).toHaveClass(/range-start/);
 	});
@@ -62,6 +69,7 @@ test.describe('DateRangeCalendar', () => {
 	test('clicking two days highlights the range between them', async ({ page }) => {
 		await clickCellAtDate(page, getTodayIso());
 		await expect(modal(page)).toBeVisible();
+		await clearPrefilledDates(page);
 
 		// Navigate to a month where we can pick days 10 and 15
 		const startDay = 10;
@@ -86,6 +94,7 @@ test.describe('DateRangeCalendar', () => {
 	test('selected dates sync to native date inputs', async ({ page }) => {
 		await clickCellAtDate(page, getTodayIso());
 		await expect(modal(page)).toBeVisible();
+		await clearPrefilledDates(page);
 
 		const startDay = 10;
 		const endDay = 14;

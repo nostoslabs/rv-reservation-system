@@ -8,3 +8,4 @@ export {
 	type MergeCustomersResult,
 	type DeduplicateAllResult
 } from './merge-customers-use-case';
+export { restoreBackup, type RestoreInput, type RestoreStores, type RestoreResult } from './restore-backup';
