@@ -102,13 +102,7 @@ export async function deleteCustomerWithUndo(id: string): Promise<{ ok: boolean;
 	if (result.ok) {
 		const savedCustomer = { ...customer };
 		pushUndo(`Delete "${customer.name}"`, async () => {
-			await customerStore.create({
-				name: savedCustomer.name,
-				phone: savedCustomer.phone,
-				rvType: savedCustomer.rvType,
-				email: savedCustomer.email,
-				notes: savedCustomer.notes
-			});
+			await customerStore.restore(savedCustomer);
 		});
 	}
 	return result;

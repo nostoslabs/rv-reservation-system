@@ -126,6 +126,19 @@ function createCustomerStore() {
 		}
 	}
 
+	async function restore(customer: Customer): Promise<{ ok: true } | { ok: false; errors: string[] }> {
+		const { customerUseCases } = getAppServices();
+		customerUseCases.restore(customer);
+
+		try {
+			await refreshCustomers();
+			return { ok: true };
+		} catch (error) {
+			console.error('Failed to persist customer restore:', error);
+			return { ok: false, errors: [CUSTOMER_PERSISTENCE_ERROR] };
+		}
+	}
+
 	async function mergeCustomers(
 		customerIds: string[],
 		overrides?: Partial<Pick<Customer, 'name' | 'phone' | 'email' | 'notes'>>
@@ -184,6 +197,7 @@ function createCustomerStore() {
 		findOrCreateFromReservation,
 		importCsv,
 		replaceAll,
+		restore,
 		mergeCustomers,
 		findDuplicateGroups,
 		deduplicateAll
