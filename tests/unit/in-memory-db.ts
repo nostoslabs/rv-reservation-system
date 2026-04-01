@@ -15,6 +15,7 @@ export function createInMemoryDb(): Database & {
 	dump(): Record<string, Row[]>;
 } {
 	const tables = new Map<string, Row[]>();
+	const tableColumns = new Map<string, string[]>();
 	const indexes = new Set<string>();
 
 	function parseCreateTable(sql: string): string | null {
@@ -145,6 +146,13 @@ export function createInMemoryDb(): Database & {
 			if (tableName) {
 				if (!tables.has(tableName)) {
 					tables.set(tableName, []);
+					// Extract column names from CREATE TABLE (column_name TYPE ...)
+					const colSection = trimmed.match(/\(([^]*)\)/)?.[1] ?? '';
+					const cols = colSection
+						.split(',')
+						.map((c) => c.trim().match(/^(\w+)\s+/)?.[1])
+						.filter((c): c is string => !!c && !/^CHECK$/i.test(c) && !/^CONSTRAINT$/i.test(c));
+					tableColumns.set(tableName, cols);
 				}
 				return;
 			}
@@ -219,6 +227,12 @@ export function createInMemoryDb(): Database & {
 			if (alter) {
 				const rows = tables.get(alter.table);
 				if (!rows) throw new Error(`Table ${alter.table} does not exist`);
+				// Track the column
+				const cols = tableColumns.get(alter.table) ?? [];
+				if (!cols.includes(alter.column)) {
+					cols.push(alter.column);
+					tableColumns.set(alter.table, cols);
+				}
 				// Add the column with the default value to all existing rows
 				for (const row of rows) {
 					if (!(alter.column in row)) {
@@ -233,6 +247,17 @@ export function createInMemoryDb(): Database & {
 
 		async select<T>(sql: string, params: unknown[] = []): Promise<T[]> {
 			const trimmed = sql.trim();
+
+			// PRAGMA table_info(tableName)
+			const pragmaMatch = trimmed.match(/^PRAGMA\s+table_info\((\w+)\)/i);
+			if (pragmaMatch) {
+				const tblName = pragmaMatch[1];
+				const cols = tableColumns.get(tblName) ?? [];
+				return cols.map((col, i) => ({
+					cid: i, name: col, type: 'TEXT', notnull: 0, dflt_value: null, pk: 0
+				})) as T[];
+			}
+
 			const sel = parseSelect(trimmed);
 			if (!sel) throw new Error(`Unsupported SQL in select: ${trimmed.slice(0, 80)}`);
 
