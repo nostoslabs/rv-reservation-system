@@ -78,7 +78,10 @@ export async function restoreBackup(input: RestoreInput, stores: RestoreStores):
 
 async function safeRollbackCustomers(stores: RestoreStores, prev: Customer[]): Promise<void> {
 	try {
-		await stores.replaceCustomers(prev);
+		const result = await stores.replaceCustomers(prev);
+		if (!result.ok) {
+			console.error('Rollback (customers) returned errors:', result.errors);
+		}
 	} catch (err) {
 		console.error('Rollback (customers) failed:', err);
 	}
@@ -91,19 +94,31 @@ async function safeRollback(
 	prevSettings: SiteSettings
 ): Promise<void> {
 	try {
-		await stores.replaceCustomers(prevCustomers);
+		const result = await stores.replaceCustomers(prevCustomers);
+		if (!result.ok) {
+			console.error('Rollback (customers) returned errors:', result.errors);
+		}
 	} catch (err) {
 		console.error('Rollback (customers) failed:', err);
 	}
 	try {
-		await stores.importAppData(prevAppData);
+		const result = await stores.importAppData(prevAppData);
+		if (!result.ok) {
+			console.error('Rollback (app data) returned errors:', result.errors);
+		}
 	} catch (err) {
 		console.error('Rollback (app data) failed:', err);
 	}
 	try {
-		await stores.setSiteName(prevSettings.siteName);
+		const result = await stores.setSiteName(prevSettings.siteName);
+		if (!result.ok) {
+			console.error('Rollback (site name) returned errors:', result.errors);
+		}
 		if (typeof prevSettings.compactView === 'boolean') {
-			await stores.setCompactView(prevSettings.compactView);
+			const cvResult = await stores.setCompactView(prevSettings.compactView);
+			if (!cvResult.ok) {
+				console.error('Rollback (compact view) returned errors:', cvResult.errors);
+			}
 		}
 	} catch (err) {
 		console.error('Rollback (settings) failed:', err);
