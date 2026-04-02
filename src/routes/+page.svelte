@@ -1267,17 +1267,11 @@
   }
 
   .reservation-label {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+    position: absolute;
+    inset: var(--cell-padding);
     overflow: hidden;
-    word-break: break-word;
-  }
-
-  .compact .reservation-label {
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .grid-cell.occupied {
