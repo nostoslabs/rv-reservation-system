@@ -33,7 +33,8 @@
 
       if (!desktop.isDesktop) return;
 
-      updateChecker?.checkForUpdate();
+      const settings = get(siteSettingsStore);
+      updateChecker?.checkForUpdate(settings.betaUpdates);
 
       stopAutoBackup = startAutoBackupTimer({
         getConfig: () => {

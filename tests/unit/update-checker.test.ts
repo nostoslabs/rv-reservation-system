@@ -13,7 +13,9 @@ function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapab
 		writeFileToPath: async () => {},
 		pickDirectory: async () => null,
 		checkForUpdate: async () => null,
+		checkBetaUpdate: async () => null,
 		downloadAndInstallUpdate: async () => false,
+		installBetaUpdate: async () => false,
 		relaunch: async () => {},
 		...overrides
 	};

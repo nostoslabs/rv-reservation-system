@@ -23,6 +23,10 @@ export interface AdminSettingsUseCases {
 		timestamp: string,
 		currentSettings: SiteSettings
 	): { ok: true; settings: SiteSettings };
+	setBetaUpdates(
+		enabled: boolean,
+		currentSettings: SiteSettings
+	): { ok: true; settings: SiteSettings };
 }
 
 export function createAdminSettingsUseCases(
@@ -93,6 +97,14 @@ export function createAdminSettingsUseCases(
 		): { ok: true; settings: SiteSettings } {
 			const merged = mergeAutoBackup(currentSettings, { lastBackupAt: timestamp });
 			const saved = repo.save(merged);
+			return { ok: true, settings: saved };
+		},
+
+		setBetaUpdates(
+			enabled: boolean,
+			currentSettings: SiteSettings
+		): { ok: true; settings: SiteSettings } {
+			const saved = repo.save({ ...currentSettings, betaUpdates: enabled });
 			return { ok: true, settings: saved };
 		}
 	};

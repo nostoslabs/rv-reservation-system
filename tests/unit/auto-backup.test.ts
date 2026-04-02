@@ -57,7 +57,9 @@ describe('startAutoBackupTimer', () => {
 				writeFileToPath: async (path: string) => { written.push(path); },
 				pickDirectory: async () => null,
 				checkForUpdate: async () => null,
+				checkBetaUpdate: async () => null,
 				downloadAndInstallUpdate: async () => false,
+				installBetaUpdate: async () => false,
 				relaunch: async () => {}
 			},
 			onSuccess: async () => {},
@@ -107,7 +109,9 @@ describe('startAutoBackupTimer', () => {
 				writeFileToPath: async () => { throw new Error('disk full'); },
 				pickDirectory: async () => null,
 				checkForUpdate: async () => null,
+				checkBetaUpdate: async () => null,
 				downloadAndInstallUpdate: async () => false,
+				installBetaUpdate: async () => false,
 				relaunch: async () => {}
 			}
 		});
