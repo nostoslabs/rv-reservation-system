@@ -48,6 +48,9 @@
 
   let locationPanelError = '';
 
+  // Beta updates confirmation
+  let showBetaConfirm = false;
+
   $: reservationCountsByLocation = $rvReservationStore.reservations.reduce<Record<string, number>>(
     (counts, r) => {
       counts[r.parkingLocation] = (counts[r.parkingLocation] ?? 0) + 1;
@@ -286,6 +289,27 @@
       return 'Never';
     }
   }
+
+  function handleBetaToggle(): void {
+    if ($siteSettingsStore.betaUpdates) {
+      // Disabling — no confirmation needed
+      siteSettingsStore.setBetaUpdates(false);
+      updateChecker?.checkForUpdate(false);
+    } else {
+      // Enabling — show confirmation
+      showBetaConfirm = true;
+    }
+  }
+
+  async function confirmEnableBeta(): Promise<void> {
+    showBetaConfirm = false;
+    await siteSettingsStore.setBetaUpdates(true);
+    updateChecker?.checkForUpdate(true);
+  }
+
+  function cancelBetaConfirm(): void {
+    showBetaConfirm = false;
+  }
 </script>
 
 <svelte:head>
@@ -453,16 +477,21 @@
             </button>
           {:else if $updateState.downloading}
             <div class="update-status" data-testid="update-downloading">
-              Downloading update... {$updateState.downloadProgress}%
+              {$siteSettingsStore.betaUpdates ? 'Installing beta update...' : `Downloading update... ${$updateState.downloadProgress}%`}
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: {$updateState.downloadProgress}%"></div>
-            </div>
+            {#if !$siteSettingsStore.betaUpdates}
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: {$updateState.downloadProgress}%"></div>
+              </div>
+            {/if}
           {:else if $updateState.available}
             <div class="update-status" data-testid="update-available">
               Update available: v{$updateState.available.version}
+              {#if $updateState.available.version.includes('-beta')}
+                <span class="beta-badge">Beta</span>
+              {/if}
             </div>
-            <button type="button" class="primary" on:click={() => updateChecker.downloadAndInstall()} data-testid="update-download-btn">
+            <button type="button" class="primary" on:click={() => updateChecker.downloadAndInstall($siteSettingsStore.betaUpdates)} data-testid="update-download-btn">
               Download &amp; Install
             </button>
           {:else if $updateState.checking}
@@ -473,19 +502,43 @@
             <div class="update-status error" data-testid="update-error">
               {$updateState.error}
             </div>
-            <button type="button" on:click={() => updateChecker.checkForUpdate()} data-testid="update-retry-btn">
+            <button type="button" on:click={() => updateChecker.checkForUpdate($siteSettingsStore.betaUpdates)} data-testid="update-retry-btn">
               Retry
             </button>
           {:else}
             <div class="update-status" data-testid="update-up-to-date">
               You're up to date.
             </div>
-            <button type="button" on:click={() => updateChecker.checkForUpdate()} data-testid="update-check-btn">
+            <button type="button" on:click={() => updateChecker.checkForUpdate($siteSettingsStore.betaUpdates)} data-testid="update-check-btn">
               Check for Updates
             </button>
           {/if}
+
+          <label class="beta-toggle">
+            <input
+              type="checkbox"
+              checked={$siteSettingsStore.betaUpdates ?? false}
+              on:change={handleBetaToggle}
+              data-testid="beta-updates-toggle"
+            />
+            <span>Receive beta updates</span>
+          </label>
         </div>
       </section>
+    {/if}
+
+    {#if showBetaConfirm}
+      <div class="modal-backdrop" role="presentation" on:click={cancelBetaConfirm}>
+        <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="beta-confirm-title" tabindex="-1" on:click|stopPropagation on:keydown={(e) => { if (e.key === 'Escape') cancelBetaConfirm(); }}>
+          <h3 id="beta-confirm-title">Enable Beta Updates?</h3>
+          <p>Beta updates are pre-release versions that may contain bugs or incomplete features. They are intended for testing purposes only.</p>
+          <p><strong>Only enable this if you are comfortable troubleshooting issues.</strong></p>
+          <div class="confirm-actions">
+            <button type="button" on:click={cancelBetaConfirm}>Cancel</button>
+            <button type="button" class="primary" on:click={confirmEnableBeta} data-testid="beta-confirm-btn">Enable Beta Updates</button>
+          </div>
+        </div>
+      </div>
     {/if}
   {/if}
 
@@ -762,6 +815,68 @@
   select:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .beta-badge {
+    display: inline-block;
+    background: #e69f00;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    vertical-align: middle;
+    margin-left: 0.35rem;
+  }
+
+  .beta-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    cursor: pointer;
+  }
+
+  .beta-toggle input {
+    width: auto;
+    margin: 0;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: grid;
+    place-items: center;
+    z-index: 100;
+  }
+
+  .confirm-dialog {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 420px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  .confirm-dialog h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1.1rem;
+  }
+
+  .confirm-dialog p {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    color: #444;
+    line-height: 1.5;
+  }
+
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
   }
 
 </style>

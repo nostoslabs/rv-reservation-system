@@ -37,6 +37,7 @@ async function loadFromDb(db: Database): Promise<SiteSettings> {
 	return sanitize({
 		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME,
 		compactView: map.get('compact_view') === '1',
+		betaUpdates: map.get('beta_updates') === '1',
 		autoBackup: {
 			intervalMinutes,
 			directoryPath: map.get('auto_backup_directory') ?? null,
@@ -53,6 +54,10 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
 	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
 		'compact_view',
 		settings.compactView ? '1' : '0'
+	]);
+	await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+		'beta_updates',
+		settings.betaUpdates ? '1' : '0'
 	]);
 
 	const ab = settings.autoBackup ?? defaultAutoBackup();

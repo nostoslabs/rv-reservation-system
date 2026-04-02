@@ -12,9 +12,25 @@ export interface UpdateState {
 
 export interface UpdateChecker {
 	state: Readable<UpdateState>;
-	checkForUpdate(): Promise<void>;
-	downloadAndInstall(): Promise<void>;
+	checkForUpdate(beta?: boolean): Promise<void>;
+	downloadAndInstall(beta?: boolean): Promise<void>;
 	relaunch(): Promise<void>;
+}
+
+const GITHUB_RELEASES_URL =
+	'https://api.github.com/repos/nostoslabs/rv-reservation-system/releases';
+
+async function findLatestReleaseEndpoint(): Promise<string | null> {
+	const res = await fetch(GITHUB_RELEASES_URL, {
+		headers: { Accept: 'application/vnd.github+json' }
+	});
+	if (!res.ok) return null;
+	const releases: { assets: { name: string; browser_download_url: string }[] }[] = await res.json();
+	for (const release of releases) {
+		const asset = release.assets.find((a) => a.name === 'latest.json');
+		if (asset) return asset.browser_download_url;
+	}
+	return null;
 }
 
 const initial: UpdateState = {
@@ -36,10 +52,20 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 	return {
 		state: { subscribe: store.subscribe },
 
-		async checkForUpdate() {
+		async checkForUpdate(beta?: boolean) {
 			patch({ checking: true, error: null });
 			try {
-				const info = await desktop.checkForUpdate();
+				let info;
+				if (beta) {
+					const endpoint = await findLatestReleaseEndpoint();
+					if (endpoint) {
+						info = await desktop.checkBetaUpdate(endpoint);
+					} else {
+						info = null;
+					}
+				} else {
+					info = await desktop.checkForUpdate();
+				}
 				patch({ checking: false, available: info });
 			} catch (err) {
 				patch({ checking: false, available: null, error: 'Failed to check for updates.' });
@@ -47,15 +73,20 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 			}
 		},
 
-		async downloadAndInstall() {
+		async downloadAndInstall(beta?: boolean) {
 			patch({ downloading: true, downloadProgress: 0, error: null });
 			try {
-				const ok = await desktop.downloadAndInstallUpdate((progress) => {
-					if (progress.contentLength && progress.contentLength > 0) {
-						const pct = Math.round((progress.downloadedLength / progress.contentLength) * 100);
-						patch({ downloadProgress: Math.min(pct, 100) });
-					}
-				});
+				let ok: boolean;
+				if (beta) {
+					ok = await desktop.installBetaUpdate();
+				} else {
+					ok = await desktop.downloadAndInstallUpdate((progress) => {
+						if (progress.contentLength && progress.contentLength > 0) {
+							const pct = Math.round((progress.downloadedLength / progress.contentLength) * 100);
+							patch({ downloadProgress: Math.min(pct, 100) });
+						}
+					});
+				}
 				if (ok) {
 					patch({ downloading: false, downloadProgress: 100, installed: true });
 				} else {

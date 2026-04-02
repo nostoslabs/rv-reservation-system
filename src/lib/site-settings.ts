@@ -82,6 +82,13 @@ function createSiteSettingsStore() {
 		return persistSettings(result.settings);
 	}
 
+	async function setBetaUpdates(enabled: boolean): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.setBetaUpdates(enabled, current);
+		return persistSettings(result.settings);
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
@@ -89,7 +96,8 @@ function createSiteSettingsStore() {
 		setCompactView,
 		setAutoBackupInterval,
 		setAutoBackupDirectory,
-		recordAutoBackup
+		recordAutoBackup,
+		setBetaUpdates
 	};
 }
 

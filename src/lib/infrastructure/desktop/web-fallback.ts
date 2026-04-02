@@ -35,7 +35,13 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 		async checkForUpdate() {
 			return null;
 		},
+		async checkBetaUpdate() {
+			return null;
+		},
 		async downloadAndInstallUpdate() {
+			return false;
+		},
+		async installBetaUpdate() {
 			return false;
 		},
 		async relaunch() {},

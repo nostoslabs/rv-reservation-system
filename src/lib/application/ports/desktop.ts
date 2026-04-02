@@ -44,8 +44,14 @@ export interface DesktopCapabilities {
 	/** Check for available updates. Returns update info or null if up to date. */
 	checkForUpdate(): Promise<UpdateInfo | null>;
 
+	/** Check for beta updates using a custom endpoint. Returns update info or null. */
+	checkBetaUpdate(endpoint: string): Promise<UpdateInfo | null>;
+
 	/** Download and install an available update. Returns true on success. */
 	downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean>;
+
+	/** Download and install a pending beta update. Returns true on success. */
+	installBetaUpdate(): Promise<boolean>;
 
 	/** Relaunch the application after an update has been installed. */
 	relaunch(): Promise<void>;
