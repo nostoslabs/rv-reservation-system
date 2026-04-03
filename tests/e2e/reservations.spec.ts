@@ -499,6 +499,37 @@ test.describe('Phone number search', () => {
 		await expect(dropdown).toBeVisible();
 		await expect(dropdown.locator('.search-result-name')).toHaveText('Phone Test');
 	});
+
+	test('search dropdown renders above the grid, not clipped', async ({ page }) => {
+		// Create multiple reservations with similar names on different dates to avoid overlap
+		const names = ['Smith Alpha', 'Smith Beta', 'Smith Gamma'];
+		for (let i = 0; i < names.length; i++) {
+			const start = offsetDate(i * 5 + 1);
+			const end = offsetDate(i * 5 + 3);
+			await page.getByTestId('new-reservation-btn').click();
+			await modal(page).locator('input[placeholder="Guest name"]').fill(names[i]);
+			await modal(page).locator('input[type="date"]').first().fill(start);
+			await modal(page).locator('input[type="date"]').nth(1).fill(end);
+			await modal(page).locator('button[type="submit"]').click();
+			await expect(modal(page)).not.toBeVisible();
+		}
+
+		const searchInput = page.locator('input[placeholder="Search guests..."], input[aria-label="Search reservations"]');
+		await searchInput.fill('Smith');
+
+		const dropdown = page.locator('.search-dropdown');
+		await expect(dropdown).toBeVisible();
+
+		// Should show all 3 results (not clipped to 1)
+		const results = dropdown.locator('.search-result');
+		await expect(results).toHaveCount(3);
+
+		// Dropdown bottom should be within viewport (not clipped)
+		const box = await dropdown.boundingBox();
+		expect(box).toBeTruthy();
+		const viewport = page.viewportSize();
+		expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height);
+	});
 });
 
 test.describe('Date picker UX', () => {

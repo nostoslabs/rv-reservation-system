@@ -788,6 +788,8 @@
 
   /* -- Compact toolbar ---------------------------------------------------- */
   .toolbar {
+    position: relative;
+    z-index: 20;
     background: rgba(255, 255, 255, 0.82);
     border: 1px solid rgba(214, 222, 234, 0.9);
     border-radius: 12px;
