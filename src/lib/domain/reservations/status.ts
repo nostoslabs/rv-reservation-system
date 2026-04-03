@@ -16,13 +16,13 @@ export const STATUS_COLORS: Record<ReservationStatus, string> = {
 };
 
 export const STATUS_BACKGROUND_COLORS: Record<ReservationStatus, string> = {
-	'reserved': '#b0d4f1',
-	'checked-in': '#9edbc8',
-	'group-one': '#f5d898',
-	'group-two': '#f0ec8a',
-	'special': '#e8c2d9',
-	'alert': '#f0bfa5',
-	'maintenance': '#c8ced6'
+	'reserved': '#7ab8e0',
+	'checked-in': '#5cc0a0',
+	'group-one': '#e8b84d',
+	'group-two': '#d4cf40',
+	'special': '#d49abe',
+	'alert': '#e08a65',
+	'maintenance': '#a8b2be'
 };
 
 export const STATUS_PATTERNS: Record<ReservationStatus, string> = {
