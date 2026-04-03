@@ -1,6 +1,10 @@
 [package]
 name = "rv-reservation-system"
-version = "1.15.1"
+
+version = "1.15.2"
+
+version = "1.15.2"
+
 description = "RV Reservation Schedule"
 authors = ["Nostos Labs"]
 edition = "2021"
