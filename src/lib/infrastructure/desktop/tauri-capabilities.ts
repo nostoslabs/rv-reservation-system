@@ -90,14 +90,9 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			};
 		},
 		async installBetaUpdate(): Promise<boolean> {
-			try {
-				const { invoke } = await import('@tauri-apps/api/core');
-				await invoke('install_beta_update');
-				return true;
-			} catch (err) {
-				console.error('Beta update install failed:', err);
-				return false;
-			}
+			const { invoke } = await import('@tauri-apps/api/core');
+			await invoke('install_beta_update');
+			return true;
 		},
 		async downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean> {
 			if (!pendingUpdate) return false;
