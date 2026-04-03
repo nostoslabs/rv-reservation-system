@@ -324,14 +324,10 @@
     await tick();
     if (!gridScroller) return;
     const todayIndex = diffDays(gridStartDate, todayIso);
-    // The today column's left edge in the table is at FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH.
-    // The sticky first column occupies FIRST_COLUMN_WIDTH of the visible viewport, so the
-    // visible date area is clientWidth - FIRST_COLUMN_WIDTH wide.
-    // To center today in that visible date area, we set scrollLeft so that:
-    //   scrollLeft + FIRST_COLUMN_WIDTH + visibleDateWidth/2 = FIRST_COLUMN_WIDTH + todayIndex * DATE_COLUMN_WIDTH + DATE_COLUMN_WIDTH/2
-    //   scrollLeft = todayIndex * DATE_COLUMN_WIDTH - (visibleDateWidth - DATE_COLUMN_WIDTH) / 2
-    const visibleDateWidth = gridScroller.clientWidth - FIRST_COLUMN_WIDTH;
-    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH - Math.max(0, (visibleDateWidth - DATE_COLUMN_WIDTH) / 2);
+    // Align today's column to the left edge of the visible date area.
+    // The sticky first column occupies FIRST_COLUMN_WIDTH, so the visible date area
+    // starts at scrollLeft = todayIndex * DATE_COLUMN_WIDTH.
+    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH;
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
     updateVisibleColumns();
