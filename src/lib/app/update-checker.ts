@@ -95,7 +95,7 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
 				patch({ downloading: false, available: null, error: `Update failed: ${msg}` });
-				console.error('Update download error:', err);
+				console.error('Update error:', err);
 			}
 		},
 
