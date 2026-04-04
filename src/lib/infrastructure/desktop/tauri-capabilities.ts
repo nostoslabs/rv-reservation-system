@@ -78,21 +78,46 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 		},
 		async checkBetaUpdate(endpoint: string): Promise<UpdateInfo | null> {
 			const { invoke } = await import('@tauri-apps/api/core');
-			const { getVersion } = await import('@tauri-apps/api/app');
-			const currentVersion = await getVersion();
-			const result = await invoke<{ version: string; body: string | null } | null>('check_beta_update', { endpoint });
-			if (!result) return null;
+			const { Update } = await import('@tauri-apps/plugin-updater');
+			const result = await invoke<{
+				rid: number;
+				version: string;
+				currentVersion: string;
+				body: string | null;
+				date: string | null;
+				rawJson: Record<string, unknown>;
+			} | null>('check_beta_update', { endpoint });
+			if (!result) {
+				pendingUpdate = null;
+				return null;
+			}
+			// Construct a standard Update object from the resource ID.
+			// This lets downloadAndInstall use the plugin's standard flow
+			// (proper progress events, on_before_exit, Windows process exit).
+			pendingUpdate = new Update({
+				...result,
+				date: result.date ?? undefined,
+				body: result.body ?? undefined
+			});
 			return {
 				version: result.version,
-				currentVersion,
-				date: null,
+				currentVersion: result.currentVersion,
+				date: result.date ?? null,
 				body: result.body
 			};
 		},
 		async installBetaUpdate(): Promise<boolean> {
-			const { invoke } = await import('@tauri-apps/api/core');
-			await invoke('install_beta_update');
-			return true;
+			// Beta installs use the same path as stable — the Update object
+			// is in the plugin's resource table, so downloadAndInstall works.
+			if (!pendingUpdate) return false;
+			try {
+				await pendingUpdate.downloadAndInstall();
+				pendingUpdate = null;
+				return true;
+			} catch (err) {
+				console.error('Beta update install failed:', err);
+				return false;
+			}
 		},
 		async downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean> {
 			if (!pendingUpdate) return false;
