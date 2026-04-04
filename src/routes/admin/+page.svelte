@@ -491,7 +491,7 @@
                 <span class="beta-badge">Beta</span>
               {/if}
             </div>
-            <button type="button" class="primary" on:click={() => updateChecker.downloadAndInstall($siteSettingsStore.betaUpdates)} data-testid="update-download-btn">
+            <button type="button" class="primary" on:click={() => updateChecker.downloadAndInstall()} data-testid="update-download-btn">
               Download &amp; Install
             </button>
           {:else if $updateState.checking}

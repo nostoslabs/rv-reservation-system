@@ -59,7 +59,6 @@ describe('startAutoBackupTimer', () => {
 				checkForUpdate: async () => null,
 				checkBetaUpdate: async () => null,
 				downloadAndInstallUpdate: async () => false,
-				installBetaUpdate: async () => false,
 				relaunch: async () => {}
 			},
 			onSuccess: async () => {},
@@ -111,7 +110,6 @@ describe('startAutoBackupTimer', () => {
 				checkForUpdate: async () => null,
 				checkBetaUpdate: async () => null,
 				downloadAndInstallUpdate: async () => false,
-				installBetaUpdate: async () => false,
 				relaunch: async () => {}
 			}
 		});

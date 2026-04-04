@@ -13,7 +13,7 @@ export interface UpdateState {
 export interface UpdateChecker {
 	state: Readable<UpdateState>;
 	checkForUpdate(beta?: boolean): Promise<void>;
-	downloadAndInstall(beta?: boolean): Promise<void>;
+	downloadAndInstall(): Promise<void>;
 	relaunch(): Promise<void>;
 }
 
@@ -73,20 +73,15 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 			}
 		},
 
-		async downloadAndInstall(beta?: boolean) {
+		async downloadAndInstall() {
 			patch({ downloading: true, downloadProgress: 0, error: null });
 			try {
-				let ok: boolean;
-				if (beta) {
-					ok = await desktop.installBetaUpdate();
-				} else {
-					ok = await desktop.downloadAndInstallUpdate((progress) => {
-						if (progress.contentLength && progress.contentLength > 0) {
-							const pct = Math.round((progress.downloadedLength / progress.contentLength) * 100);
-							patch({ downloadProgress: Math.min(pct, 100) });
-						}
-					});
-				}
+				const ok = await desktop.downloadAndInstallUpdate((progress) => {
+					if (progress.contentLength && progress.contentLength > 0) {
+						const pct = Math.round((progress.downloadedLength / progress.contentLength) * 100);
+						patch({ downloadProgress: Math.min(pct, 100) });
+					}
+				});
 				if (ok) {
 					patch({ downloading: false, downloadProgress: 100, installed: true });
 				} else {

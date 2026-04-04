@@ -22,7 +22,7 @@ function sanitize(settings: SiteSettings): SiteSettings {
 	const siteName =
 		settings.siteName?.trim().slice(0, 80) || DEFAULT_SITE_NAME;
 	const autoBackup = settings.autoBackup ?? defaultAutoBackup();
-	return { siteName, compactView: settings.compactView, autoBackup };
+	return { siteName, compactView: settings.compactView, autoBackup, betaUpdates: settings.betaUpdates };
 }
 
 async function loadFromDb(db: Database): Promise<SiteSettings> {
