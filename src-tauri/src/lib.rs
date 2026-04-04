@@ -20,12 +20,24 @@ async fn check_beta_update(
 ) -> Result<Option<BetaUpdateMetadata>, String> {
     let app = webview.app_handle().clone();
     let url: url::Url = endpoint.parse().map_err(|e: url::ParseError| e.to_string())?;
-    let updater = app
+    // Read the pubkey from the plugin config — updater_builder() doesn't
+    // always inherit it correctly when endpoints are overridden.
+    let pubkey = app
+        .config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|v| v.get("pubkey"))
+        .and_then(|v| v.as_str())
+        .ok_or("No updater pubkey found in tauri.conf.json")?
+        .to_string();
+
+    let builder = app
         .updater_builder()
         .endpoints(vec![url])
         .map_err(|e| e.to_string())?
-        .build()
-        .map_err(|e| e.to_string())?;
+        .pubkey(pubkey);
+    let updater = builder.build().map_err(|e| e.to_string())?;
 
     let update = updater.check().await.map_err(|e| e.to_string())?;
     match update {
