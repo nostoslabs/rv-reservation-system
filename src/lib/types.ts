@@ -69,6 +69,7 @@ export interface SiteSettings {
   compactView?: boolean;
   autoBackup?: AutoBackupConfig;
   betaUpdates?: boolean;
+  siteColors?: Record<string, string>;
 }
 
 export interface ActionResult {

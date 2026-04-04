@@ -188,6 +188,22 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
     };
   }
 
+  if (raw.siteColors && typeof raw.siteColors === 'object' && !Array.isArray(raw.siteColors)) {
+    const hexPattern = /^#[0-9a-f]{6}$/i;
+    const sc = raw.siteColors as Record<string, unknown>;
+    const cleaned: Record<string, string> = {};
+    for (const [key, val] of Object.entries(sc)) {
+      const trimmedKey = typeof key === 'string' ? key.trim() : '';
+      const trimmedVal = typeof val === 'string' ? val.trim() : '';
+      if (trimmedKey && trimmedVal && hexPattern.test(trimmedVal)) {
+        cleaned[trimmedKey] = trimmedVal;
+      }
+    }
+    if (Object.keys(cleaned).length > 0) {
+      result.siteColors = cleaned;
+    }
+  }
+
   return result;
 }
 

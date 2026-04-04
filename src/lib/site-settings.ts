@@ -89,6 +89,27 @@ function createSiteSettingsStore() {
 		return persistSettings(result.settings);
 	}
 
+	async function setSiteColor(locationName: string, color: string | null): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.setSiteColor(locationName, color, current);
+		return persistSettings(result.settings);
+	}
+
+	async function renameSiteColor(oldName: string, newName: string): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.renameSiteColor(oldName, newName, current);
+		return persistSettings(result.settings);
+	}
+
+	async function removeSiteColor(locationName: string): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.removeSiteColor(locationName, current);
+		return persistSettings(result.settings);
+	}
+
 	return {
 		subscribe: internal.subscribe,
 		hydrate,
@@ -97,7 +118,10 @@ function createSiteSettingsStore() {
 		setAutoBackupInterval,
 		setAutoBackupDirectory,
 		recordAutoBackup,
-		setBetaUpdates
+		setBetaUpdates,
+		setSiteColor,
+		renameSiteColor,
+		removeSiteColor
 	};
 }
 
