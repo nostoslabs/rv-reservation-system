@@ -94,6 +94,9 @@
     status: 'reserved'
   };
 
+  // Go To Date state
+  let goToDateValue = '';
+
   // Search state
   let searchQuery = '';
   let searchOpen = false;
@@ -320,21 +323,28 @@
     return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
   }
 
-  async function alignToToday(): Promise<void> {
+  async function scrollToDate(targetDateIso: string): Promise<void> {
     await tick();
     if (!gridScroller) return;
-    const todayIndex = diffDays(gridStartDate, todayIso);
-    // Align today's column to the left edge of the visible date area.
-    // The sticky first column occupies FIRST_COLUMN_WIDTH, so the visible date area
-    // starts at scrollLeft = todayIndex * DATE_COLUMN_WIDTH.
-    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH;
+    const rawIndex = diffDays(gridStartDate, targetDateIso);
+    const targetIndex = Math.min(Math.max(0, rawIndex), TOTAL_DATE_COLUMNS - 1);
+    const targetScrollLeft = targetIndex * DATE_COLUMN_WIDTH;
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
     updateVisibleColumns();
   }
 
+  async function alignToToday(): Promise<void> {
+    await scrollToDate(todayIso);
+  }
+
   function scrollWeek(direction: number): void {
     gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
+  }
+
+  async function handleGoToDate(): Promise<void> {
+    if (!goToDateValue) return;
+    await scrollToDate(goToDateValue);
   }
 
   function openNewReservationModal(): void {
@@ -402,6 +412,7 @@
   }
 
   async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
+    const isCreate = modalMode === 'create';
     const result = await saveReservationWithUndo(event.detail);
     if (!result.ok) {
       modalErrors = result.errors;
@@ -415,6 +426,10 @@
 
     closeModal();
     showToast('Reservation saved');
+
+    if (isCreate) {
+      await scrollToDate(event.detail.startDate);
+    }
   }
 
   async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
@@ -537,6 +552,16 @@
       <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
       <button type="button" class="primary" data-testid="today-button" on:click={alignToToday}>Today</button>
       <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+      <input
+        type="date"
+        class="goto-date-input"
+        bind:value={goToDateValue}
+        on:change={handleGoToDate}
+        on:input={handleGoToDate}
+        aria-label="Go to date"
+        title="Jump to a specific date"
+        data-testid="goto-date-input"
+      />
       <button
         type="button"
         class="compact-toggle-btn"
@@ -861,6 +886,25 @@
   .summary-sep {
     color: #a0b4cc;
     font-weight: 300;
+  }
+
+  .goto-date-input {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.3rem 0.5rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    min-height: 36px;
+    width: 9.5rem;
+    font-family: inherit;
+  }
+
+  .goto-date-input:focus {
+    background: white;
+    border-color: #0a63e0;
+    outline: none;
   }
 
   .toolbar-nav button {
