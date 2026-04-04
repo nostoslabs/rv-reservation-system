@@ -108,26 +108,21 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 		},
 		async downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean> {
 			if (!pendingUpdate) return false;
-			try {
-				let totalLength: number | null = null;
-				let downloaded = 0;
-				await pendingUpdate.downloadAndInstall((event) => {
-					if (!onProgress || !event.data) return;
-					if (event.event === 'Started') {
-						totalLength = (event.data.contentLength as number) ?? null;
-						downloaded = 0;
-					} else if (event.event === 'Progress') {
-						const chunk = (event.data.chunkLength as number) ?? 0;
-						downloaded += chunk;
-						onProgress({ downloadedLength: downloaded, contentLength: totalLength });
-					}
-				});
-				pendingUpdate = null;
-				return true;
-			} catch (err) {
-				console.error('Update install failed:', err);
-				return false;
-			}
+			let totalLength: number | null = null;
+			let downloaded = 0;
+			await pendingUpdate.downloadAndInstall((event) => {
+				if (!onProgress || !event.data) return;
+				if (event.event === 'Started') {
+					totalLength = (event.data.contentLength as number) ?? null;
+					downloaded = 0;
+				} else if (event.event === 'Progress') {
+					const chunk = (event.data.chunkLength as number) ?? 0;
+					downloaded += chunk;
+					onProgress({ downloadedLength: downloaded, contentLength: totalLength });
+				}
+			});
+			pendingUpdate = null;
+			return true;
 		},
 		async relaunch(): Promise<void> {
 			const { relaunch } = await import('@tauri-apps/plugin-process');
