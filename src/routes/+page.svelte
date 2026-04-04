@@ -94,6 +94,9 @@
     status: 'reserved'
   };
 
+  // Go To Date state
+  let goToDateValue = '';
+
   // Search state
   let searchQuery = '';
   let searchOpen = false;
@@ -339,6 +342,11 @@
     gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
   }
 
+  async function handleGoToDate(): Promise<void> {
+    if (!goToDateValue) return;
+    await scrollToDate(goToDateValue);
+  }
+
   function openNewReservationModal(): void {
     const firstLocation = $rvReservationStore.parkingLocations[0] ?? '';
     modalMode = 'create';
@@ -544,6 +552,15 @@
       <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
       <button type="button" class="primary" data-testid="today-button" on:click={alignToToday}>Today</button>
       <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+      <input
+        type="date"
+        class="goto-date-input"
+        bind:value={goToDateValue}
+        on:change={handleGoToDate}
+        aria-label="Go to date"
+        title="Jump to a specific date"
+        data-testid="goto-date-input"
+      />
       <button
         type="button"
         class="compact-toggle-btn"
@@ -868,6 +885,25 @@
   .summary-sep {
     color: #a0b4cc;
     font-weight: 300;
+  }
+
+  .goto-date-input {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.3rem 0.5rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    min-height: 36px;
+    width: 9.5rem;
+    font-family: inherit;
+  }
+
+  .goto-date-input:focus {
+    background: white;
+    border-color: #0a63e0;
+    outline: none;
   }
 
   .toolbar-nav button {
