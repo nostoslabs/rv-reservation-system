@@ -47,8 +47,12 @@ async fn install_beta_update(app: tauri::AppHandle) -> Result<(), String> {
         .take()
         .ok_or("No pending beta update")?;
 
+    let app_handle = app.clone();
     update
-        .download_and_install(|_bytes, _total| {}, || {})
+        .download_and_install(
+            |_bytes, _total| {},
+            move || { app_handle.cleanup_before_exit(); },
+        )
         .await
         .map_err(|e| e.to_string())
 }
