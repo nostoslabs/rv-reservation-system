@@ -92,10 +92,12 @@
     }
   }
 
-  export function focus(): void {
-    dismissed = true;
-    dropdownOpen = false;
-    selectedIndex = -1;
+  export function focus(options?: { suppressDropdown?: boolean }): void {
+    if (options?.suppressDropdown) {
+      dismissed = true;
+      dropdownOpen = false;
+      selectedIndex = -1;
+    }
     inputEl?.focus();
   }
 </script>
