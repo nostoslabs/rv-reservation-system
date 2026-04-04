@@ -477,13 +477,11 @@
             </button>
           {:else if $updateState.downloading}
             <div class="update-status" data-testid="update-downloading">
-              {$siteSettingsStore.betaUpdates ? 'Installing beta update...' : `Downloading update... ${$updateState.downloadProgress}%`}
+              Downloading update... {$updateState.downloadProgress}%
             </div>
-            {#if !$siteSettingsStore.betaUpdates}
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: {$updateState.downloadProgress}%"></div>
-              </div>
-            {/if}
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: {$updateState.downloadProgress}%"></div>
+            </div>
           {:else if $updateState.available}
             <div class="update-status" data-testid="update-available">
               Update available: v{$updateState.available.version}
