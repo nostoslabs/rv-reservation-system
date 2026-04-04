@@ -557,6 +557,7 @@
         class="goto-date-input"
         bind:value={goToDateValue}
         on:change={handleGoToDate}
+        on:input={handleGoToDate}
         aria-label="Go to date"
         title="Jump to a specific date"
         data-testid="goto-date-input"
