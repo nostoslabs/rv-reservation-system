@@ -320,17 +320,19 @@
     return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
   }
 
-  async function alignToToday(): Promise<void> {
+  async function scrollToDate(targetDateIso: string): Promise<void> {
     await tick();
     if (!gridScroller) return;
-    const todayIndex = diffDays(gridStartDate, todayIso);
-    // Align today's column to the left edge of the visible date area.
-    // The sticky first column occupies FIRST_COLUMN_WIDTH, so the visible date area
-    // starts at scrollLeft = todayIndex * DATE_COLUMN_WIDTH.
-    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH;
+    const targetIndex = diffDays(gridStartDate, targetDateIso);
+    if (targetIndex < 0 || targetIndex >= TOTAL_DATE_COLUMNS) return;
+    const targetScrollLeft = targetIndex * DATE_COLUMN_WIDTH;
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
     updateVisibleColumns();
+  }
+
+  async function alignToToday(): Promise<void> {
+    await scrollToDate(todayIso);
   }
 
   function scrollWeek(direction: number): void {
@@ -402,6 +404,7 @@
   }
 
   async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
+    const isCreate = modalMode === 'create';
     const result = await saveReservationWithUndo(event.detail);
     if (!result.ok) {
       modalErrors = result.errors;
@@ -415,6 +418,10 @@
 
     closeModal();
     showToast('Reservation saved');
+
+    if (isCreate) {
+      await scrollToDate(event.detail.startDate);
+    }
   }
 
   async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
