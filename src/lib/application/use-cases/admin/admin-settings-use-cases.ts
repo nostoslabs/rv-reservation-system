@@ -27,6 +27,20 @@ export interface AdminSettingsUseCases {
 		enabled: boolean,
 		currentSettings: SiteSettings
 	): { ok: true; settings: SiteSettings };
+	setSiteColor(
+		locationName: string,
+		color: string | null,
+		currentSettings: SiteSettings
+	): { ok: true; settings: SiteSettings };
+	renameSiteColor(
+		oldName: string,
+		newName: string,
+		currentSettings: SiteSettings
+	): { ok: true; settings: SiteSettings };
+	removeSiteColor(
+		locationName: string,
+		currentSettings: SiteSettings
+	): { ok: true; settings: SiteSettings };
 }
 
 export function createAdminSettingsUseCases(
@@ -105,6 +119,48 @@ export function createAdminSettingsUseCases(
 			currentSettings: SiteSettings
 		): { ok: true; settings: SiteSettings } {
 			const saved = repo.save({ ...currentSettings, betaUpdates: enabled });
+			return { ok: true, settings: saved };
+		},
+
+		setSiteColor(
+			locationName: string,
+			color: string | null,
+			currentSettings: SiteSettings
+		): { ok: true; settings: SiteSettings } {
+			const colors = { ...(currentSettings.siteColors ?? {}) };
+			if (color) {
+				colors[locationName] = color;
+			} else {
+				delete colors[locationName];
+			}
+			const siteColors = Object.keys(colors).length > 0 ? colors : undefined;
+			const saved = repo.save({ ...currentSettings, siteColors });
+			return { ok: true, settings: saved };
+		},
+
+		renameSiteColor(
+			oldName: string,
+			newName: string,
+			currentSettings: SiteSettings
+		): { ok: true; settings: SiteSettings } {
+			const colors = { ...(currentSettings.siteColors ?? {}) };
+			if (oldName in colors) {
+				colors[newName] = colors[oldName];
+				delete colors[oldName];
+			}
+			const siteColors = Object.keys(colors).length > 0 ? colors : undefined;
+			const saved = repo.save({ ...currentSettings, siteColors });
+			return { ok: true, settings: saved };
+		},
+
+		removeSiteColor(
+			locationName: string,
+			currentSettings: SiteSettings
+		): { ok: true; settings: SiteSettings } {
+			const colors = { ...(currentSettings.siteColors ?? {}) };
+			delete colors[locationName];
+			const siteColors = Object.keys(colors).length > 0 ? colors : undefined;
+			const saved = repo.save({ ...currentSettings, siteColors });
 			return { ok: true, settings: saved };
 		}
 	};
