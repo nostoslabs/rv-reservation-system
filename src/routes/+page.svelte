@@ -1194,7 +1194,7 @@
   .date-header.today {
     background: rgba(10, 99, 224, 0.12);
     color: #0a63e0;
-    box-shadow: inset 0 -3px 0 0 #0a63e0;
+    box-shadow: inset 0 -4px 0 0 #0a63e0, inset 0 4px 0 0 #0a63e0;
   }
 
   .location-cell {
@@ -1231,8 +1231,19 @@
 
   .grid-cell.today {
     background: rgba(10, 99, 224, 0.05);
-    border-left: 1px solid rgba(10, 99, 224, 0.18);
-    border-right: 1px solid rgba(10, 99, 224, 0.18);
+    box-shadow: inset 3px 0 0 0 #0a63e0, inset -3px 0 0 0 #0a63e0;
+  }
+
+  .grid-cell.today::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: inset 3px 0 0 0 #0a63e0, inset -3px 0 0 0 #0a63e0;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .grid-cell.today:hover {
