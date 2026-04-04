@@ -3,15 +3,41 @@
 
   export let locations: string[] = [];
   export let reservationCounts: Record<string, number> = {};
+  export let siteColors: Record<string, string> = {};
   export let errorMessage = '';
+
+  const PRESET_COLORS = [
+    { hex: '#4477AA', label: 'Blue' },
+    { hex: '#EE6677', label: 'Rose' },
+    { hex: '#228833', label: 'Green' },
+    { hex: '#CCBB44', label: 'Yellow' },
+    { hex: '#66CCEE', label: 'Cyan' },
+    { hex: '#AA3377', label: 'Purple' },
+    { hex: '#EE8866', label: 'Orange' },
+    { hex: '#BBBBBB', label: 'Gray' },
+    { hex: '#44AA99', label: 'Teal' },
+    { hex: '#DDCC77', label: 'Sand' }
+  ];
 
   const dispatch = createEventDispatcher<{
     add: { name: string };
     rename: { oldName: string; newName: string };
     remove: { name: string };
     reorder: { orderedNames: string[] };
+    colorchange: { name: string; color: string | null };
     clearerror: void;
   }>();
+
+  let colorPickerOpen: string | null = null;
+
+  function toggleColorPicker(location: string): void {
+    colorPickerOpen = colorPickerOpen === location ? null : location;
+  }
+
+  function selectColor(location: string, color: string | null): void {
+    dispatch('colorchange', { name: location, color });
+    colorPickerOpen = null;
+  }
 
   let newLocationName = '';
   let openMenu: string | null = null;
@@ -73,6 +99,9 @@
     const target = event.target as HTMLElement;
     if (openMenu && !target.closest('.kebab-wrapper')) {
       openMenu = null;
+    }
+    if (colorPickerOpen && !target.closest('.color-picker-wrapper')) {
+      colorPickerOpen = null;
     }
   }
 
@@ -197,6 +226,41 @@
               on:pointerup={handlePointerUp}
             >&#x2630;</span>
             <span class="location-name">{location}</span>
+            <div class="color-picker-wrapper">
+              <button
+                type="button"
+                class="color-swatch-btn"
+                style={siteColors[location] ? `background-color: ${siteColors[location]}` : ''}
+                class:no-color={!siteColors[location]}
+                aria-label={`Set color for ${location}`}
+                title="Set row color"
+                on:click|stopPropagation={() => toggleColorPicker(location)}
+              >{siteColors[location] ? '' : '+'}</button>
+              {#if colorPickerOpen === location}
+                <div class="color-picker-dropdown" role="listbox" aria-label="Pick a color">
+                  {#each PRESET_COLORS as preset}
+                    <button
+                      type="button"
+                      class="color-option"
+                      class:selected={siteColors[location] === preset.hex}
+                      style="background-color: {preset.hex}"
+                      aria-label={preset.label}
+                      title={preset.label}
+                      on:click|stopPropagation={() => selectColor(location, preset.hex)}
+                    ></button>
+                  {/each}
+                  {#if siteColors[location]}
+                    <button
+                      type="button"
+                      class="color-option clear-color"
+                      aria-label="Clear color"
+                      title="Clear color"
+                      on:click|stopPropagation={() => selectColor(location, null)}
+                    >&times;</button>
+                  {/if}
+                </div>
+              {/if}
+            </div>
             <span class="count">{reservationCounts[location] ?? 0} reservations</span>
             <div class="kebab-wrapper">
               <button
@@ -341,7 +405,7 @@
 
   .location-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     gap: 0.4rem;
     align-items: center;
   }
@@ -450,9 +514,90 @@
     background: #fff0f0;
   }
 
+  /* Color picker */
+  .color-picker-wrapper {
+    position: relative;
+  }
+
+  .color-swatch-btn {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    border-radius: 6px;
+    border: 2px solid #d0d8e4;
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.8rem;
+    line-height: 1;
+    color: #8899b0;
+    display: grid;
+    place-items: center;
+    min-height: auto;
+  }
+
+  .color-swatch-btn:not(.no-color) {
+    border-color: rgba(0, 0, 0, 0.2);
+  }
+
+  .color-swatch-btn:hover {
+    border-color: #0a63e0;
+  }
+
+  .color-picker-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #d6deea;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(10, 24, 47, 0.14);
+    padding: 0.4rem;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.3rem;
+    z-index: 20;
+    min-width: 0;
+  }
+
+  .color-option {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: border-color 0.1s;
+  }
+
+  .color-option:hover {
+    border-color: #1b304a;
+  }
+
+  .color-option.selected {
+    border-color: #0a63e0;
+    box-shadow: 0 0 0 2px rgba(10, 99, 224, 0.3);
+  }
+
+  .color-option.clear-color {
+    background: white;
+    border: 2px dashed #c8d1de;
+    color: #8899b0;
+    font-size: 1rem;
+    display: grid;
+    place-items: center;
+  }
+
+  .color-option.clear-color:hover {
+    border-color: #d42a2a;
+    color: #d42a2a;
+  }
+
   @media (max-width: 900px) {
     .location-row {
-      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     }
 
     .count {

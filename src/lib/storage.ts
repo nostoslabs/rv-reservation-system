@@ -188,6 +188,19 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
     };
   }
 
+  if (raw.siteColors && typeof raw.siteColors === 'object' && !Array.isArray(raw.siteColors)) {
+    const sc = raw.siteColors as Record<string, unknown>;
+    const cleaned: Record<string, string> = {};
+    for (const [key, val] of Object.entries(sc)) {
+      if (typeof val === 'string' && val.trim()) {
+        cleaned[key] = val.trim();
+      }
+    }
+    if (Object.keys(cleaned).length > 0) {
+      result.siteColors = cleaned;
+    }
+  }
+
   return result;
 }
 
