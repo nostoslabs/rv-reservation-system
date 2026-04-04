@@ -27,7 +27,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxQjZGNDlFOUU1MkI0RTIKUldUaXRGS2VudlMyWWFMVHVDdWQ2ci9PRGI4MnZFWWgwSFp1MWVncUhBNTFSMU5nZ3MyVVJYcnkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQzQ0RGMDU2QjU5NTY4QUEKUldTcWFKVzFWdkROMDhKRlZjelhBeE9lRTMrQ1NMOEZtNDQ4eUQ1YnIvZklZWWdqWHMwVG1rVVEK",
       "endpoints": [
         "https://github.com/nostoslabs/rv-reservation-system/releases/latest/download/latest.json"
       ]
