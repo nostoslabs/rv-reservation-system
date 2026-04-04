@@ -603,6 +603,9 @@
                 <span class="search-result-name">{result.reservation.name}</span>
                 <span class="search-result-meta">
                   <span class="search-result-location">{result.reservation.parkingLocation}</span>
+                  {#if result.reservation.rvType}
+                    <span class="search-result-rvtype">{result.reservation.rvType}</span>
+                  {/if}
                   {#if result.reservation.phoneNumber}
                     <span class="search-result-phone">{result.reservation.phoneNumber}</span>
                   {/if}
@@ -1397,6 +1400,10 @@
 
   .search-result-location {
     font-weight: 600;
+  }
+
+  .search-result-rvtype {
+    color: #6b7d93;
   }
 
   .search-result-phone {
