@@ -87,7 +87,10 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 				date: string | null;
 				rawJson: Record<string, unknown>;
 			} | null>('check_beta_update', { endpoint });
-			if (!result) return null;
+			if (!result) {
+				pendingUpdate = null;
+				return null;
+			}
 			// Construct a standard Update object from the resource ID.
 			// This lets downloadAndInstall use the plugin's standard flow
 			// (proper progress events, on_before_exit, Windows process exit).
