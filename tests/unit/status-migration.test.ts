@@ -33,6 +33,7 @@ describe('isReservationStatus', () => {
 		expect(isReservationStatus('special')).toBe(true);
 		expect(isReservationStatus('alert')).toBe(true);
 		expect(isReservationStatus('maintenance')).toBe(true);
+		expect(isReservationStatus('no-show')).toBe(true);
 	});
 
 	it('returns false for invalid statuses', () => {
@@ -75,6 +76,10 @@ describe('STATUS_COLORS (Wong colorblind-safe palette)', () => {
 	it('maps maintenance to gray (#7B8A99)', () => {
 		expect(STATUS_COLORS['maintenance']).toBe('#7B8A99');
 	});
+
+	it('maps no-show to purple (#882255)', () => {
+		expect(STATUS_COLORS['no-show']).toBe('#882255');
+	});
 });
 
 describe('STATUS_BACKGROUND_COLORS', () => {
@@ -95,6 +100,7 @@ describe('STATUS_LABELS', () => {
 		expect(STATUS_LABELS['special']).toBe('Special');
 		expect(STATUS_LABELS['alert']).toBe('Alert');
 		expect(STATUS_LABELS['maintenance']).toBe('Maintenance');
+		expect(STATUS_LABELS['no-show']).toBe('No-Show');
 	});
 });
 
@@ -107,6 +113,7 @@ describe('getStatusColor', () => {
 		expect(getStatusColor('special')).toBe('#CC79A7');
 		expect(getStatusColor('alert')).toBe('#D55E00');
 		expect(getStatusColor('maintenance')).toBe('#7B8A99');
+		expect(getStatusColor('no-show')).toBe('#882255');
 	});
 });
 
