@@ -1231,7 +1231,6 @@
 
   .grid-cell.today {
     background: rgba(10, 99, 224, 0.05);
-    box-shadow: inset 3px 0 0 0 #0a63e0, inset -3px 0 0 0 #0a63e0;
   }
 
   .grid-cell.today::after {
