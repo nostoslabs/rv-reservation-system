@@ -86,9 +86,9 @@ test.describe('Today column indicator', () => {
 		await occupiedTodayCell.scrollIntoViewIfNeeded();
 
 		// The ::after pseudo-element adds box-shadow indicators that survive inline status styles.
-		// Verify the cell has box-shadow (set via ::after or directly on .grid-cell.today)
-		const cellShadow = await occupiedTodayCell.evaluate((el) => getComputedStyle(el).boxShadow);
-		expect(cellShadow).not.toBe('none');
+		// Verify the ::after pseudo-element has box-shadow
+		const afterShadow = await occupiedTodayCell.evaluate((el) => getComputedStyle(el, '::after').boxShadow);
+		expect(afterShadow).not.toBe('none');
 	});
 
 	test('screenshot: today column visible with occupied cells', async ({ page }) => {

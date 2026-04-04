@@ -443,32 +443,31 @@ test.describe('Book Again (issue #15)', () => {
 	});
 });
 
-test.describe('Status legend (7 statuses)', () => {
+test.describe('Status legend (8 statuses)', () => {
 	test.beforeEach(async ({ page }) => {
 		await resetApp(page);
 	});
 
-	test('status legend shows all 7 statuses with icons', async ({ page }) => {
+	test('status legend shows all 8 statuses with icons', async ({ page }) => {
 		const legend = page.locator('.status-legend');
 		await expect(legend).toBeVisible();
 
-		const expectedLabels = ['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance'];
+		const expectedLabels = ['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance', 'No-Show'];
 		for (const label of expectedLabels) {
 			await expect(legend.getByText(label)).toBeVisible();
 		}
 
-		// Verify the legend has exactly 7 items (one per status)
 		const legendItems = legend.locator('.legend-item');
-		await expect(legendItems).toHaveCount(7);
+		await expect(legendItems).toHaveCount(8);
 	});
 
-	test('reservation modal shows all 7 status options', async ({ page }) => {
+	test('reservation modal shows all 8 status options', async ({ page }) => {
 		await page.getByTestId('new-reservation-btn').click();
 		await expect(modal(page)).toBeVisible();
 
 		const statusSelect = modal(page).locator('select[aria-label="Reservation status"]');
 		const options = await statusSelect.locator('option').allTextContents();
-		expect(options).toEqual(['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance']);
+		expect(options).toEqual(['Reserved', 'Checked In', 'Group One', 'Group Two', 'Special', 'Alert', 'Maintenance', 'No-Show']);
 	});
 });
 
