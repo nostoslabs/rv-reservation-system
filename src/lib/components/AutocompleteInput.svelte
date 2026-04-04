@@ -94,6 +94,8 @@
 
   export function focus(): void {
     dismissed = true;
+    dropdownOpen = false;
+    selectedIndex = -1;
     inputEl?.focus();
   }
 </script>
