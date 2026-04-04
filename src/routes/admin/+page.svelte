@@ -142,7 +142,10 @@
     const result = await rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName);
     applyLocationMutation(result);
     if (result.ok) {
-      await siteSettingsStore.renameSiteColor(event.detail.oldName, event.detail.newName);
+      const colorResult = await siteSettingsStore.renameSiteColor(event.detail.oldName, event.detail.newName);
+      if (!colorResult.ok) {
+        locationPanelError = colorResult.errors?.[0] ?? 'Location renamed, but site color could not be updated.';
+      }
     }
   }
 
@@ -150,7 +153,10 @@
     const result = await rvReservationStore.deleteParkingLocation(event.detail.name);
     applyLocationMutation(result);
     if (result.ok) {
-      await siteSettingsStore.removeSiteColor(event.detail.name);
+      const colorResult = await siteSettingsStore.removeSiteColor(event.detail.name);
+      if (!colorResult.ok) {
+        console.error('Failed to remove site color:', colorResult.errors);
+      }
     }
   }
 
@@ -159,7 +165,10 @@
   }
 
   async function handleColorChange(event: CustomEvent<{ name: string; color: string | null }>): Promise<void> {
-    await siteSettingsStore.setSiteColor(event.detail.name, event.detail.color);
+    const result = await siteSettingsStore.setSiteColor(event.detail.name, event.detail.color);
+    if (!result.ok) {
+      locationPanelError = result.errors?.[0] ?? 'Failed to save site color.';
+    }
   }
 
   const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];

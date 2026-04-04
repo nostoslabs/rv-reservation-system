@@ -42,9 +42,18 @@ async function loadFromDb(db: Database): Promise<SiteSettings> {
 	const rawColors = map.get('site_colors');
 	if (rawColors) {
 		try {
+			const hexPattern = /^#[0-9a-f]{6}$/i;
 			const parsed = JSON.parse(rawColors);
 			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-				siteColors = parsed as Record<string, string>;
+				const cleaned: Record<string, string> = {};
+				for (const [k, v] of Object.entries(parsed)) {
+					if (typeof k === 'string' && k.trim() && typeof v === 'string' && hexPattern.test(v.trim())) {
+						cleaned[k.trim()] = v.trim();
+					}
+				}
+				if (Object.keys(cleaned).length > 0) {
+					siteColors = cleaned;
+				}
 			}
 		} catch { /* ignore invalid JSON */ }
 	}

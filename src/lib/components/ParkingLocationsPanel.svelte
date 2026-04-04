@@ -31,6 +31,7 @@
   let colorPickerOpen: string | null = null;
 
   function toggleColorPicker(location: string): void {
+    openMenu = null;
     colorPickerOpen = colorPickerOpen === location ? null : location;
   }
 
@@ -56,6 +57,7 @@
   }
 
   function toggleMenu(location: string): void {
+    colorPickerOpen = null;
     if (openMenu === location) {
       openMenu = null;
     } else {
@@ -237,7 +239,7 @@
                 on:click|stopPropagation={() => toggleColorPicker(location)}
               >{siteColors[location] ? '' : '+'}</button>
               {#if colorPickerOpen === location}
-                <div class="color-picker-dropdown" role="listbox" aria-label="Pick a color">
+                <div class="color-picker-dropdown" role="group" aria-label="Pick a color">
                   {#each PRESET_COLORS as preset}
                     <button
                       type="button"
