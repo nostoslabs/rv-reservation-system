@@ -326,8 +326,8 @@
   async function scrollToDate(targetDateIso: string): Promise<void> {
     await tick();
     if (!gridScroller) return;
-    const targetIndex = diffDays(gridStartDate, targetDateIso);
-    if (targetIndex < 0 || targetIndex >= TOTAL_DATE_COLUMNS) return;
+    const rawIndex = diffDays(gridStartDate, targetDateIso);
+    const targetIndex = Math.min(Math.max(0, rawIndex), TOTAL_DATE_COLUMNS - 1);
     const targetScrollLeft = targetIndex * DATE_COLUMN_WIDTH;
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
