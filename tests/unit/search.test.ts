@@ -127,6 +127,47 @@ describe('filterReservations', () => {
 		expect(results[0].reservation.name).toBe('Bob Smith');
 	});
 
+	describe('RV type search', () => {
+		const rvTypeReservations: Reservation[] = [
+			makeReservation({ index: 1, name: 'Guest A', rvType: 'Fifth Wheel' }),
+			makeReservation({ index: 2, name: 'Guest B', rvType: 'Class A' }),
+			makeReservation({ index: 3, name: 'Guest C', rvType: 'Fifth Wheel' }),
+			makeReservation({ index: 4, name: 'Guest D', rvType: '' })
+		];
+
+		it('matches RV type case-insensitively', () => {
+			const results = filterReservations(rvTypeReservations, 'fifth');
+			const names = results.map((r) => r.reservation.name);
+			expect(names).toContain('Guest A');
+			expect(names).toContain('Guest C');
+			expect(names).not.toContain('Guest B');
+		});
+
+		it('ranks exact RV type match above partial', () => {
+			const results = filterReservations(rvTypeReservations, 'Class A');
+			expect(results[0].reservation.name).toBe('Guest B');
+			expect(results[0].score).toBe(0);
+		});
+
+		it('ranks startsWith above contains for RV type', () => {
+			const reservations = [
+				makeReservation({ index: 1, name: 'G1', rvType: 'Travel Trailer' }),
+				makeReservation({ index: 2, name: 'G2', rvType: 'Big Travel' })
+			];
+			const results = filterReservations(reservations, 'Travel');
+			expect(results[0].reservation.rvType).toBe('Travel Trailer');
+			expect(results[0].score).toBe(1);
+			expect(results[1].reservation.rvType).toBe('Big Travel');
+			expect(results[1].score).toBe(2);
+		});
+
+		it('does not match reservations with empty RV type', () => {
+			const results = filterReservations(rvTypeReservations, 'Fifth');
+			const names = results.map((r) => r.reservation.name);
+			expect(names).not.toContain('Guest D');
+		});
+	});
+
 	describe('phone number search', () => {
 		const phoneReservations: Reservation[] = [
 			makeReservation({ index: 1, name: 'Guest A', phoneNumber: '(555) 123-4567' }),

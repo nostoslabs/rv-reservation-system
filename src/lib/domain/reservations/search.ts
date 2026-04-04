@@ -15,7 +15,7 @@ function stripNonDigits(value: string): string {
 
 /**
  * Filter reservations by a search query, matching against guest name, parking location,
- * and phone number.
+ * RV type, and phone number.
  * Returns results sorted by relevance: exact match first, then startsWith, then contains.
  * Within the same relevance tier, results are sorted alphabetically by guest name.
  *
@@ -54,6 +54,18 @@ export function filterReservations(
 			bestScore = Math.min(bestScore, 1);
 		} else if (lowerLocation.includes(lowerQuery)) {
 			bestScore = Math.min(bestScore, 2);
+		}
+
+		// Check RV type
+		if (reservation.rvType) {
+			const lowerRvType = reservation.rvType.toLowerCase();
+			if (lowerRvType === lowerQuery) {
+				bestScore = Math.min(bestScore, 0);
+			} else if (lowerRvType.startsWith(lowerQuery)) {
+				bestScore = Math.min(bestScore, 1);
+			} else if (lowerRvType.includes(lowerQuery)) {
+				bestScore = Math.min(bestScore, 2);
+			}
 		}
 
 		// Check phone number (digits-only comparison for flexible matching)
