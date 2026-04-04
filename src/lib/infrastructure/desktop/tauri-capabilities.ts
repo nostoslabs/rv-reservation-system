@@ -106,19 +106,6 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 				body: result.body
 			};
 		},
-		async installBetaUpdate(): Promise<boolean> {
-			// Beta installs use the same path as stable — the Update object
-			// is in the plugin's resource table, so downloadAndInstall works.
-			if (!pendingUpdate) return false;
-			try {
-				await pendingUpdate.downloadAndInstall();
-				pendingUpdate = null;
-				return true;
-			} catch (err) {
-				console.error('Beta update install failed:', err);
-				return false;
-			}
-		},
 		async downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean> {
 			if (!pendingUpdate) return false;
 			try {

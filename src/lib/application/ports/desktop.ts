@@ -50,9 +50,6 @@ export interface DesktopCapabilities {
 	/** Download and install an available update. Returns true on success. */
 	downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean>;
 
-	/** Download and install a pending beta update. Returns true on success. */
-	installBetaUpdate(): Promise<boolean>;
-
 	/** Relaunch the application after an update has been installed. */
 	relaunch(): Promise<void>;
 }

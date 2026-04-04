@@ -41,9 +41,6 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 		async downloadAndInstallUpdate() {
 			return false;
 		},
-		async installBetaUpdate() {
-			return false;
-		},
 		async relaunch() {},
 		async openFile(filters?: FileFilter[]): Promise<string | null> {
 			return new Promise((resolve) => {
