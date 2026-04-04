@@ -15,8 +15,8 @@ import { RESERVATION_STATUSES } from '$lib/types';
 import { sanitizeReservation } from '$lib/storage';
 
 describe('ReservationStatus type', () => {
-	it('defines exactly seven statuses', () => {
-		expect(RESERVATION_STATUSES).toEqual(['reserved', 'checked-in', 'group-one', 'group-two', 'special', 'alert', 'maintenance']);
+	it('defines exactly eight statuses', () => {
+		expect(RESERVATION_STATUSES).toEqual(['reserved', 'checked-in', 'group-one', 'group-two', 'special', 'alert', 'maintenance', 'no-show']);
 	});
 
 	it('default status is reserved', () => {
