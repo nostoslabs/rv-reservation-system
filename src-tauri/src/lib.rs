@@ -1,20 +1,24 @@
-use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_updater::UpdaterExt;
 
-struct BetaUpdate(Mutex<Option<tauri_plugin_updater::Update>>);
-
 #[derive(serde::Serialize)]
-struct BetaUpdateInfo {
+struct BetaUpdateMetadata {
+    rid: u32,
     version: String,
+    #[serde(rename = "currentVersion")]
+    current_version: String,
     body: Option<String>,
+    date: Option<String>,
+    #[serde(rename = "rawJson")]
+    raw_json: serde_json::Value,
 }
 
 #[tauri::command]
 async fn check_beta_update(
-    app: tauri::AppHandle,
+    webview: tauri::WebviewWindow,
     endpoint: String,
-) -> Result<Option<BetaUpdateInfo>, String> {
+) -> Result<Option<BetaUpdateMetadata>, String> {
+    let app = webview.app_handle().clone();
     let url: url::Url = endpoint.parse().map_err(|e: url::ParseError| e.to_string())?;
     let updater = app
         .updater_builder()
@@ -26,35 +30,21 @@ async fn check_beta_update(
     let update = updater.check().await.map_err(|e| e.to_string())?;
     match update {
         Some(update) => {
-            let info = BetaUpdateInfo {
+            let metadata = BetaUpdateMetadata {
+                rid: 0, // placeholder, set below
                 version: update.version.clone(),
+                current_version: update.current_version.clone(),
                 body: update.body.clone(),
+                date: update.date.map(|d| d.to_string()),
+                raw_json: update.raw_json.clone(),
             };
-            *app.state::<BetaUpdate>().0.lock().unwrap() = Some(update);
-            Ok(Some(info))
+            // Store in the webview's resource table so the standard
+            // plugin:updater|download_and_install command can find it.
+            let rid = webview.resources_table().add(update);
+            Ok(Some(BetaUpdateMetadata { rid, ..metadata }))
         }
         None => Ok(None),
     }
-}
-
-#[tauri::command]
-async fn install_beta_update(app: tauri::AppHandle) -> Result<(), String> {
-    let update = app
-        .state::<BetaUpdate>()
-        .0
-        .lock()
-        .unwrap()
-        .take()
-        .ok_or("No pending beta update")?;
-
-    let app_handle = app.clone();
-    update
-        .download_and_install(
-            |_bytes, _total| {},
-            move || { app_handle.cleanup_before_exit(); },
-        )
-        .await
-        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -67,11 +57,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .manage(BetaUpdate(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![
-            check_beta_update,
-            install_beta_update
-        ]);
+        .invoke_handler(tauri::generate_handler![check_beta_update]);
 
     #[cfg(feature = "mcp")]
     {
