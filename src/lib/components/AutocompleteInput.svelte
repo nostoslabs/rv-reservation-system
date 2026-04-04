@@ -93,6 +93,7 @@
   }
 
   export function focus(): void {
+    dismissed = true;
     inputEl?.focus();
   }
 </script>
