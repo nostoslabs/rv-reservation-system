@@ -12,7 +12,8 @@ export const STATUS_COLORS: Record<ReservationStatus, string> = {
 	'group-two': '#F0E442',
 	'special': '#CC79A7',
 	'alert': '#D55E00',
-	'maintenance': '#7B8A99'
+	'maintenance': '#7B8A99',
+	'no-show': '#882255'
 };
 
 export const STATUS_BACKGROUND_COLORS: Record<ReservationStatus, string> = {
@@ -22,7 +23,8 @@ export const STATUS_BACKGROUND_COLORS: Record<ReservationStatus, string> = {
 	'group-two': '#d4cf40',
 	'special': '#d49abe',
 	'alert': '#e08a65',
-	'maintenance': '#a8b2be'
+	'maintenance': '#a8b2be',
+	'no-show': '#c49aaf'
 };
 
 export const STATUS_PATTERNS: Record<ReservationStatus, string> = {
@@ -32,7 +34,8 @@ export const STATUS_PATTERNS: Record<ReservationStatus, string> = {
 	'group-two': 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.07) 4px, rgba(0,0,0,0.07) 6px), repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.07) 4px, rgba(0,0,0,0.07) 6px)',
 	'special': 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.08) 4px, rgba(0,0,0,0.08) 6px)',
 	'alert': 'repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.10) 3px, rgba(0,0,0,0.10) 5px)',
-	'maintenance': 'repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.08) 4px, rgba(0,0,0,0.08) 6px)'
+	'maintenance': 'repeating-linear-gradient(90deg, transparent, transparent 4px, rgba(0,0,0,0.08) 4px, rgba(0,0,0,0.08) 6px)',
+	'no-show': 'repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 5px)'
 };
 
 export const STATUS_PATTERN_SIZES: Record<ReservationStatus, string> = {
@@ -42,7 +45,8 @@ export const STATUS_PATTERN_SIZES: Record<ReservationStatus, string> = {
 	'group-two': 'auto',
 	'special': 'auto',
 	'alert': 'auto',
-	'maintenance': 'auto'
+	'maintenance': 'auto',
+	'no-show': 'auto'
 };
 
 export const STATUS_ICONS: Record<ReservationStatus, string> = {
@@ -52,7 +56,8 @@ export const STATUS_ICONS: Record<ReservationStatus, string> = {
 	'group-two': '\u{1F46A}',
 	'special': '\u2B50',
 	'alert': '\u26A0\uFE0F',
-	'maintenance': '\u{1F527}'
+	'maintenance': '\u{1F527}',
+	'no-show': '\u{274C}'
 };
 
 export const STATUS_LABELS: Record<ReservationStatus, string> = {
@@ -62,7 +67,8 @@ export const STATUS_LABELS: Record<ReservationStatus, string> = {
 	'group-two': 'Group Two',
 	'special': 'Special',
 	'alert': 'Alert',
-	'maintenance': 'Maintenance'
+	'maintenance': 'Maintenance',
+	'no-show': 'No-Show'
 };
 
 export function isReservationStatus(value: string): value is ReservationStatus {
