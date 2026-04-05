@@ -752,7 +752,7 @@
           <tbody>
             {#each $rvReservationStore.parkingLocations as location}
               {@const siteColor = $siteSettingsStore.siteColors?.[location]}
-              <tr>
+              <tr style={siteColor ? `background-color: ${siteColor}25` : ''}>
                 <th
                   class="sticky-col location-cell"
                   scope="row"
@@ -766,10 +766,9 @@
                   {@const reservation = occupancyMap.get(cellId)}
                   {@const isDragSource = dragState?.started && reservation?.index === dragState.reservation.index}
                   {@const isDragPreview = dragPreviewCells.has(cellId)}
-                  {@const emptyCellStyle = !reservation && siteColor ? `background-color: ${siteColor}1A` : ''}
                   <td
-                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''}`}
-                    style={reservation && !isDragSource ? getStatusCellStyle(reservation.status) : emptyCellStyle}
+                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''} ${siteColor && !reservation ? 'has-site-color' : ''}`}
+                    style={reservation && !isDragSource ? getStatusCellStyle(reservation.status) : ''}
                     on:click={(e) => openModalForCell(location, dateIso, e)}
                     on:pointerdown={(e) => handleCellPointerDown(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
@@ -1276,6 +1275,10 @@
     cursor: pointer;
     user-select: none;
     position: relative;
+  }
+
+  .grid-cell.has-site-color {
+    background: transparent;
   }
 
   .grid-cell:hover {
