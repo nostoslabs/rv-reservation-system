@@ -502,6 +502,17 @@
     await alignToToday();
   }
 
+  /** Blend a #RRGGBB hex color with white at a given ratio (0–1) to produce an opaque color. */
+  function tintHex(hex: string, ratio: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const tr = Math.round(r + (255 - r) * (1 - ratio));
+    const tg = Math.round(g + (255 - g) * (1 - ratio));
+    const tb = Math.round(b + (255 - b) * (1 - ratio));
+    return `#${tr.toString(16).padStart(2, '0')}${tg.toString(16).padStart(2, '0')}${tb.toString(16).padStart(2, '0')}`;
+  }
+
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
@@ -756,7 +767,7 @@
                 <th
                   class="sticky-col location-cell"
                   scope="row"
-                  style={siteColor ? `background-color: ${siteColor}30; border-left: 3px solid ${siteColor}` : ''}
+                  style={siteColor ? `background-color: ${tintHex(siteColor, 0.2)}; border-left: 3px solid ${siteColor}` : ''}
                 >{location}</th>
                 {#if leftSpacerWidth > 0}
                   <td class="spacer-cell" aria-hidden="true"></td>
