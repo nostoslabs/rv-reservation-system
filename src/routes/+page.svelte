@@ -756,7 +756,7 @@
                 <th
                   class="sticky-col location-cell"
                   scope="row"
-                  style={siteColor ? `background-color: ${siteColor}18; border-left: 3px solid ${siteColor}` : ''}
+                  style={siteColor ? `background-color: ${siteColor}30; border-left: 3px solid ${siteColor}` : ''}
                 >{location}</th>
                 {#if leftSpacerWidth > 0}
                   <td class="spacer-cell" aria-hidden="true"></td>
@@ -766,7 +766,7 @@
                   {@const reservation = occupancyMap.get(cellId)}
                   {@const isDragSource = dragState?.started && reservation?.index === dragState.reservation.index}
                   {@const isDragPreview = dragPreviewCells.has(cellId)}
-                  {@const emptyCellStyle = !reservation && siteColor ? `background-color: ${siteColor}0D` : ''}
+                  {@const emptyCellStyle = !reservation && siteColor ? `background-color: ${siteColor}1A` : ''}
                   <td
                     class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''}`}
                     style={reservation && !isDragSource ? getStatusCellStyle(reservation.status) : emptyCellStyle}

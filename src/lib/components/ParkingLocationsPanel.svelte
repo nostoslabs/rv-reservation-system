@@ -227,42 +227,44 @@
               on:pointermove={handlePointerMove}
               on:pointerup={handlePointerUp}
             >&#x2630;</span>
-            <span class="location-name">{location}</span>
             <div class="color-picker-wrapper">
               <button
                 type="button"
                 class="color-swatch-btn"
                 style={siteColors[location] ? `background-color: ${siteColors[location]}` : ''}
                 class:no-color={!siteColors[location]}
-                aria-label={`Set color for ${location}`}
-                title="Set row color"
+                aria-label={`Set row color for ${location}`}
                 on:click|stopPropagation={() => toggleColorPicker(location)}
-              >{siteColors[location] ? '' : '+'}</button>
+              >
+                <span class="swatch-fill"></span>
+              </button>
               {#if colorPickerOpen === location}
                 <div class="color-picker-dropdown" role="group" aria-label="Pick a color">
-                  {#each PRESET_COLORS as preset}
-                    <button
-                      type="button"
-                      class="color-option"
-                      class:selected={siteColors[location] === preset.hex}
-                      style="background-color: {preset.hex}"
-                      aria-label={preset.label}
-                      title={preset.label}
-                      on:click|stopPropagation={() => selectColor(location, preset.hex)}
-                    ></button>
-                  {/each}
-                  {#if siteColors[location]}
+                  <span class="picker-label">Row color</span>
+                  <div class="picker-grid">
+                    {#each PRESET_COLORS as preset}
+                      <button
+                        type="button"
+                        class="color-option"
+                        class:selected={siteColors[location] === preset.hex}
+                        style="background-color: {preset.hex}"
+                        aria-label={preset.label}
+                        title={preset.label}
+                        on:click|stopPropagation={() => selectColor(location, preset.hex)}
+                      ></button>
+                    {/each}
                     <button
                       type="button"
                       class="color-option clear-color"
-                      aria-label="Clear color"
-                      title="Clear color"
+                      aria-label="No color"
+                      title="No color"
                       on:click|stopPropagation={() => selectColor(location, null)}
                     >&times;</button>
-                  {/if}
+                  </div>
                 </div>
               {/if}
             </div>
+            <span class="location-name">{location}</span>
             <span class="count">{reservationCounts[location] ?? 0} reservations</span>
             <div class="kebab-wrapper">
               <button
@@ -519,47 +521,69 @@
   /* Color picker */
   .color-picker-wrapper {
     position: relative;
+    display: flex;
+    align-items: stretch;
   }
 
   .color-swatch-btn {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    border-radius: 6px;
-    border: 2px solid #d0d8e4;
+    width: 8px;
+    min-width: 8px;
+    border-radius: 4px;
+    border: none;
     cursor: pointer;
     padding: 0;
-    font-size: 0.8rem;
-    line-height: 1;
-    color: #8899b0;
-    display: grid;
-    place-items: center;
-    min-height: auto;
+    min-height: 28px;
+    transition: width 0.15s, background-color 0.15s;
   }
 
-  .color-swatch-btn:not(.no-color) {
-    border-color: rgba(0, 0, 0, 0.2);
+  .color-swatch-btn .swatch-fill {
+    display: none;
+  }
+
+  .color-swatch-btn.no-color {
+    background: #d8dfeb;
+    width: 6px;
+    min-width: 6px;
   }
 
   .color-swatch-btn:hover {
-    border-color: #0a63e0;
+    width: 12px;
+    min-width: 12px;
+    filter: brightness(0.85);
+  }
+
+  .color-swatch-btn.no-color:hover {
+    background: #0a63e0;
   }
 
   .color-picker-dropdown {
     position: absolute;
-    top: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
+    top: calc(100% + 6px);
+    left: -4px;
     background: white;
     border: 1px solid #d6deea;
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(10, 24, 47, 0.14);
-    padding: 0.4rem;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.3rem;
+    padding: 0.5rem;
     z-index: 20;
+    display: grid;
+    gap: 0.35rem;
     min-width: 0;
+  }
+
+  .picker-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #5a6f87;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0 0.1rem;
+  }
+
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.3rem;
   }
 
   .color-option {
@@ -571,11 +595,12 @@
     border: 2px solid transparent;
     cursor: pointer;
     padding: 0;
-    transition: border-color 0.1s;
+    transition: border-color 0.1s, transform 0.1s;
   }
 
   .color-option:hover {
     border-color: #1b304a;
+    transform: scale(1.1);
   }
 
   .color-option.selected {
@@ -584,10 +609,10 @@
   }
 
   .color-option.clear-color {
-    background: white;
+    background: #f4f7fc;
     border: 2px dashed #c8d1de;
     color: #8899b0;
-    font-size: 1rem;
+    font-size: 0.9rem;
     display: grid;
     place-items: center;
   }
