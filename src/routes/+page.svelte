@@ -66,6 +66,7 @@
   }
 
   function handleGridScroll(): void {
+    if (contextMenu) contextMenu = null;
     if (rafPending) return;
     rafPending = true;
     requestAnimationFrame(() => {
@@ -96,6 +97,44 @@
 
   // Go To Date state
   let goToDateValue = '';
+
+  // Context menu state
+  let contextMenu: { reservation: Reservation; x: number; y: number } | null = null;
+
+  function handleCellContextMenu(location: string, dateIso: string, event: MouseEvent): void {
+    const reservation = occupancyMap.get(buildCellId(location, dateIso));
+    if (!reservation) return;
+    event.preventDefault();
+    contextMenu = { reservation, x: event.clientX, y: event.clientY };
+  }
+
+  async function handleContextMenuStatusChange(status: ReservationStatus): Promise<void> {
+    if (!contextMenu) return;
+    const res = contextMenu.reservation;
+    contextMenu = null;
+    const result = await saveReservationWithUndo({
+      index: res.index,
+      name: res.name,
+      rvType: res.rvType,
+      phoneNumber: res.phoneNumber,
+      notes: res.notes,
+      startDate: res.startDate,
+      endDate: res.endDate,
+      parkingLocation: res.parkingLocation,
+      color: res.color,
+      status,
+      customerId: res.customerId
+    });
+    if (result.ok) {
+      showToast(`Status changed to ${STATUS_LABELS[status]}`);
+    } else {
+      showToast(result.errors?.[0] ?? 'Failed to update status');
+    }
+  }
+
+  function closeContextMenu(): void {
+    contextMenu = null;
+  }
 
   // Search state
   let searchQuery = '';
@@ -280,11 +319,17 @@
   }
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && dragState?.started) {
-      dragState = null;
-      dragPreviewCells = new Set();
-      dragHasOverlap = false;
-      dragEndedAt = Date.now();
+    if (event.key === 'Escape') {
+      if (contextMenu) {
+        contextMenu = null;
+        return;
+      }
+      if (dragState?.started) {
+        dragState = null;
+        dragPreviewCells = new Set();
+        dragHasOverlap = false;
+        dragEndedAt = Date.now();
+      }
     }
   }
 
@@ -782,6 +827,7 @@
                     style={reservation && !isDragSource ? getStatusCellStyle(reservation.status) : ''}
                     on:click={(e) => openModalForCell(location, dateIso, e)}
                     on:pointerdown={(e) => handleCellPointerDown(location, dateIso, e)}
+                    on:contextmenu={(e) => handleCellContextMenu(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
                     {#if reservation && !isDragSource}
@@ -807,6 +853,32 @@
 
 {#if toastVisible}
   <div class="toast" role="status" aria-live="polite">{toastMessage}</div>
+{/if}
+
+{#if contextMenu}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <div class="context-menu-backdrop" on:click={closeContextMenu}>
+    <div
+      class="context-menu"
+      style="left: {contextMenu.x}px; top: {contextMenu.y}px"
+      role="menu"
+    >
+      <div class="context-menu-header">{contextMenu.reservation.name}</div>
+      {#each RESERVATION_STATUSES as statusValue}
+        <button
+          type="button"
+          class="context-menu-item"
+          class:active={contextMenu.reservation.status === statusValue}
+          role="menuitem"
+          on:click={() => handleContextMenuStatusChange(statusValue)}
+        >
+          <span class="context-menu-swatch" style={getStatusSwatchStyle(statusValue)}></span>
+          <span class="context-menu-icon">{STATUS_ICONS[statusValue]}</span>
+          <span>{STATUS_LABELS[statusValue]}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
 {/if}
 
 <ReservationModal
@@ -1510,6 +1582,81 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Context menu */
+  .context-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+  }
+
+  .context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #d6deea;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(10, 24, 47, 0.16);
+    padding: 0.3rem;
+    min-width: 11rem;
+    z-index: 91;
+    animation: context-menu-in 0.1s ease-out;
+  }
+
+  @keyframes context-menu-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .context-menu-header {
+    padding: 0.4rem 0.55rem 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #5a6f87;
+    border-bottom: 1px solid #eef2f7;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.4rem 0.55rem;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: #1b304a;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+    min-height: 36px;
+  }
+
+  .context-menu-item:hover {
+    background: #eef3fb;
+  }
+
+  .context-menu-item.active {
+    background: #e0ebf9;
+    font-weight: 600;
+  }
+
+  .context-menu-swatch {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .context-menu-icon {
+    font-size: 0.75em;
+    flex-shrink: 0;
   }
 
   @media (max-width: 1100px) {
