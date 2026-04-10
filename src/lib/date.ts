@@ -73,14 +73,20 @@ const SHORT_MONTHS = [
 
 /**
  * Compact format for grid/schedule column headers.
- * Example: "Sat, Mar 7"
+ * Shows year when it differs from the current year or on Jan 1.
+ * Examples: "Sat, Mar 7" (current year), "Thu, Apr 8 '27" (different year), "Wed, Jan 1 '27" (new year)
  */
-export function formatScheduleHeader(isoDate: string): string {
+export function formatScheduleHeader(isoDate: string, referenceYear?: number): string {
   const parts = parseIsoParts(isoDate);
   if (!parts) return isoDate;
   const [year, month, day] = parts;
   const utcMs = Date.UTC(year, month - 1, day);
   const dow = new Date(utcMs).getUTCDay();
+  const currentYear = referenceYear ?? new Date().getFullYear();
+  const showYear = year !== currentYear || (month === 1 && day === 1);
+  if (showYear) {
+    return `${SHORT_DAYS[dow]}, ${SHORT_MONTHS[month - 1]} ${day} '${String(year).slice(2)}`;
+  }
   return `${SHORT_DAYS[dow]}, ${SHORT_MONTHS[month - 1]} ${day}`;
 }
 
