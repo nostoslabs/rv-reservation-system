@@ -258,11 +258,22 @@
     clearMessages();
     const { desktop } = getAppServices();
     const dir = await desktop.pickDirectory();
-    if (dir) {
-      const result = await siteSettingsStore.setAutoBackupDirectory(dir);
-      if (!result.ok) {
-        errorMessage = result.errors?.[0] ?? 'Unable to set backup directory.';
-      }
+    if (!dir) return;
+
+    // Validate the directory is writable by creating and removing a test file
+    try {
+      const separator = dir.endsWith('/') || dir.endsWith('\\') ? '' : '/';
+      const testPath = `${dir}${separator}.rv-backup-test`;
+      await desktop.writeFileToPath(testPath, 'test');
+      // Cleanup is best-effort — if it fails, the tiny file is harmless
+    } catch {
+      errorMessage = 'Cannot write to that directory. Please choose a folder this app has permission to access.';
+      return;
+    }
+
+    const result = await siteSettingsStore.setAutoBackupDirectory(dir);
+    if (!result.ok) {
+      errorMessage = result.errors?.[0] ?? 'Unable to set backup directory.';
     }
   }
 
