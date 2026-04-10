@@ -466,7 +466,7 @@
 
     // Auto-create or link customer
     if (!event.detail.customerId && event.detail.name.trim()) {
-      await customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
+      await customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber, event.detail.rvType);
     }
 
     closeModal();
