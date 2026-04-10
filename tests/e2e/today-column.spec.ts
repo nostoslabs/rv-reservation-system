@@ -91,19 +91,21 @@ test.describe('Today column indicator', () => {
 		expect(afterShadow).not.toBe('none');
 	});
 
-	test('screenshot: today column visible with occupied cells', async ({ page }) => {
+	test('today column is visually distinct when all rows are occupied', async ({ page }) => {
 		const today = offsetDate(0);
 		const endDate = offsetDate(2);
 
-		// Fill several rows on today
 		await createReservation(page, { name: 'Guest A', startDate: today, endDate, rowIndex: 0 });
 		await createReservation(page, { name: 'Guest B', startDate: today, endDate, rowIndex: 1 });
 		await createReservation(page, { name: 'Guest C', startDate: today, endDate, rowIndex: 2 });
 
-		// Scroll to today
 		await page.click('[data-testid="today-button"]');
 		await page.waitForTimeout(300);
 
-		await page.screenshot({ path: 'screenshots/today-column-indicator.png', fullPage: false });
+		// Verify the today header is still visually distinct
+		const todayHeader = page.locator('th.date-header.today');
+		await expect(todayHeader).toBeVisible();
+		const headerBg = await todayHeader.evaluate((el) => getComputedStyle(el).backgroundColor);
+		expect(headerBg).not.toBe('rgb(255, 255, 255)');
 	});
 });

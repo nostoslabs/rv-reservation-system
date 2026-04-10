@@ -156,7 +156,7 @@
     if (result.ok) {
       const colorResult = await siteSettingsStore.removeSiteColor(event.detail.name);
       if (!colorResult.ok) {
-        console.error('Failed to remove site color:', colorResult.errors);
+        locationPanelError = colorResult.errors?.[0] ?? 'Location deleted, but site color could not be removed.';
       }
     }
   }
@@ -167,7 +167,9 @@
 
   async function handleColorChange(event: CustomEvent<{ name: string; color: string | null }>): Promise<void> {
     const result = await siteSettingsStore.setSiteColor(event.detail.name, event.detail.color);
-    if (!result.ok) {
+    if (result.ok) {
+      locationPanelError = '';
+    } else {
       locationPanelError = result.errors?.[0] ?? 'Failed to save site color.';
     }
   }

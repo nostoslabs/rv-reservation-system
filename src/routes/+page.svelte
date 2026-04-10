@@ -613,7 +613,6 @@
         class="goto-date-input"
         bind:value={goToDateValue}
         on:change={handleGoToDate}
-        on:input={handleGoToDate}
         aria-label="Go to date"
         title="Jump to a specific date"
         data-testid="goto-date-input"
@@ -856,8 +855,14 @@
 {/if}
 
 {#if contextMenu}
-  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-  <div class="context-menu-backdrop" on:click={closeContextMenu}>
+  <div
+    class="context-menu-backdrop"
+    role="button"
+    tabindex="0"
+    aria-label="Close context menu"
+    on:click={closeContextMenu}
+    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeContextMenu(); } }}
+  >
     <div
       class="context-menu"
       style="left: {contextMenu.x}px; top: {contextMenu.y}px"
