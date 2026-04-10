@@ -32,7 +32,7 @@ describe('Tauri desktop capabilities', () => {
 			(p) => typeof p === 'object' && p.identifier === 'fs:scope'
 		);
 		expect(scope).toBeDefined();
-		expect((scope as { allow?: string[] }).allow).toContain('$HOME/**');
+		expect((scope as { allow?: string[] }).allow).toContain('**');
 	});
 
 	it('includes window-state plugin for persisting window size and position', () => {

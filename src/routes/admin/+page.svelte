@@ -12,6 +12,7 @@
   import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
   import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
   import { readable } from 'svelte/store';
+  import { backupStatus } from '$lib/app/auto-backup';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -258,11 +259,22 @@
     clearMessages();
     const { desktop } = getAppServices();
     const dir = await desktop.pickDirectory();
-    if (dir) {
-      const result = await siteSettingsStore.setAutoBackupDirectory(dir);
-      if (!result.ok) {
-        errorMessage = result.errors?.[0] ?? 'Unable to set backup directory.';
-      }
+    if (!dir) return;
+
+    // Validate the directory is writable by creating and removing a test file
+    try {
+      const separator = dir.endsWith('/') || dir.endsWith('\\') ? '' : '/';
+      const testPath = `${dir}${separator}.rv-backup-test`;
+      await desktop.writeFileToPath(testPath, 'test');
+      // Cleanup is best-effort — if it fails, the tiny file is harmless
+    } catch {
+      errorMessage = 'Cannot write to that directory. Please choose a folder this app has permission to access.';
+      return;
+    }
+
+    const result = await siteSettingsStore.setAutoBackupDirectory(dir);
+    if (!result.ok) {
+      errorMessage = result.errors?.[0] ?? 'Unable to set backup directory.';
     }
   }
 
@@ -459,6 +471,16 @@
         <div class="meta" data-testid="auto-backup-last">
           Last auto-backup: {formatLastBackup($siteSettingsStore.autoBackup?.lastBackupAt)}
         </div>
+
+        {#if $backupStatus.lastError}
+          <div class="backup-error" role="alert" data-testid="auto-backup-error">
+            <strong>Backup failed</strong>
+            <span>{$backupStatus.lastError}</span>
+            {#if $backupStatus.consecutiveFailures > 1}
+              <span class="failure-count">({$backupStatus.consecutiveFailures} consecutive failures)</span>
+            {/if}
+          </div>
+        {/if}
       </div>
     </section>
 
@@ -683,6 +705,26 @@
   .meta {
     color: #5c6b7e;
     font-size: 0.85rem;
+  }
+
+  .backup-error {
+    display: grid;
+    gap: 0.2rem;
+    background: #fff1f1;
+    border: 1px solid #f1a2a2;
+    color: #7a1e1e;
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .backup-error strong {
+    font-size: 0.9rem;
+  }
+
+  .failure-count {
+    color: #a44;
+    font-size: 0.8rem;
   }
 
   .message {

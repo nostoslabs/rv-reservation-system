@@ -81,9 +81,9 @@ function createCustomerStore() {
 		return customerUseCases.getById(id);
 	}
 
-	async function findOrCreateFromReservation(name: string, phone: string): Promise<Customer | null> {
+	async function findOrCreateFromReservation(name: string, phone: string, rvType?: string): Promise<Customer | null> {
 		const { customerUseCases } = getAppServices();
-		const customer = customerUseCases.findOrCreateFromReservation(name, phone);
+		const customer = customerUseCases.findOrCreateFromReservation(name, phone, rvType);
 		if (!customer) {
 			return null;
 		}

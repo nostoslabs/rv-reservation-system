@@ -17,7 +17,7 @@ export interface CustomerUseCases {
 	update(form: CustomerFormValues): { ok: true; customer: Customer } | { ok: false; errors: string[] };
 	remove(id: string): { ok: true } | { ok: false; errors: string[] };
 	search(query: string): CustomerSearchResult[];
-	findOrCreateFromReservation(name: string, phone: string): Customer | null;
+	findOrCreateFromReservation(name: string, phone: string, rvType?: string): Customer | null;
 	importCsv(csvText: string): { imported: number; skipped: number; errors: string[] };
 	replaceAll(customers: Customer[]): void;
 	restore(customer: Customer): void;
@@ -102,22 +102,31 @@ export function createCustomerUseCases(repo: CustomerRepository): CustomerUseCas
 			return searchCustomers(repo.getAll(), query);
 		},
 
-		findOrCreateFromReservation(name: string, phone: string): Customer | null {
+		findOrCreateFromReservation(name: string, phone: string, rvType?: string): Customer | null {
 			const normalizedName = normalizeName(name);
 			if (!normalizedName) return null;
 
 			const normalizedPhone = normalizePhoneNumber(phone);
+			const trimmedRvType = rvType?.trim() ?? '';
 			const allCustomers = repo.getAll();
 
 			const existing = findDuplicateCustomer(allCustomers, normalizedName, normalizedPhone);
-			if (existing) return existing;
+			if (existing) {
+				// Backfill rvType if the existing customer doesn't have one
+				if (trimmedRvType && !existing.rvType) {
+					const updated = { ...existing, rvType: trimmedRvType, updatedAt: nowIso() };
+					repo.save(updated);
+					return updated;
+				}
+				return existing;
+			}
 
 			const now = nowIso();
 			const customer: Customer = {
 				id: crypto.randomUUID(),
 				name: normalizedName,
 				phone: normalizedPhone,
-				rvType: '',
+				rvType: trimmedRvType,
 				email: '',
 				notes: '',
 				createdAt: now,

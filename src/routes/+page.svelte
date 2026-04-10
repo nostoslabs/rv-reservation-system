@@ -408,9 +408,9 @@
       return;
     }
 
-    // Auto-create or link customer
-    if (!event.detail.customerId && event.detail.name.trim()) {
-      await customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber);
+    // Auto-create or link customer, and backfill rvType on existing customers
+    if (event.detail.name.trim()) {
+      await customerStore.findOrCreateFromReservation(event.detail.name, event.detail.phoneNumber, event.detail.rvType);
     }
 
     closeModal();
