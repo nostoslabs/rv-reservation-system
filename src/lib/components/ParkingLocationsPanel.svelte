@@ -3,15 +3,42 @@
 
   export let locations: string[] = [];
   export let reservationCounts: Record<string, number> = {};
+  export let siteColors: Record<string, string> = {};
   export let errorMessage = '';
+
+  const PRESET_COLORS = [
+    { hex: '#4477AA', label: 'Blue' },
+    { hex: '#EE6677', label: 'Rose' },
+    { hex: '#228833', label: 'Green' },
+    { hex: '#CCBB44', label: 'Yellow' },
+    { hex: '#66CCEE', label: 'Cyan' },
+    { hex: '#AA3377', label: 'Purple' },
+    { hex: '#EE8866', label: 'Orange' },
+    { hex: '#BBBBBB', label: 'Gray' },
+    { hex: '#44AA99', label: 'Teal' },
+    { hex: '#DDCC77', label: 'Sand' }
+  ];
 
   const dispatch = createEventDispatcher<{
     add: { name: string };
     rename: { oldName: string; newName: string };
     remove: { name: string };
     reorder: { orderedNames: string[] };
+    colorchange: { name: string; color: string | null };
     clearerror: void;
   }>();
+
+  let colorPickerOpen: string | null = null;
+
+  function toggleColorPicker(location: string): void {
+    openMenu = null;
+    colorPickerOpen = colorPickerOpen === location ? null : location;
+  }
+
+  function selectColor(location: string, color: string | null): void {
+    dispatch('colorchange', { name: location, color });
+    colorPickerOpen = null;
+  }
 
   let newLocationName = '';
   let openMenu: string | null = null;
@@ -30,6 +57,7 @@
   }
 
   function toggleMenu(location: string): void {
+    colorPickerOpen = null;
     if (openMenu === location) {
       openMenu = null;
     } else {
@@ -73,6 +101,9 @@
     const target = event.target as HTMLElement;
     if (openMenu && !target.closest('.kebab-wrapper')) {
       openMenu = null;
+    }
+    if (colorPickerOpen && !target.closest('.color-picker-wrapper')) {
+      colorPickerOpen = null;
     }
   }
 
@@ -196,6 +227,43 @@
               on:pointermove={handlePointerMove}
               on:pointerup={handlePointerUp}
             >&#x2630;</span>
+            <div class="color-picker-wrapper">
+              <button
+                type="button"
+                class="color-swatch-btn"
+                style={siteColors[location] ? `background-color: ${siteColors[location]}` : ''}
+                class:no-color={!siteColors[location]}
+                aria-label={`Set row color for ${location}`}
+                on:click|stopPropagation={() => toggleColorPicker(location)}
+              >
+                <span class="swatch-fill"></span>
+              </button>
+              {#if colorPickerOpen === location}
+                <div class="color-picker-dropdown" role="group" aria-label="Pick a color">
+                  <span class="picker-label">Row color</span>
+                  <div class="picker-grid">
+                    {#each PRESET_COLORS as preset}
+                      <button
+                        type="button"
+                        class="color-option"
+                        class:selected={siteColors[location] === preset.hex}
+                        style="background-color: {preset.hex}"
+                        aria-label={preset.label}
+                        title={preset.label}
+                        on:click|stopPropagation={() => selectColor(location, preset.hex)}
+                      ></button>
+                    {/each}
+                    <button
+                      type="button"
+                      class="color-option clear-color"
+                      aria-label="No color"
+                      title="No color"
+                      on:click|stopPropagation={() => selectColor(location, null)}
+                    >&times;</button>
+                  </div>
+                </div>
+              {/if}
+            </div>
             <span class="location-name">{location}</span>
             <span class="count">{reservationCounts[location] ?? 0} reservations</span>
             <div class="kebab-wrapper">
@@ -341,7 +409,7 @@
 
   .location-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     gap: 0.4rem;
     align-items: center;
   }
@@ -450,9 +518,113 @@
     background: #fff0f0;
   }
 
+  /* Color picker */
+  .color-picker-wrapper {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .color-swatch-btn {
+    width: 8px;
+    min-width: 8px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    min-height: 28px;
+    transition: width 0.15s, background-color 0.15s;
+  }
+
+  .color-swatch-btn .swatch-fill {
+    display: none;
+  }
+
+  .color-swatch-btn.no-color {
+    background: #d8dfeb;
+    width: 6px;
+    min-width: 6px;
+  }
+
+  .color-swatch-btn:hover {
+    width: 12px;
+    min-width: 12px;
+    filter: brightness(0.85);
+  }
+
+  .color-swatch-btn.no-color:hover {
+    background: #0a63e0;
+  }
+
+  .color-picker-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: -4px;
+    background: white;
+    border: 1px solid #d6deea;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(10, 24, 47, 0.14);
+    padding: 0.5rem;
+    z-index: 20;
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .picker-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #5a6f87;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0 0.1rem;
+  }
+
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.3rem;
+  }
+
+  .color-option {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: border-color 0.1s, transform 0.1s;
+  }
+
+  .color-option:hover {
+    border-color: #1b304a;
+    transform: scale(1.1);
+  }
+
+  .color-option.selected {
+    border-color: #0a63e0;
+    box-shadow: 0 0 0 2px rgba(10, 99, 224, 0.3);
+  }
+
+  .color-option.clear-color {
+    background: #f4f7fc;
+    border: 2px dashed #c8d1de;
+    color: #8899b0;
+    font-size: 0.9rem;
+    display: grid;
+    place-items: center;
+  }
+
+  .color-option.clear-color:hover {
+    border-color: #d42a2a;
+    color: #d42a2a;
+  }
+
   @media (max-width: 900px) {
     .location-row {
-      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
     }
 
     .count {

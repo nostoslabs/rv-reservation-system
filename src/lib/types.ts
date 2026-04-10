@@ -10,7 +10,7 @@ export const RESERVATION_COLORS = [
 
 export type ReservationColor = (typeof RESERVATION_COLORS)[number];
 
-export const RESERVATION_STATUSES = ['reserved', 'checked-in', 'group-one', 'group-two', 'special', 'alert', 'maintenance'] as const;
+export const RESERVATION_STATUSES = ['reserved', 'checked-in', 'group-one', 'group-two', 'special', 'alert', 'maintenance', 'no-show'] as const;
 
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 
@@ -69,6 +69,7 @@ export interface SiteSettings {
   compactView?: boolean;
   autoBackup?: AutoBackupConfig;
   betaUpdates?: boolean;
+  siteColors?: Record<string, string>;
 }
 
 export interface ActionResult {
