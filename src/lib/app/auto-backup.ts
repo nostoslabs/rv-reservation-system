@@ -1,6 +1,19 @@
 import type { AutoBackupConfig } from '$lib/types';
 import type { DesktopCapabilities } from '$lib/application/ports';
 import { generateBackupFilename } from '$lib/domain/backup';
+import { writable } from 'svelte/store';
+
+export interface BackupStatus {
+	lastError: string | null;
+	lastErrorAt: string | null;
+	consecutiveFailures: number;
+}
+
+export const backupStatus = writable<BackupStatus>({
+	lastError: null,
+	lastErrorAt: null,
+	consecutiveFailures: 0
+});
 
 export interface AutoBackupDeps {
 	getConfig: () => AutoBackupConfig;
@@ -34,8 +47,14 @@ export function startAutoBackupTimer(deps: AutoBackupDeps): () => void {
 			const filePath = `${config.directoryPath}${separator}${filename}`;
 			await deps.desktop.writeFileToPath(filePath, content);
 			await deps.onSuccess(new Date().toISOString());
+			backupStatus.set({ lastError: null, lastErrorAt: null, consecutiveFailures: 0 });
 		} catch (error) {
 			deps.onError(error);
+			backupStatus.update((s) => ({
+				lastError: error instanceof Error ? error.message : String(error),
+				lastErrorAt: new Date().toISOString(),
+				consecutiveFailures: s.consecutiveFailures + 1
+			}));
 		} finally {
 			running = false;
 		}
