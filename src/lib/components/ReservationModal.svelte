@@ -80,7 +80,7 @@
   afterUpdate(() => {
     // Focus guest name input when modal just opened
     if (open && !wasOpen && autocompleteRef) {
-      autocompleteRef.focus();
+      autocompleteRef.focus({ suppressDropdown: mode === 'edit' });
     }
     wasOpen = open;
   });

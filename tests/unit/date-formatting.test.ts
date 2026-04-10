@@ -8,28 +8,32 @@ import {
 } from '$lib/date';
 
 describe('formatScheduleHeader', () => {
-	it('formats a Saturday in March', () => {
-		expect(formatScheduleHeader('2026-03-07')).toBe('Sat, Mar 7');
+	it('formats a Saturday in March (same year)', () => {
+		expect(formatScheduleHeader('2026-03-07', 2026)).toBe('Sat, Mar 7');
 	});
 
-	it('formats a Monday in January', () => {
-		expect(formatScheduleHeader('2026-01-05')).toBe('Mon, Jan 5');
+	it('formats a Monday in January (same year)', () => {
+		expect(formatScheduleHeader('2026-01-05', 2026)).toBe('Mon, Jan 5');
 	});
 
-	it('formats New Years Day 2026 (Thursday)', () => {
-		expect(formatScheduleHeader('2026-01-01')).toBe('Thu, Jan 1');
+	it('shows year on Jan 1 even when same year', () => {
+		expect(formatScheduleHeader('2026-01-01', 2026)).toBe("Thu, Jan 1 '26");
 	});
 
-	it('formats a date in December', () => {
-		expect(formatScheduleHeader('2025-12-25')).toBe('Thu, Dec 25');
+	it('shows year when date is in a different year', () => {
+		expect(formatScheduleHeader('2025-12-25', 2026)).toBe("Thu, Dec 25 '25");
 	});
 
-	it('formats a date in February', () => {
-		expect(formatScheduleHeader('2026-02-14')).toBe('Sat, Feb 14');
+	it('formats a date in February (same year)', () => {
+		expect(formatScheduleHeader('2026-02-14', 2026)).toBe('Sat, Feb 14');
 	});
 
-	it('formats last day of year', () => {
-		expect(formatScheduleHeader('2025-12-31')).toBe('Wed, Dec 31');
+	it('shows year for last day of previous year', () => {
+		expect(formatScheduleHeader('2025-12-31', 2026)).toBe("Wed, Dec 31 '25");
+	});
+
+	it('shows year for future year', () => {
+		expect(formatScheduleHeader('2027-06-15', 2026)).toBe("Tue, Jun 15 '27");
 	});
 
 	it('returns raw string for invalid input', () => {
@@ -37,12 +41,11 @@ describe('formatScheduleHeader', () => {
 	});
 
 	it('handles single-digit days without zero-padding', () => {
-		// Day 1 should show as "1", not "01"
-		expect(formatScheduleHeader('2026-03-01')).toBe('Sun, Mar 1');
+		expect(formatScheduleHeader('2026-03-01', 2026)).toBe('Sun, Mar 1');
 	});
 
 	it('handles double-digit days', () => {
-		expect(formatScheduleHeader('2026-03-15')).toBe('Sun, Mar 15');
+		expect(formatScheduleHeader('2026-03-15', 2026)).toBe('Sun, Mar 15');
 	});
 });
 

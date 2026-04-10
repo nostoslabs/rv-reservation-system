@@ -22,7 +22,11 @@ function sanitize(settings: SiteSettings): SiteSettings {
 	const siteName =
 		settings.siteName?.trim().slice(0, 80) || DEFAULT_SITE_NAME;
 	const autoBackup = settings.autoBackup ?? defaultAutoBackup();
-	return { siteName, compactView: settings.compactView, autoBackup, betaUpdates: settings.betaUpdates };
+	const result: SiteSettings = { siteName, compactView: settings.compactView, autoBackup, betaUpdates: settings.betaUpdates };
+	if (settings.siteColors && Object.keys(settings.siteColors).length > 0) {
+		result.siteColors = settings.siteColors;
+	}
+	return result;
 }
 
 async function loadFromDb(db: Database): Promise<SiteSettings> {
@@ -34,6 +38,26 @@ async function loadFromDb(db: Database): Promise<SiteSettings> {
 		? (rawInterval as AutoBackupIntervalMinutes)
 		: 0;
 
+	let siteColors: Record<string, string> | undefined;
+	const rawColors = map.get('site_colors');
+	if (rawColors) {
+		try {
+			const hexPattern = /^#[0-9a-f]{6}$/i;
+			const parsed = JSON.parse(rawColors);
+			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+				const cleaned: Record<string, string> = {};
+				for (const [k, v] of Object.entries(parsed)) {
+					if (typeof k === 'string' && k.trim() && typeof v === 'string' && hexPattern.test(v.trim())) {
+						cleaned[k.trim()] = v.trim();
+					}
+				}
+				if (Object.keys(cleaned).length > 0) {
+					siteColors = cleaned;
+				}
+			}
+		} catch { /* ignore invalid JSON */ }
+	}
+
 	return sanitize({
 		siteName: map.get('site_name') ?? DEFAULT_SITE_NAME,
 		compactView: map.get('compact_view') === '1',
@@ -42,7 +66,8 @@ async function loadFromDb(db: Database): Promise<SiteSettings> {
 			intervalMinutes,
 			directoryPath: map.get('auto_backup_directory') ?? null,
 			lastBackupAt: map.get('auto_backup_last_at') ?? null
-		}
+		},
+		siteColors
 	});
 }
 
@@ -80,6 +105,15 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
 		]);
 	} else {
 		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['auto_backup_last_at']);
+	}
+
+	if (settings.siteColors && Object.keys(settings.siteColors).length > 0) {
+		await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+			'site_colors',
+			JSON.stringify(settings.siteColors)
+		]);
+	} else {
+		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['site_colors']);
 	}
 }
 

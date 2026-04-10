@@ -140,15 +140,38 @@
   }
 
   async function handleRenameLocation(event: CustomEvent<{ oldName: string; newName: string }>): Promise<void> {
-    applyLocationMutation(await rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName));
+    const result = await rvReservationStore.renameParkingLocation(event.detail.oldName, event.detail.newName);
+    applyLocationMutation(result);
+    if (result.ok) {
+      const colorResult = await siteSettingsStore.renameSiteColor(event.detail.oldName, event.detail.newName);
+      if (!colorResult.ok) {
+        locationPanelError = colorResult.errors?.[0] ?? 'Location renamed, but site color could not be updated.';
+      }
+    }
   }
 
   async function handleDeleteLocation(event: CustomEvent<{ name: string }>): Promise<void> {
-    applyLocationMutation(await rvReservationStore.deleteParkingLocation(event.detail.name));
+    const result = await rvReservationStore.deleteParkingLocation(event.detail.name);
+    applyLocationMutation(result);
+    if (result.ok) {
+      const colorResult = await siteSettingsStore.removeSiteColor(event.detail.name);
+      if (!colorResult.ok) {
+        locationPanelError = colorResult.errors?.[0] ?? 'Location deleted, but site color could not be removed.';
+      }
+    }
   }
 
   async function handleReorderLocations(event: CustomEvent<{ orderedNames: string[] }>): Promise<void> {
     applyLocationMutation(await rvReservationStore.reorderParkingLocations(event.detail.orderedNames));
+  }
+
+  async function handleColorChange(event: CustomEvent<{ name: string; color: string | null }>): Promise<void> {
+    const result = await siteSettingsStore.setSiteColor(event.detail.name, event.detail.color);
+    if (result.ok) {
+      locationPanelError = '';
+    } else {
+      locationPanelError = result.errors?.[0] ?? 'Failed to save site color.';
+    }
   }
 
   const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
@@ -566,11 +589,13 @@
     <ParkingLocationsPanel
       locations={$rvReservationStore.parkingLocations}
       reservationCounts={reservationCountsByLocation}
+      siteColors={$siteSettingsStore.siteColors ?? {}}
       errorMessage={locationPanelError}
       on:add={handleAddLocation}
       on:rename={handleRenameLocation}
       on:remove={handleDeleteLocation}
       on:reorder={handleReorderLocations}
+      on:colorchange={handleColorChange}
       on:clearerror={() => (locationPanelError = '')}
     />
   </div>

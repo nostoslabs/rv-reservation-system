@@ -111,8 +111,10 @@ test.describe('Drag and drop reservations', () => {
 		await createReservation(page, { name: 'First Guest', startDate: start1, endDate: end1 });
 		await createReservation(page, { name: 'Blocking Guest', startDate: start2, endDate: end2 });
 
-		// Wait for toast to clear
+		// Wait for toast to clear, then scroll to today so grid position is stable
 		await page.waitForTimeout(3500);
+		await page.click('[data-testid="today-button"]');
+		await page.waitForTimeout(300);
 
 		// Get the first occupied cell (First Guest at start1)
 		const start1Header = page.locator(`th.date-header[data-date="${start1}"]`);

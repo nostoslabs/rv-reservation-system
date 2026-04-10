@@ -66,6 +66,7 @@
   }
 
   function handleGridScroll(): void {
+    if (contextMenu) contextMenu = null;
     if (rafPending) return;
     rafPending = true;
     requestAnimationFrame(() => {
@@ -93,6 +94,47 @@
     color: 'blue',
     status: 'reserved'
   };
+
+  // Go To Date state
+  let goToDateValue = '';
+
+  // Context menu state
+  let contextMenu: { reservation: Reservation; x: number; y: number } | null = null;
+
+  function handleCellContextMenu(location: string, dateIso: string, event: MouseEvent): void {
+    const reservation = occupancyMap.get(buildCellId(location, dateIso));
+    if (!reservation) return;
+    event.preventDefault();
+    contextMenu = { reservation, x: event.clientX, y: event.clientY };
+  }
+
+  async function handleContextMenuStatusChange(status: ReservationStatus): Promise<void> {
+    if (!contextMenu) return;
+    const res = contextMenu.reservation;
+    contextMenu = null;
+    const result = await saveReservationWithUndo({
+      index: res.index,
+      name: res.name,
+      rvType: res.rvType,
+      phoneNumber: res.phoneNumber,
+      notes: res.notes,
+      startDate: res.startDate,
+      endDate: res.endDate,
+      parkingLocation: res.parkingLocation,
+      color: res.color,
+      status,
+      customerId: res.customerId
+    });
+    if (result.ok) {
+      showToast(`Status changed to ${STATUS_LABELS[status]}`);
+    } else {
+      showToast(result.errors?.[0] ?? 'Failed to update status');
+    }
+  }
+
+  function closeContextMenu(): void {
+    contextMenu = null;
+  }
 
   // Search state
   let searchQuery = '';
@@ -277,11 +319,17 @@
   }
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && dragState?.started) {
-      dragState = null;
-      dragPreviewCells = new Set();
-      dragHasOverlap = false;
-      dragEndedAt = Date.now();
+    if (event.key === 'Escape') {
+      if (contextMenu) {
+        contextMenu = null;
+        return;
+      }
+      if (dragState?.started) {
+        dragState = null;
+        dragPreviewCells = new Set();
+        dragHasOverlap = false;
+        dragEndedAt = Date.now();
+      }
     }
   }
 
@@ -320,21 +368,28 @@
     return `Saved ${ageHours}h ago (${formatTimestamp(lastSavedAt)})`;
   }
 
-  async function alignToToday(): Promise<void> {
+  async function scrollToDate(targetDateIso: string): Promise<void> {
     await tick();
     if (!gridScroller) return;
-    const todayIndex = diffDays(gridStartDate, todayIso);
-    // Align today's column to the left edge of the visible date area.
-    // The sticky first column occupies FIRST_COLUMN_WIDTH, so the visible date area
-    // starts at scrollLeft = todayIndex * DATE_COLUMN_WIDTH.
-    const targetScrollLeft = todayIndex * DATE_COLUMN_WIDTH;
+    const rawIndex = diffDays(gridStartDate, targetDateIso);
+    const targetIndex = Math.min(Math.max(0, rawIndex), TOTAL_DATE_COLUMNS - 1);
+    const targetScrollLeft = targetIndex * DATE_COLUMN_WIDTH;
     const maxScrollLeft = Math.max(0, gridScroller.scrollWidth - gridScroller.clientWidth);
     gridScroller.scrollLeft = Math.min(Math.max(0, targetScrollLeft), maxScrollLeft);
     updateVisibleColumns();
   }
 
+  async function alignToToday(): Promise<void> {
+    await scrollToDate(todayIso);
+  }
+
   function scrollWeek(direction: number): void {
     gridScroller?.scrollBy({ left: DATE_COLUMN_WIDTH * 7 * direction, behavior: 'smooth' });
+  }
+
+  async function handleGoToDate(): Promise<void> {
+    if (!goToDateValue) return;
+    await scrollToDate(goToDateValue);
   }
 
   function openNewReservationModal(): void {
@@ -402,6 +457,7 @@
   }
 
   async function handleModalSave(event: CustomEvent<ReservationFormValues>): Promise<void> {
+    const isCreate = modalMode === 'create';
     const result = await saveReservationWithUndo(event.detail);
     if (!result.ok) {
       modalErrors = result.errors;
@@ -415,6 +471,10 @@
 
     closeModal();
     showToast('Reservation saved');
+
+    if (isCreate) {
+      await scrollToDate(event.detail.startDate);
+    }
   }
 
   async function handleModalDelete(event: CustomEvent<{ index: number }>): Promise<void> {
@@ -487,6 +547,17 @@
     await alignToToday();
   }
 
+  /** Blend a #RRGGBB hex color with white at a given ratio (0–1) to produce an opaque color. */
+  function tintHex(hex: string, ratio: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const tr = Math.round(r + (255 - r) * (1 - ratio));
+    const tg = Math.round(g + (255 - g) * (1 - ratio));
+    const tb = Math.round(b + (255 - b) * (1 - ratio));
+    return `#${tr.toString(16).padStart(2, '0')}${tg.toString(16).padStart(2, '0')}${tb.toString(16).padStart(2, '0')}`;
+  }
+
   onMount(() => {
     rvReservationStore.hydrate();
     siteSettingsStore.hydrate();
@@ -537,6 +608,15 @@
       <button type="button" on:click={() => scrollWeek(-1)} aria-label="Previous week">&#8592;</button>
       <button type="button" class="primary" data-testid="today-button" on:click={alignToToday}>Today</button>
       <button type="button" on:click={() => scrollWeek(1)} aria-label="Next week">&#8594;</button>
+      <input
+        type="date"
+        class="goto-date-input"
+        bind:value={goToDateValue}
+        on:change={handleGoToDate}
+        aria-label="Go to date"
+        title="Jump to a specific date"
+        data-testid="goto-date-input"
+      />
       <button
         type="button"
         class="compact-toggle-btn"
@@ -603,6 +683,9 @@
                 <span class="search-result-name">{result.reservation.name}</span>
                 <span class="search-result-meta">
                   <span class="search-result-location">{result.reservation.parkingLocation}</span>
+                  {#if result.reservation.rvType}
+                    <span class="search-result-rvtype">{result.reservation.rvType}</span>
+                  {/if}
                   {#if result.reservation.phoneNumber}
                     <span class="search-result-phone">{result.reservation.phoneNumber}</span>
                   {/if}
@@ -723,8 +806,13 @@
 
           <tbody>
             {#each $rvReservationStore.parkingLocations as location}
-              <tr>
-                <th class="sticky-col location-cell" scope="row">{location}</th>
+              {@const siteColor = $siteSettingsStore.siteColors?.[location]}
+              <tr style={siteColor ? `background-color: ${siteColor}25` : ''}>
+                <th
+                  class="sticky-col location-cell"
+                  scope="row"
+                  style={siteColor ? `background-color: ${tintHex(siteColor, 0.2)}; border-left: 3px solid ${siteColor}` : ''}
+                >{location}</th>
                 {#if leftSpacerWidth > 0}
                   <td class="spacer-cell" aria-hidden="true"></td>
                 {/if}
@@ -734,10 +822,11 @@
                   {@const isDragSource = dragState?.started && reservation?.index === dragState.reservation.index}
                   {@const isDragPreview = dragPreviewCells.has(cellId)}
                   <td
-                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''}`}
+                    class={`grid-cell ${reservation ? 'occupied' : 'empty'} ${dateIso === todayIso ? 'today' : ''} ${isDragSource ? 'drag-source' : ''} ${isDragPreview ? (dragHasOverlap ? 'drag-preview-error' : 'drag-preview') : ''} ${siteColor && !reservation ? 'has-site-color' : ''}`}
                     style={reservation && !isDragSource ? getStatusCellStyle(reservation.status) : ''}
                     on:click={(e) => openModalForCell(location, dateIso, e)}
                     on:pointerdown={(e) => handleCellPointerDown(location, dateIso, e)}
+                    on:contextmenu={(e) => handleCellContextMenu(location, dateIso, e)}
                     title={getReservationCellTitle(location, dateIso, reservation)}
                   >
                     {#if reservation && !isDragSource}
@@ -763,6 +852,38 @@
 
 {#if toastVisible}
   <div class="toast" role="status" aria-live="polite">{toastMessage}</div>
+{/if}
+
+{#if contextMenu}
+  <div
+    class="context-menu-backdrop"
+    role="button"
+    tabindex="0"
+    aria-label="Close context menu"
+    on:click={closeContextMenu}
+    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeContextMenu(); } }}
+  >
+    <div
+      class="context-menu"
+      style="left: {contextMenu.x}px; top: {contextMenu.y}px"
+      role="menu"
+    >
+      <div class="context-menu-header">{contextMenu.reservation.name}</div>
+      {#each RESERVATION_STATUSES as statusValue}
+        <button
+          type="button"
+          class="context-menu-item"
+          class:active={contextMenu.reservation.status === statusValue}
+          role="menuitem"
+          on:click={() => handleContextMenuStatusChange(statusValue)}
+        >
+          <span class="context-menu-swatch" style={getStatusSwatchStyle(statusValue)}></span>
+          <span class="context-menu-icon">{STATUS_ICONS[statusValue]}</span>
+          <span>{STATUS_LABELS[statusValue]}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
 {/if}
 
 <ReservationModal
@@ -861,6 +982,25 @@
   .summary-sep {
     color: #a0b4cc;
     font-weight: 300;
+  }
+
+  .goto-date-input {
+    border-radius: 8px;
+    border: 1px solid #c3cddd;
+    background: #f4f7fc;
+    color: #223349;
+    padding: 0.3rem 0.5rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    min-height: 36px;
+    width: 9.5rem;
+    font-family: inherit;
+  }
+
+  .goto-date-input:focus {
+    background: white;
+    border-color: #0a63e0;
+    outline: none;
   }
 
   .toolbar-nav button {
@@ -1194,7 +1334,7 @@
   .date-header.today {
     background: rgba(10, 99, 224, 0.12);
     color: #0a63e0;
-    box-shadow: inset 0 -3px 0 0 #0a63e0;
+    box-shadow: inset 0 -4px 0 0 #0a63e0, inset 0 4px 0 0 #0a63e0;
   }
 
   .location-cell {
@@ -1225,14 +1365,28 @@
     position: relative;
   }
 
+  .grid-cell.has-site-color {
+    background: transparent;
+  }
+
   .grid-cell:hover {
     background: #f0f6ff;
   }
 
   .grid-cell.today {
     background: rgba(10, 99, 224, 0.05);
-    border-left: 1px solid rgba(10, 99, 224, 0.18);
-    border-right: 1px solid rgba(10, 99, 224, 0.18);
+  }
+
+  .grid-cell.today::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: inset 3px 0 0 0 #0a63e0, inset -3px 0 0 0 #0a63e0;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .grid-cell.today:hover {
@@ -1399,6 +1553,10 @@
     font-weight: 600;
   }
 
+  .search-result-rvtype {
+    color: #6b7d93;
+  }
+
   .search-result-phone {
     color: #7a8da3;
     font-style: italic;
@@ -1429,6 +1587,81 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Context menu */
+  .context-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+  }
+
+  .context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #d6deea;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(10, 24, 47, 0.16);
+    padding: 0.3rem;
+    min-width: 11rem;
+    z-index: 91;
+    animation: context-menu-in 0.1s ease-out;
+  }
+
+  @keyframes context-menu-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .context-menu-header {
+    padding: 0.4rem 0.55rem 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #5a6f87;
+    border-bottom: 1px solid #eef2f7;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.4rem 0.55rem;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: #1b304a;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+    min-height: 36px;
+  }
+
+  .context-menu-item:hover {
+    background: #eef3fb;
+  }
+
+  .context-menu-item.active {
+    background: #e0ebf9;
+    font-weight: 600;
+  }
+
+  .context-menu-swatch {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .context-menu-icon {
+    font-size: 0.75em;
+    flex-shrink: 0;
   }
 
   @media (max-width: 1100px) {
