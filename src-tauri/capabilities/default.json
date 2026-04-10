@@ -15,7 +15,7 @@
     "fs:write-files",
     {
       "identifier": "fs:scope",
-      "allow": ["$HOME/**"]
+      "allow": ["**"]
     },
     "window-state:default",
     "updater:default",
