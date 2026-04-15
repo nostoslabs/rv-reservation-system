@@ -5,8 +5,8 @@
   "identifier": "com.nostoslabs.rv-reservation-system",
   "build": {
     "frontendDist": "../build",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5177",
+    "beforeDevCommand": "npm run dev -- --port 5177",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
