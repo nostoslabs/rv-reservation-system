@@ -85,7 +85,7 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 				if (ok) {
 					patch({ downloading: false, downloadProgress: 100, installed: true });
 				} else {
-					patch({ downloading: false, available: null, error: 'Update installation failed.' });
+					patch({ downloading: false, available: null, error: 'Update returned false — check console for details.' });
 				}
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);

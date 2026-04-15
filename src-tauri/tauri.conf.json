@@ -1,12 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "RV Reservation System",
-  "version": "1.17.0",
+  "version": "1.17.1",
   "identifier": "com.nostoslabs.rv-reservation-system",
   "build": {
     "frontendDist": "../build",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5177",
+    "beforeDevCommand": "npm run dev -- --port 5177",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

@@ -110,17 +110,24 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			if (!pendingUpdate) throw new Error('No pending update to install');
 			let totalLength: number | null = null;
 			let downloaded = 0;
-			await pendingUpdate.downloadAndInstall((event) => {
-				if (!onProgress || !event.data) return;
-				if (event.event === 'Started') {
-					totalLength = (event.data.contentLength as number) ?? null;
-					downloaded = 0;
-				} else if (event.event === 'Progress') {
-					const chunk = (event.data.chunkLength as number) ?? 0;
-					downloaded += chunk;
-					onProgress({ downloadedLength: downloaded, contentLength: totalLength });
-				}
-			});
+			console.log('[updater] Starting download and install, version:', (pendingUpdate as { version?: string }).version ?? 'unknown');
+			try {
+				await pendingUpdate.downloadAndInstall((event) => {
+					console.log('[updater] Event:', event.event, event.data);
+					if (!onProgress || !event.data) return;
+					if (event.event === 'Started') {
+						totalLength = (event.data.contentLength as number) ?? null;
+						downloaded = 0;
+					} else if (event.event === 'Progress') {
+						const chunk = (event.data.chunkLength as number) ?? 0;
+						downloaded += chunk;
+						onProgress({ downloadedLength: downloaded, contentLength: totalLength });
+					}
+				});
+			} catch (err) {
+				console.error('[updater] downloadAndInstall failed:', err);
+				throw new Error(`Installation failed: ${err instanceof Error ? err.message : String(err)}`);
+			}
 			pendingUpdate = null;
 			return true;
 		},
