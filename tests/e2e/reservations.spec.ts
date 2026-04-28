@@ -612,3 +612,73 @@ test.describe('Date picker UX', () => {
 		await expect(modal(page).locator('[data-testid="nights-display"]')).toContainText('3 nights');
 	});
 });
+
+test.describe('Site availability indicator (#134)', () => {
+	test.beforeEach(async ({ page }) => {
+		await resetApp(page);
+	});
+
+	test('marks the conflicting site as booked and disables it', async ({ page }) => {
+		const start = offsetDate(5);
+		const end = offsetDate(8);
+
+		await createReservation(page, { name: 'Existing Guest', startDate: start, endDate: end, rowIndex: 0 });
+
+		// Open new-reservation modal on a different row.
+		await clickCellAtDate(page, getTodayIso(), 1);
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+		await startInput.fill(start);
+		await endInput.fill(end);
+
+		const siteSelect = modal(page).locator('[data-testid="site-select"]');
+		const firstSite = await siteSelect.locator('option').nth(0).getAttribute('value');
+		expect(firstSite).toBeTruthy();
+
+		const bookedOption = siteSelect.locator(`option[value="${firstSite}"]`);
+		await expect(bookedOption).toContainText('booked');
+		await expect(bookedOption).toHaveAttribute('disabled', '');
+	});
+
+	test('clears the booked indicator when dates no longer conflict', async ({ page }) => {
+		const start = offsetDate(5);
+		const end = offsetDate(8);
+
+		await createReservation(page, { name: 'Existing Guest', startDate: start, endDate: end, rowIndex: 0 });
+
+		await clickCellAtDate(page, getTodayIso(), 1);
+		await expect(modal(page)).toBeVisible();
+
+		const startInput = modal(page).locator('input[type="date"]').first();
+		const endInput = modal(page).locator('input[type="date"]').nth(1);
+		const siteSelect = modal(page).locator('[data-testid="site-select"]');
+		const firstSite = await siteSelect.locator('option').nth(0).getAttribute('value');
+
+		await startInput.fill(start);
+		await endInput.fill(end);
+		await expect(siteSelect.locator(`option[value="${firstSite}"]`)).toContainText('booked');
+
+		// Move dates well past the existing reservation.
+		await startInput.fill(offsetDate(20));
+		await endInput.fill(offsetDate(23));
+		await expect(siteSelect.locator(`option[value="${firstSite}"]`)).not.toContainText('booked');
+		await expect(siteSelect.locator(`option[value="${firstSite}"]`)).not.toHaveAttribute('disabled', '');
+	});
+
+	test('does not mark the reservation own site as booked when editing it', async ({ page }) => {
+		const start = offsetDate(5);
+		const end = offsetDate(8);
+
+		await createReservation(page, { name: 'Editable Guest', startDate: start, endDate: end, rowIndex: 0 });
+
+		// Re-open the reservation by clicking its starting cell.
+		await clickCellAtDate(page, start, 0);
+		await expect(modal(page)).toBeVisible();
+
+		const siteSelect = modal(page).locator('[data-testid="site-select"]');
+		const ownSite = await siteSelect.inputValue();
+		await expect(siteSelect.locator(`option[value="${ownSite}"]`)).not.toContainText('booked');
+	});
+});

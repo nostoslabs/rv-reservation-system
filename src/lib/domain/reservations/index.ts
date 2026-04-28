@@ -33,5 +33,8 @@ export {
 	validateReservationForm
 } from './validation';
 
+export { computeLocationAvailability } from './availability';
+export type { LocationAvailability } from './availability';
+
 export { filterReservations } from './search';
 export type { SearchResult } from './search';

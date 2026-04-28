@@ -892,6 +892,7 @@
   draft={modalDraft}
   errors={modalErrors}
   parkingLocations={$rvReservationStore.parkingLocations}
+  existingReservations={$rvReservationStore.reservations}
   customers={$customerStore}
   triggerElement={modalTriggerElement}
   on:save={handleModalSave}

@@ -3,7 +3,8 @@
   import { addDays, compareIsoDates, diffDays } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_LABELS, getStatusSwatchStyle } from '$lib/domain/reservations/status';
-  import { RESERVATION_STATUSES, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
+  import { computeLocationAvailability } from '$lib/domain/reservations/availability';
   import type { Customer } from '$lib/domain/customers';
   import AutocompleteInput from './AutocompleteInput.svelte';
   import DateRangeCalendar from './DateRangeCalendar.svelte';
@@ -11,6 +12,7 @@
   export let open = false;
   export let mode: 'create' | 'edit' = 'create';
   export let parkingLocations: string[] = [];
+  export let existingReservations: Reservation[] = [];
   export let customers: Customer[] = [];
   export let draft: ReservationFormValues = {
     name: '',
@@ -39,6 +41,16 @@
   let confirmingDelete = false;
   let autocompleteRef: AutocompleteInput;
   let wasOpen = false;
+
+  $: availabilityByLocation = new Map(
+    computeLocationAvailability(
+      form.startDate,
+      form.endDate,
+      parkingLocations,
+      existingReservations,
+      form.index
+    ).map((a) => [a.location, a])
+  );
 
   $: customerSuggestions = customers.map((c) => ({
     label: c.name,
@@ -266,9 +278,13 @@
 
             <label>
               <span>Site</span>
-              <select bind:value={form.parkingLocation} required>
+              <select bind:value={form.parkingLocation} required data-testid="site-select">
                 {#each parkingLocations as location}
-                  <option value={location}>{location}</option>
+                  {@const availability = availabilityByLocation.get(location)}
+                  {@const isBooked = availability ? !availability.isAvailable : false}
+                  <option value={location} disabled={isBooked && location !== form.parkingLocation}>
+                    {location}{isBooked ? ' — booked' : ''}
+                  </option>
                 {/each}
               </select>
             </label>
