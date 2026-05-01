@@ -14,7 +14,8 @@ function makeStubServices(): AppServices {
 			pickDirectory: async () => null,
 			checkForUpdate: async () => null,
 			checkBetaUpdate: async () => null,
-			downloadAndInstallUpdate: async () => false,
+			downloadUpdate: async () => false,
+			installUpdateAndRestart: async () => false,
 			relaunch: async () => {}
 		},
 		repositories: {

@@ -58,7 +58,8 @@ describe('startAutoBackupTimer', () => {
 				pickDirectory: async () => null,
 				checkForUpdate: async () => null,
 				checkBetaUpdate: async () => null,
-				downloadAndInstallUpdate: async () => false,
+				downloadUpdate: async () => false,
+				installUpdateAndRestart: async () => false,
 				relaunch: async () => {}
 			},
 			onSuccess: async () => {},
@@ -109,7 +110,8 @@ describe('startAutoBackupTimer', () => {
 				pickDirectory: async () => null,
 				checkForUpdate: async () => null,
 				checkBetaUpdate: async () => null,
-				downloadAndInstallUpdate: async () => false,
+				downloadUpdate: async () => false,
+				installUpdateAndRestart: async () => false,
 				relaunch: async () => {}
 			}
 		});
