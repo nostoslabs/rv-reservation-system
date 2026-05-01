@@ -1,4 +1,4 @@
-export const MAX_RESERVATION_NOTES_LENGTH = 128;
+export const MAX_RESERVATION_NOTES_LENGTH = 5000;
 
 export function normalizeName(name: string): string {
 	return name.trim().replace(/\s+/g, ' ');
