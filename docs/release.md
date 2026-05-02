@@ -38,7 +38,7 @@ Trigger a build via GitHub Actions:
 
 Build artifacts are uploaded as GitHub Actions artifacts and (for tag pushes) attached to a draft GitHub Release.
 
-Stable release tags are blocked unless a matching published beta prerelease exists first. For example, `v1.0.0` requires a non-draft `v1.0.0-beta.N` GitHub prerelease with both macOS and Windows artifacts attached. The workflow runs `npm run release:guard` before creating or building a stable release.
+Stable release tags are blocked unless a matching published beta prerelease exists first. For example, `v1.0.0` requires a non-draft `v1.0.0-beta.N` GitHub prerelease with both macOS and Windows artifacts attached. The workflow runs `node scripts/release-guard.mjs` before creating or building a stable release.
 
 ### Local Build
 ```bash
