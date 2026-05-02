@@ -20,6 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Require beta prerelease before stable release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: node scripts/release-guard.mjs
+
       - name: Create draft release with auto-generated notes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

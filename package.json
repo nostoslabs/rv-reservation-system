@@ -11,6 +11,7 @@
     "code-health": "node scripts/code-health.mjs --changed",
     "code-health:changed": "node scripts/code-health.mjs --changed",
     "code-health:full": "node scripts/code-health.mjs --full",
+    "release:guard": "node scripts/release-guard.mjs",
     "test": "npx playwright test",
     "test:unit": "vitest run",
     "test:e2e": "npx playwright test",
