@@ -3,14 +3,15 @@
 ## Purpose
 An offline-first desktop RV park reservation management app (Tauri + SQLite) with a clean path to a future web SaaS deployment (Firebase or another cloud backend).
 
-These instructions apply to both human contributors and Codex agents.
+These instructions apply to both human contributors and Coding agents.
 
 ## Core Engineering Rules
-- Follow Clean Architecture (Uncle Bob).
+- Follow Clean Architecture (Uncle Bob) and a pragmatic approach to domain driven design. 
 - Prefer small, atomic changes and small, meaningful commits.
 - Use TDD: write or update tests first when adding/changing behavior.
 - Preserve working behavior during refactors (no-behavior-change commits where possible).
 - Keep UI components reusable and focused on presentation/interactions, not persistence details.
+- Use `docs/coding_standards.md` as the shared code-health rubric for architecture boundaries, module size, deletion-first refactoring, tests, and anti-AI-slop checks.
 
 ## Architecture Requirements (Mandatory)
 Use explicit layers and dependency direction:
@@ -57,6 +58,7 @@ After every UI change, run a visual Playwright test to verify the impact:
 3. Take a new Playwright screenshot and compare against the baseline.
 4. Confirm the change looks correct and has no unintended visual side effects.
 5. If the change affects multiple viewports or states, capture screenshots for each.
+6. Where applicable, convert playwright testing you're doing via playwright or the playwright MCP into end to end tests if it makes sense.
 
 Use `page.screenshot()` for full-page captures or `locator.screenshot()` for component-level captures. Store visual verification screenshots in `screenshots/` with descriptive names.
 
@@ -73,10 +75,16 @@ Add and maintain tests for:
 - `TODAY` alignment behavior
 - `/admin` site name and passcode flows
 
-Notes:
+### Notes:
 - Prefer deterministic fixtures and seeded storage states.
 - Screenshots for milestone documentation should come from Playwright automation.
 - When changing user-visible flows, update Playwright tests first (or in the same commit before implementation changes).
+
+## Code-Health Guardrails
+- Run `npm run code-health:changed` while editing to catch changed-file guardrail failures.
+- Run `npm run code-health:full` before opening a PR; CI runs the same full check.
+- Keep code-health detector logic in `scripts/code-health.mjs` so Claude Code hooks, opencode plugins, local wrappers, and CI share the same checks.
+- Treat `docs/code_health_audit_2026-05.md` as the current follow-up punch list; do not mix those refactors into unrelated issues.
 
 ## Branch & PR Workflow (Mandatory)
 - **Never commit directly to `main`.** Always work from a feature branch.
@@ -155,6 +163,9 @@ Design choices must support both desktop and future web:
 | `npm run build` | Production web build (outputs to `build/`) |
 | `npm run tauri:build` | Production Tauri desktop build |
 | `npm run check` | Svelte type-check + lint |
+| `npm run code-health` | Changed-file code-health checks |
+| `npm run code-health:changed` | Changed-file code-health checks for local hooks |
+| `npm run code-health:full` | Full code-health audit, including Knip |
 | `npm run test` | Playwright e2e tests |
 | `npm run test:unit` | Vitest unit tests |
 

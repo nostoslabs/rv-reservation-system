@@ -58,6 +58,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Code health
+        run: npm run code-health:full
+
       - name: Typecheck
         run: npm run check
 
