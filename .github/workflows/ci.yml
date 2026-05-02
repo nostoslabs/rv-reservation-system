@@ -22,15 +22,40 @@ jobs:
           PR_VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*: "\(.*\)".*/\1/')
           TAURI_VERSION=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*: "\(.*\)".*/\1/')
           CARGO_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed 's/.*= "\(.*\)".*/\1/')
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          RELEASE_INFRA_ONLY=true
+
+          if [ -z "$CHANGED_FILES" ]; then
+            RELEASE_INFRA_ONLY=false
+          fi
+
+          while IFS= read -r changed_file; do
+            [ -z "$changed_file" ] && continue
+            case "$changed_file" in
+              .github/workflows/ci.yml|.github/workflows/release.yml|AGENTS.md|docs/release.md|scripts/release-guard.mjs|tests/node-shims.d.ts|tests/unit/release-guard.test.ts)
+                ;;
+              *)
+                RELEASE_INFRA_ONLY=false
+                ;;
+            esac
+          done <<EOF
+          $CHANGED_FILES
+          EOF
 
           echo "Base version:  $BASE_VERSION"
           echo "PR version:    $PR_VERSION"
           echo "Tauri version: $TAURI_VERSION"
           echo "Cargo version: $CARGO_VERSION"
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
 
           if [ "$PR_VERSION" = "$BASE_VERSION" ]; then
-            echo "::error::Version in package.json ($PR_VERSION) was not bumped from main ($BASE_VERSION). Bump the version before merging."
-            exit 1
+            if [ "$RELEASE_INFRA_ONLY" = "true" ]; then
+              echo "Version bump skipped for release infrastructure-only changes."
+            else
+              echo "::error::Version in package.json ($PR_VERSION) was not bumped from main ($BASE_VERSION). Bump the version before merging."
+              exit 1
+            fi
           fi
 
           if [ "$PR_VERSION" != "$TAURI_VERSION" ]; then
@@ -43,7 +68,11 @@ jobs:
             exit 1
           fi
 
-          echo "Version bump verified: $BASE_VERSION → $PR_VERSION (all files match)"
+          if [ "$PR_VERSION" = "$BASE_VERSION" ]; then
+            echo "Version consistency verified: $PR_VERSION (release infrastructure-only PR)"
+          else
+            echo "Version bump verified: $BASE_VERSION → $PR_VERSION (all files match)"
+          fi
 
   check-build-test:
     runs-on: ubuntu-latest
