@@ -110,10 +110,8 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			if (!pendingUpdate) throw new Error('No pending update to install');
 			let totalLength: number | null = null;
 			let downloaded = 0;
-			console.log('[updater] Starting download, version:', (pendingUpdate as { version?: string }).version ?? 'unknown');
 			try {
 				await pendingUpdate.download((event) => {
-					console.log('[updater] Event:', event.event, event.data);
 					if (!onProgress || !event.data) return;
 					if (event.event === 'Started') {
 						totalLength = (event.data.contentLength as number) ?? null;
@@ -132,7 +130,6 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 		},
 		async installUpdateAndRestart(): Promise<boolean> {
 			if (!pendingUpdate) throw new Error('No downloaded update to install');
-			console.log('[updater] Starting install, version:', (pendingUpdate as { version?: string }).version ?? 'unknown');
 			try {
 				await pendingUpdate.install();
 				pendingUpdate = null;

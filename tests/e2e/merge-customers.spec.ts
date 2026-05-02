@@ -377,8 +377,8 @@ test.describe('Merge customers — reservation re-linking', () => {
 	});
 });
 
-test.describe('Merge customers — startup dedup migration (disabled)', () => {
-	test('does not auto-merge duplicates on app load (auto-dedup disabled)', async ({ browser }) => {
+test.describe('Merge customers — stored duplicates', () => {
+	test('preserves duplicate customers loaded from storage', async ({ browser }) => {
 		// Create a fresh browser context to ensure no cached JS state
 		const context = await browser.newContext();
 		const page = await context.newPage();
@@ -415,13 +415,12 @@ test.describe('Merge customers — startup dedup migration (disabled)', () => {
 		await page.close();
 		const freshPage = await context.newPage();
 
-		// This load triggers layout.ts → initAppServices() → runStartupMigrations()
-		// Auto-dedup is disabled, so both duplicates should remain
+		// Reloading the app should preserve stored customers as-is.
 		await freshPage.goto('/');
 		await freshPage.waitForSelector('.toolbar-title');
 		await freshPage.waitForTimeout(500);
 
-		// Verify duplicates are preserved (auto-dedup is disabled)
+		// Verify duplicates are preserved.
 		const customerCount = await freshPage.evaluate(() => {
 			const raw = window.localStorage.getItem('rv-reservation-demo:customers:v1');
 			return raw ? JSON.parse(raw).length : 0;
