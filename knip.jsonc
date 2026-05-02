@@ -1,0 +1,44 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/routes/**/*.{svelte,ts}",
+    "src/lib/app/composition.ts",
+    "src/lib/customer-state.ts",
+    "src/lib/site-settings.ts",
+    "src/lib/state.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.mjs"
+  ],
+  "project": [
+    "src/**/*.{svelte,ts}",
+    "tests/**/*.ts",
+    "scripts/**/*.mjs"
+  ],
+  "ignoreFiles": [
+    // Layer barrel placeholders retained for architecture readability.
+    "src/lib/infrastructure/index.ts",
+    "src/lib/infrastructure/storage/localstorage/index.ts",
+    "src/lib/infrastructure/storage/sqlite/index.ts",
+    "src/lib/interface-adapters/index.ts"
+  ],
+  "ignoreDependencies": [
+    // Referenced by tsconfig inheritance rather than runtime imports.
+    "@tsconfig/svelte",
+    // MCP packages are optional desktop integration dependencies.
+    "tauri-plugin-mcp",
+    "tauri-plugin-mcp-server"
+  ],
+  "ignoreBinaries": [
+    // Shell commands used by local-only package scripts.
+    "pkill",
+    "sleep",
+    "vercel"
+  ],
+  "ignoreIssues": {
+    // Public status helpers are retained for pending UI extraction work.
+    "src/lib/domain/reservations/status.ts": ["exports"],
+    // Future sync contracts intentionally exist before a concrete provider.
+    "src/lib/application/ports/sync.ts": ["types"]
+  },
+  "ignoreExportsUsedInFile": true
+}
