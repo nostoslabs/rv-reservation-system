@@ -6,15 +6,22 @@ export interface UpdateState {
 	available: UpdateInfo | null;
 	downloading: boolean;
 	downloadProgress: number;
-	installed: boolean;
+	readyToInstall: boolean;
+	installing: boolean;
 	error: string | null;
+}
+
+export type PreUpdateBackupResult = { ok: true } | { ok: false; error: string };
+
+export interface UpdateCheckerDeps {
+	createPreUpdateBackup?: () => Promise<PreUpdateBackupResult>;
 }
 
 export interface UpdateChecker {
 	state: Readable<UpdateState>;
 	checkForUpdate(beta?: boolean): Promise<void>;
-	downloadAndInstall(): Promise<void>;
-	relaunch(): Promise<void>;
+	downloadUpdate(): Promise<void>;
+	installUpdateAndRestart(): Promise<void>;
 }
 
 const GITHUB_RELEASES_URL =
@@ -38,11 +45,12 @@ const initial: UpdateState = {
 	available: null,
 	downloading: false,
 	downloadProgress: 0,
-	installed: false,
+	readyToInstall: false,
+	installing: false,
 	error: null
 };
 
-export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker {
+export function createUpdateChecker(desktop: DesktopCapabilities, deps: UpdateCheckerDeps = {}): UpdateChecker {
 	const store = writable<UpdateState>({ ...initial });
 
 	function patch(partial: Partial<UpdateState>): void {
@@ -53,7 +61,7 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 		state: { subscribe: store.subscribe },
 
 		async checkForUpdate(beta?: boolean) {
-			patch({ checking: true, error: null });
+			patch({ checking: true, error: null, readyToInstall: false });
 			try {
 				let info;
 				if (beta) {
@@ -66,36 +74,62 @@ export function createUpdateChecker(desktop: DesktopCapabilities): UpdateChecker
 				} else {
 					info = await desktop.checkForUpdate();
 				}
-				patch({ checking: false, available: info });
+				patch({ checking: false, available: info, downloadProgress: 0 });
 			} catch (err) {
-				patch({ checking: false, available: null, error: 'Failed to check for updates.' });
+				patch({ checking: false, available: null, readyToInstall: false, error: 'Failed to check for updates.' });
 				console.error('Update check error:', err);
 			}
 		},
 
-		async downloadAndInstall() {
-			patch({ downloading: true, downloadProgress: 0, error: null });
+		async downloadUpdate() {
+			patch({ downloading: true, readyToInstall: false, downloadProgress: 0, error: null });
 			try {
-				const ok = await desktop.downloadAndInstallUpdate((progress) => {
+				const ok = await desktop.downloadUpdate((progress) => {
 					if (progress.contentLength && progress.contentLength > 0) {
 						const pct = Math.round((progress.downloadedLength / progress.contentLength) * 100);
 						patch({ downloadProgress: Math.min(pct, 100) });
 					}
 				});
 				if (ok) {
-					patch({ downloading: false, downloadProgress: 100, installed: true });
+					patch({ downloading: false, downloadProgress: 100, readyToInstall: true });
 				} else {
-					patch({ downloading: false, available: null, error: 'Update returned false — check console for details.' });
+					patch({ downloading: false, error: 'Update download failed.' });
 				}
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				patch({ downloading: false, available: null, error: `Update failed: ${msg}` });
+				patch({ downloading: false, error: `Update failed: ${msg}` });
 				console.error('Update error:', err);
 			}
 		},
 
-		async relaunch() {
-			await desktop.relaunch();
+		async installUpdateAndRestart() {
+			patch({ installing: true, error: null });
+			try {
+				const backup = deps.createPreUpdateBackup
+					? await deps.createPreUpdateBackup()
+					: { ok: false as const, error: 'Update blocked because backup is not configured.' };
+
+				if (!backup.ok) {
+					patch({ installing: false, readyToInstall: true, error: backup.error });
+					return;
+				}
+
+				const ok = await desktop.installUpdateAndRestart();
+				if (ok) {
+					patch({
+						installing: false,
+						readyToInstall: false,
+						available: null,
+						downloadProgress: 0
+					});
+				} else {
+					patch({ installing: false, readyToInstall: true, error: 'Update installation failed.' });
+				}
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				patch({ installing: false, readyToInstall: true, error: `Update failed: ${msg}` });
+				console.error('Update install error:', err);
+			}
 		}
 	};
 }

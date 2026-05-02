@@ -201,6 +201,35 @@ test.describe('Modal accessibility and UX', () => {
 		await modal(page).locator('input[type="date"]').nth(1).fill(offsetDate(1));
 		await expect(nightsDisplay).toHaveText('1 night');
 	});
+
+	test('reservation notes support pasted email-length content', async ({ page }) => {
+		const today = getTodayIso();
+		const endDate = offsetDate(2);
+		const longNotes = 'N'.repeat(5000);
+
+		await page.getByTestId('new-reservation-btn').click();
+		await expect(modal(page)).toBeVisible();
+
+		const notesInput = modal(page).locator('textarea');
+		const notesCounter = modal(page).locator('.notes-label-row small');
+		await expect(notesInput).toHaveAttribute('maxlength', '5000');
+		await expect(notesCounter).toHaveText('0/5000');
+
+		await modal(page).locator('input[placeholder="Guest name"]').fill('Long Notes Guest');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+		await notesInput.fill(longNotes);
+		await expect(notesCounter).toHaveText('5000/5000');
+
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		const occupied = page.locator('.grid-cell.occupied').first();
+		await occupied.scrollIntoViewIfNeeded();
+		await occupied.click();
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('textarea')).toHaveValue(longNotes);
+	});
 });
 
 test.describe('New Reservation button', () => {

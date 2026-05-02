@@ -4,6 +4,7 @@
   import { onMount, setContext } from 'svelte';
   import { getAppServices, registerPersistenceLifecycleHandlers } from '$lib/app/composition';
   import { startAutoBackupTimer } from '$lib/app/auto-backup';
+  import { createForcedBackup } from '$lib/app/forced-backup';
   import { createUpdateChecker } from '$lib/app/update-checker';
   import { createBackup } from '$lib/domain/backup';
   import { siteSettingsStore } from '$lib/site-settings';
@@ -14,7 +15,22 @@
   // Create update checker at component init so setContext works for child routes.
   // The actual check is deferred to onMount after persistence is ready.
   const { desktop } = getAppServices();
-  const updateChecker = desktop.isDesktop ? createUpdateChecker(desktop) : null;
+  function getBackupContent(): string {
+    const state = get(rvReservationStore);
+    const settings = get(siteSettingsStore);
+    const customers = customerStore.getAll();
+    const backup = createBackup(state.reservations, state.parkingLocations, settings, customers);
+    return JSON.stringify(backup, null, 2);
+  }
+
+  const updateChecker = desktop.isDesktop ? createUpdateChecker(desktop, {
+    createPreUpdateBackup: () => createForcedBackup({
+      desktop,
+      getBackupContent,
+      getAutoBackupDirectory: () => get(siteSettingsStore).autoBackup?.directoryPath,
+      onSuccess: async (timestamp) => { await siteSettingsStore.recordAutoBackup(timestamp); }
+    })
+  }) : null;
   if (updateChecker) {
     setContext('updateChecker', updateChecker);
   }
@@ -41,13 +57,7 @@
           const settings = get(siteSettingsStore);
           return settings.autoBackup ?? { intervalMinutes: 0, directoryPath: null, lastBackupAt: null };
         },
-        getBackupContent: () => {
-          const state = get(rvReservationStore);
-          const settings = get(siteSettingsStore);
-          const customers = customerStore.getAll();
-          const backup = createBackup(state.reservations, state.parkingLocations, settings, customers);
-          return JSON.stringify(backup, null, 2);
-        },
+        getBackupContent,
         desktop,
         onSuccess: async (timestamp) => { await siteSettingsStore.recordAutoBackup(timestamp); },
         onError: (err) => console.error('Auto-backup failed:', err)

@@ -5,7 +5,8 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 		version: string;
 		date?: string | null;
 		body?: string | null;
-		downloadAndInstall(onEvent?: (event: { event: string; data?: Record<string, number | undefined> }) => void): Promise<void>;
+		download(onEvent?: (event: { event: string; data?: Record<string, number | undefined> }) => void): Promise<void>;
+		install(): Promise<void>;
 	}
 
 	let pendingUpdate: PendingUpdate | null = null;
@@ -91,9 +92,8 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 				pendingUpdate = null;
 				return null;
 			}
-			// Construct a standard Update object from the resource ID.
-			// This lets downloadAndInstall use the plugin's standard flow
-			// (proper progress events, on_before_exit, Windows process exit).
+			// Construct a standard Update object from the resource ID so the
+			// standard download/install flow can use the beta endpoint.
 			pendingUpdate = new Update({
 				...result,
 				date: result.date ?? undefined,
@@ -106,13 +106,13 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 				body: result.body
 			};
 		},
-		async downloadAndInstallUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean> {
+		async downloadUpdate(onProgress?: (progress: UpdateProgress) => void): Promise<boolean> {
 			if (!pendingUpdate) throw new Error('No pending update to install');
 			let totalLength: number | null = null;
 			let downloaded = 0;
-			console.log('[updater] Starting download and install, version:', (pendingUpdate as { version?: string }).version ?? 'unknown');
+			console.log('[updater] Starting download, version:', (pendingUpdate as { version?: string }).version ?? 'unknown');
 			try {
-				await pendingUpdate.downloadAndInstall((event) => {
+				await pendingUpdate.download((event) => {
 					console.log('[updater] Event:', event.event, event.data);
 					if (!onProgress || !event.data) return;
 					if (event.event === 'Started') {
@@ -125,10 +125,23 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 					}
 				});
 			} catch (err) {
-				console.error('[updater] downloadAndInstall failed:', err);
+				console.error('[updater] download failed:', err);
+				throw new Error(`Download failed: ${err instanceof Error ? err.message : String(err)}`);
+			}
+			return true;
+		},
+		async installUpdateAndRestart(): Promise<boolean> {
+			if (!pendingUpdate) throw new Error('No downloaded update to install');
+			console.log('[updater] Starting install, version:', (pendingUpdate as { version?: string }).version ?? 'unknown');
+			try {
+				await pendingUpdate.install();
+				pendingUpdate = null;
+				const { relaunch } = await import('@tauri-apps/plugin-process');
+				await relaunch();
+			} catch (err) {
+				console.error('[updater] install failed:', err);
 				throw new Error(`Installation failed: ${err instanceof Error ? err.message : String(err)}`);
 			}
-			pendingUpdate = null;
 			return true;
 		},
 		async relaunch(): Promise<void> {

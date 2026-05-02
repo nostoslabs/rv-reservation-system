@@ -31,7 +31,15 @@
   let appVersion = '';
   let isDesktop = false;
   const updateChecker = getContext<UpdateChecker | undefined>('updateChecker');
-  const noUpdateState: UpdateState = { checking: false, available: null, downloading: false, downloadProgress: 0, installed: false, error: null };
+  const noUpdateState: UpdateState = {
+    checking: false,
+    available: null,
+    downloading: false,
+    downloadProgress: 0,
+    readyToInstall: false,
+    installing: false,
+    error: null
+  };
   const updateState = updateChecker?.state ?? readable(noUpdateState);
 
   let siteNameDraft = DEFAULT_SITE_NAME;
@@ -513,12 +521,16 @@
         <p>Current version: {appVersion || 'unknown'}</p>
 
         <div class="stack">
-          {#if $updateState.installed}
-            <div class="update-status success" data-testid="update-installed">
-              Update installed. Restart to apply.
+          {#if $updateState.installing}
+            <div class="update-status" data-testid="update-installing">
+              Creating backup and applying update...
             </div>
-            <button type="button" class="primary" on:click={() => updateChecker.relaunch()} data-testid="update-restart-btn">
-              Restart Now
+          {:else if $updateState.readyToInstall}
+            <div class="update-status success" data-testid="update-ready">
+              Update ready. Restart to apply.
+            </div>
+            <button type="button" class="primary" on:click={() => updateChecker.installUpdateAndRestart()} data-testid="update-apply-btn">
+              Restart &amp; Apply Update
             </button>
           {:else if $updateState.downloading}
             <div class="update-status" data-testid="update-downloading">
@@ -534,8 +546,8 @@
                 <span class="beta-badge">Beta</span>
               {/if}
             </div>
-            <button type="button" class="primary" on:click={() => updateChecker.downloadAndInstall()} data-testid="update-download-btn">
-              Download &amp; Install
+            <button type="button" class="primary" on:click={() => updateChecker.downloadUpdate()} data-testid="update-download-btn">
+              Download Update
             </button>
           {:else if $updateState.checking}
             <div class="update-status" data-testid="update-checking">

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { createUpdateChecker, type UpdateChecker } from '$lib/app/update-checker';
+import { createUpdateChecker } from '$lib/app/update-checker';
 import type { DesktopCapabilities, UpdateInfo } from '$lib/application/ports';
 
 function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapabilities {
@@ -14,7 +14,8 @@ function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapab
 		pickDirectory: async () => null,
 		checkForUpdate: async () => null,
 		checkBetaUpdate: async () => null,
-		downloadAndInstallUpdate: async () => false,
+		downloadUpdate: async () => false,
+		installUpdateAndRestart: async () => false,
 		relaunch: async () => {},
 		...overrides
 	};
@@ -34,7 +35,8 @@ describe('createUpdateChecker', () => {
 		expect(state.checking).toBe(false);
 		expect(state.available).toBeNull();
 		expect(state.downloading).toBe(false);
-		expect(state.installed).toBe(false);
+		expect(state.installing).toBe(false);
+		expect(state.readyToInstall).toBe(false);
 		expect(state.error).toBeNull();
 	});
 
@@ -72,42 +74,76 @@ describe('createUpdateChecker', () => {
 		expect(state.error).toBe('Failed to check for updates.');
 	});
 
-	it('downloadAndInstall tracks progress and sets installed', async () => {
+	it('downloadUpdate tracks progress and marks the update ready to install', async () => {
 		const checker = createUpdateChecker(makeDesktop({
 			checkForUpdate: async () => fakeUpdate,
-			downloadAndInstallUpdate: async () => true
+			downloadUpdate: async (onProgress) => {
+				onProgress?.({ downloadedLength: 50, contentLength: 100 });
+				return true;
+			}
 		}));
 
 		await checker.checkForUpdate();
-		await checker.downloadAndInstall();
+		await checker.downloadUpdate();
 
 		const state = get(checker.state);
 		expect(state.downloading).toBe(false);
-		expect(state.installed).toBe(true);
+		expect(state.downloadProgress).toBe(100);
+		expect(state.readyToInstall).toBe(true);
 	});
 
-	it('downloadAndInstall sets error on failure', async () => {
+	it('downloadUpdate sets error on failure', async () => {
 		const checker = createUpdateChecker(makeDesktop({
 			checkForUpdate: async () => fakeUpdate,
-			downloadAndInstallUpdate: async () => false
+			downloadUpdate: async () => false
 		}));
 
 		await checker.checkForUpdate();
-		await checker.downloadAndInstall();
+		await checker.downloadUpdate();
 
 		const state = get(checker.state);
 		expect(state.downloading).toBe(false);
-		expect(state.installed).toBe(false);
-		expect(state.error).toBe('Update installation failed.');
+		expect(state.readyToInstall).toBe(false);
+		expect(state.error).toBe('Update download failed.');
 	});
 
-	it('relaunch calls desktop.relaunch', async () => {
-		const relaunchFn = vi.fn();
+	it('installUpdateAndRestart creates a backup before installing', async () => {
+		const installFn = vi.fn(async () => true);
+		const backupFn = vi.fn(async () => ({ ok: true as const }));
 		const checker = createUpdateChecker(makeDesktop({
-			relaunch: relaunchFn
-		}));
+			checkForUpdate: async () => fakeUpdate,
+			downloadUpdate: async () => true,
+			installUpdateAndRestart: installFn
+		}), { createPreUpdateBackup: backupFn });
 
-		await checker.relaunch();
-		expect(relaunchFn).toHaveBeenCalledOnce();
+		await checker.checkForUpdate();
+		await checker.downloadUpdate();
+		await checker.installUpdateAndRestart();
+
+		expect(backupFn).toHaveBeenCalledOnce();
+		expect(installFn).toHaveBeenCalledOnce();
+		expect(backupFn.mock.invocationCallOrder[0]).toBeLessThan(installFn.mock.invocationCallOrder[0]);
+		expect(get(checker.state).readyToInstall).toBe(false);
+	});
+
+	it('installUpdateAndRestart blocks installation when backup fails', async () => {
+		const installFn = vi.fn(async () => true);
+		const checker = createUpdateChecker(makeDesktop({
+			checkForUpdate: async () => fakeUpdate,
+			downloadUpdate: async () => true,
+			installUpdateAndRestart: installFn
+		}), {
+			createPreUpdateBackup: async () => ({ ok: false, error: 'Backup failed: disk full' })
+		});
+
+		await checker.checkForUpdate();
+		await checker.downloadUpdate();
+		await checker.installUpdateAndRestart();
+
+		const state = get(checker.state);
+		expect(installFn).not.toHaveBeenCalled();
+		expect(state.installing).toBe(false);
+		expect(state.readyToInstall).toBe(true);
+		expect(state.error).toBe('Backup failed: disk full');
 	});
 });
