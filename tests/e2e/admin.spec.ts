@@ -15,6 +15,38 @@ async function resetApp(page: Page) {
 	await page.waitForTimeout(300);
 }
 
+async function installDesktopBackupMock(page: Page) {
+	await page.addInitScript(() => {
+		type BackupWrite = { path: string; content: string };
+		type BackupTestWindow = Window & {
+			__RV_TEST_DESKTOP_CAPABILITIES__?: unknown;
+			__RV_BACKUP_WRITES__?: BackupWrite[];
+			__RV_BACKUP_MISMATCH__?: boolean;
+		};
+
+		const testWindow = window as BackupTestWindow;
+		const files = new Map<string, string>();
+		testWindow.__RV_BACKUP_WRITES__ = [];
+		testWindow.__RV_BACKUP_MISMATCH__ = false;
+		testWindow.__RV_TEST_DESKTOP_CAPABILITIES__ = {
+			isDesktop: true,
+			getVersion: async () => 'e2e-test',
+			pickDirectory: async () => '/mock-backups',
+			writeFileToPath: async (filePath: string, content: string) => {
+				testWindow.__RV_BACKUP_WRITES__?.push({ path: filePath, content });
+				files.set(filePath, content);
+			},
+			readFileFromPath: async (filePath: string) => {
+				const content = files.get(filePath) ?? '';
+				if (testWindow.__RV_BACKUP_MISMATCH__ && filePath.includes('rv-backup-')) {
+					return `${content}\ncorrupt`;
+				}
+				return content;
+			}
+		};
+	});
+}
+
 test.describe('Settings page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
@@ -132,6 +164,63 @@ test.describe('Backup & Restore section on settings page', () => {
 	test('backup panel has correct heading', async ({ page }) => {
 		await page.goto('/admin');
 		await expect(page.locator('h2:has-text("Backup & Restore")')).toBeVisible();
+	});
+});
+
+test.describe('Automatic backup manual trigger', () => {
+	test.beforeEach(async ({ page }) => {
+		await installDesktopBackupMock(page);
+		await clearStorage(page);
+	});
+
+	test('backup now is disabled until a backup folder is configured', async ({ page }) => {
+		await page.goto('/admin');
+
+		await expect(page.locator('[data-testid="auto-backup-panel"]')).toBeVisible();
+		await expect(page.locator('[data-testid="auto-backup-now-btn"]')).toBeDisabled();
+		await expect(page.locator('[data-testid="auto-backup-last"]')).toContainText('Last backup: Never');
+	});
+
+	test('backup now writes verified backup JSON to the configured folder', async ({ page }) => {
+		await page.goto('/admin');
+
+		await page.locator('[data-testid="auto-backup-pick-dir"]').click();
+		await expect(page.locator('[data-testid="auto-backup-directory"]')).toHaveValue('/mock-backups');
+
+		await page.locator('[data-testid="auto-backup-now-btn"]').click();
+
+		await expect(page.locator('.message.success')).toContainText('Backup created successfully');
+		await expect(page.locator('[data-testid="auto-backup-last"]')).not.toContainText('Never');
+
+		const writes = await page.evaluate(() => {
+			const testWindow = window as Window & { __RV_BACKUP_WRITES__?: { path: string; content: string }[] };
+			return (testWindow.__RV_BACKUP_WRITES__ ?? []).filter((write) => /\/rv-backup-\d/.test(write.path));
+		});
+
+		expect(writes).toHaveLength(1);
+		expect(writes[0].path).toMatch(/^\/mock-backups\/rv-backup-\d{4}-\d{2}-\d{2}-\d{6}\.json$/);
+		const backup = JSON.parse(writes[0].content);
+		expect(backup.schema.version).toBe(1);
+		expect(backup.schema.appName).toBe('rv-reservation-system');
+		expect(Array.isArray(backup.data.reservations)).toBe(true);
+		expect(Array.isArray(backup.data.parkingLocations)).toBe(true);
+		expect(Array.isArray(backup.data.customers)).toBe(true);
+	});
+
+	test('backup now reports an error when read-back verification fails', async ({ page }) => {
+		await page.goto('/admin');
+
+		await page.locator('[data-testid="auto-backup-pick-dir"]').click();
+		await page.evaluate(() => {
+			const testWindow = window as Window & { __RV_BACKUP_MISMATCH__?: boolean };
+			testWindow.__RV_BACKUP_MISMATCH__ = true;
+		});
+
+		await page.locator('[data-testid="auto-backup-now-btn"]').click();
+
+		await expect(page.locator('.message.error')).toContainText('Backup verification failed');
+		await expect(page.locator('[data-testid="auto-backup-error"]')).toContainText('Backup verification failed');
+		await expect(page.locator('[data-testid="auto-backup-last"]')).toContainText('Last backup: Never');
 	});
 });
 

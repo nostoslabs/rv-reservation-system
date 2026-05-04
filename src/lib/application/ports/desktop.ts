@@ -38,6 +38,9 @@ export interface DesktopCapabilities {
 	/** Write content to a file path without showing a dialog (for background auto-backup). */
 	writeFileToPath(filePath: string, content: string): Promise<void>;
 
+	/** Read content from a file path without showing a dialog (for backup write verification). */
+	readFileFromPath(filePath: string): Promise<string>;
+
 	/** Show a native folder picker. Returns the selected directory path or null if cancelled. */
 	pickDirectory(): Promise<string | null>;
 

@@ -42,6 +42,7 @@ describe('startAutoBackupTimer', () => {
 
 	function makeDeps(config: AutoBackupConfig, overrides?: Partial<AutoBackupDeps>): AutoBackupDeps & { written: string[]; errors: unknown[] } {
 		const written: string[] = [];
+		const files = new Map<string, string>();
 		const errors: unknown[] = [];
 		return {
 			written,
@@ -54,7 +55,11 @@ describe('startAutoBackupTimer', () => {
 				getVersion: async () => null,
 				saveFile: async () => false,
 				openFile: async () => null,
-				writeFileToPath: async (path: string) => { written.push(path); },
+				writeFileToPath: async (path: string, content: string) => {
+					written.push(path);
+					files.set(path, content);
+				},
+				readFileFromPath: async (path: string) => files.get(path) ?? '',
 				pickDirectory: async () => null,
 				checkForUpdate: async () => null,
 				checkBetaUpdate: async () => null,
@@ -107,6 +112,7 @@ describe('startAutoBackupTimer', () => {
 				saveFile: async () => false,
 				openFile: async () => null,
 				writeFileToPath: async () => { throw new Error('disk full'); },
+				readFileFromPath: async () => '',
 				pickDirectory: async () => null,
 				checkForUpdate: async () => null,
 				checkBetaUpdate: async () => null,
@@ -120,7 +126,38 @@ describe('startAutoBackupTimer', () => {
 		await vi.advanceTimersByTimeAsync(0);
 
 		expect(deps.errors.length).toBe(1);
-		expect((deps.errors[0] as Error).message).toBe('disk full');
+		expect((deps.errors[0] as Error).message).toBe('Backup failed: disk full');
+		stop();
+	});
+
+	it('calls onError and skips success when read-back verification fails', async () => {
+		const config: AutoBackupConfig = { intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null };
+		let successTimestamp: string | null = null;
+		const deps = makeDeps(config, {
+			desktop: {
+				isDesktop: true,
+				getAppDataDir: async () => null,
+				getVersion: async () => null,
+				saveFile: async () => false,
+				openFile: async () => null,
+				writeFileToPath: async () => {},
+				readFileFromPath: async () => '{"test": false}',
+				pickDirectory: async () => null,
+				checkForUpdate: async () => null,
+				checkBetaUpdate: async () => null,
+				downloadUpdate: async () => false,
+				installUpdateAndRestart: async () => false,
+				relaunch: async () => {}
+			},
+			onSuccess: async (ts) => { successTimestamp = ts; }
+		});
+		const stop = startAutoBackupTimer(deps);
+
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(successTimestamp).toBeNull();
+		expect(deps.errors.length).toBe(1);
+		expect((deps.errors[0] as Error).message).toBe('Backup verification failed: written file contents did not match generated backup.');
 		stop();
 	});
 

@@ -55,6 +55,10 @@ export function createTauriDesktopCapabilities(): DesktopCapabilities {
 			const { writeTextFile } = await import('@tauri-apps/plugin-fs');
 			await writeTextFile(filePath, content);
 		},
+		async readFileFromPath(filePath: string): Promise<string> {
+			const { readTextFile } = await import('@tauri-apps/plugin-fs');
+			return await readTextFile(filePath);
+		},
 		async pickDirectory(): Promise<string | null> {
 			const { open } = await import('@tauri-apps/plugin-dialog');
 			const path = await open({ multiple: false, directory: true });
