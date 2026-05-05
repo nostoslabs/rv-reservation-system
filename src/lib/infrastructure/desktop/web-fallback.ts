@@ -29,6 +29,9 @@ export function createWebFallbackDesktopCapabilities(): DesktopCapabilities {
 		async writeFileToPath(): Promise<void> {
 			// No-op in web — auto-backup is desktop-only
 		},
+		async readFileFromPath(): Promise<string> {
+			throw new Error('Reading files by path is only available in the desktop app.');
+		},
 		async pickDirectory(): Promise<string | null> {
 			return null;
 		},

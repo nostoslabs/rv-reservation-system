@@ -10,6 +10,7 @@ function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapab
 		saveFile: async () => false,
 		openFile: async () => null,
 		writeFileToPath: async () => {},
+		readFileFromPath: async () => '',
 		pickDirectory: async () => null,
 		checkForUpdate: async () => null,
 		checkBetaUpdate: async () => null,
@@ -23,10 +24,11 @@ function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapab
 describe('createForcedBackup', () => {
 	it('writes to the configured backup directory and records success', async () => {
 		const writeFileToPath = vi.fn(async (_path: string, _content: string) => {});
+		const readFileFromPath = vi.fn(async () => '{"ok":true}');
 		const onSuccess = vi.fn(async () => {});
 
 		const result = await createForcedBackup({
-			desktop: makeDesktop({ writeFileToPath }),
+			desktop: makeDesktop({ writeFileToPath, readFileFromPath }),
 			getBackupContent: () => '{"ok":true}',
 			getAutoBackupDirectory: () => '/backups',
 			onSuccess
@@ -37,6 +39,7 @@ describe('createForcedBackup', () => {
 		const [path, content] = writeFileToPath.mock.calls[0];
 		expect(path).toMatch(/^\/backups\/rv-backup-\d{4}-\d{2}-\d{2}-\d{6}\.json$/);
 		expect(content).toBe('{"ok":true}');
+		expect(readFileFromPath).toHaveBeenCalledWith(path);
 		expect(onSuccess).toHaveBeenCalledOnce();
 	});
 
@@ -85,5 +88,24 @@ describe('createForcedBackup', () => {
 			ok: false,
 			error: 'Backup failed: disk full'
 		});
+	});
+
+	it('does not record success when backup verification fails', async () => {
+		const onSuccess = vi.fn(async () => {});
+
+		const result = await createForcedBackup({
+			desktop: makeDesktop({
+				readFileFromPath: async () => '{"ok":false}'
+			}),
+			getBackupContent: () => '{"ok":true}',
+			getAutoBackupDirectory: () => '/backups',
+			onSuccess
+		});
+
+		expect(result).toEqual({
+			ok: false,
+			error: 'Backup verification failed: written file contents did not match generated backup.'
+		});
+		expect(onSuccess).not.toHaveBeenCalled();
 	});
 });

@@ -1,6 +1,6 @@
 import type { AutoBackupConfig } from '$lib/types';
 import type { DesktopCapabilities } from '$lib/application/ports';
-import { generateBackupFilename } from '$lib/domain/backup';
+import { writeVerifiedBackupToDirectory } from '$lib/app/verified-backup';
 import { writable } from 'svelte/store';
 
 export interface BackupStatus {
@@ -14,6 +14,18 @@ export const backupStatus = writable<BackupStatus>({
 	lastErrorAt: null,
 	consecutiveFailures: 0
 });
+
+export function clearBackupStatus(): void {
+	backupStatus.set({ lastError: null, lastErrorAt: null, consecutiveFailures: 0 });
+}
+
+export function recordBackupError(error: unknown): void {
+	backupStatus.update((s) => ({
+		lastError: error instanceof Error ? error.message : String(error),
+		lastErrorAt: new Date().toISOString(),
+		consecutiveFailures: s.consecutiveFailures + 1
+	}));
+}
 
 export interface AutoBackupDeps {
 	getConfig: () => AutoBackupConfig;
@@ -41,20 +53,20 @@ export function startAutoBackupTimer(deps: AutoBackupDeps): () => void {
 
 		running = true;
 		try {
-			const content = deps.getBackupContent();
-			const filename = generateBackupFilename();
-			const separator = config.directoryPath!.endsWith('/') || config.directoryPath!.endsWith('\\') ? '' : '/';
-			const filePath = `${config.directoryPath}${separator}${filename}`;
-			await deps.desktop.writeFileToPath(filePath, content);
-			await deps.onSuccess(new Date().toISOString());
-			backupStatus.set({ lastError: null, lastErrorAt: null, consecutiveFailures: 0 });
+			const result = await writeVerifiedBackupToDirectory({
+				desktop: deps.desktop,
+				directoryPath: config.directoryPath!,
+				getBackupContent: deps.getBackupContent
+			});
+			if (!result.ok) {
+				throw new Error(result.error);
+			}
+
+			await deps.onSuccess(result.timestamp);
+			clearBackupStatus();
 		} catch (error) {
 			deps.onError(error);
-			backupStatus.update((s) => ({
-				lastError: error instanceof Error ? error.message : String(error),
-				lastErrorAt: new Date().toISOString(),
-				consecutiveFailures: s.consecutiveFailures + 1
-			}));
+			recordBackupError(error);
 		} finally {
 			running = false;
 		}
