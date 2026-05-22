@@ -2,9 +2,19 @@ name: Build Desktop App
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing tag to build/release, such as v1.20.0-beta.1 or v1.20.0'
+        required: true
+        type: string
+      stable_release_consent:
+        description: 'For stable tags only, type exactly: I consent to publish stable release vX.Y.Z'
+        required: false
+        type: string
   push:
     tags:
-      - 'v*'
+      - 'v*-beta.*'
+      - 'v*-rc.*'
 
 # Signing: configure APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
 # APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
@@ -15,30 +25,41 @@ permissions:
 
 jobs:
   create-release:
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Validate release tag input
+        run: |
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "::error::Release tag is required."
+            exit 1
+          fi
 
       - name: Require beta prerelease before stable release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF_NAME: ${{ env.RELEASE_TAG }}
+          RELEASE_GUARD_STABLE_RELEASE_CONSENT: ${{ github.event_name == 'workflow_dispatch' && inputs.stable_release_consent || '' }}
         run: node scripts/release-guard.mjs
 
       - name: Create draft release with auto-generated notes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "${{ github.ref_name }}" &>/dev/null; then
-            echo "Release ${{ github.ref_name }} already exists, skipping creation."
+          if gh release view "$RELEASE_TAG" &>/dev/null; then
+            echo "Release $RELEASE_TAG already exists, skipping creation."
           else
             PRERELEASE_FLAG=""
-            if [[ "${{ github.ref_name }}" == *"-beta"* ]] || [[ "${{ github.ref_name }}" == *"-rc"* ]]; then
+            if [[ "$RELEASE_TAG" == *"-beta"* ]] || [[ "$RELEASE_TAG" == *"-rc"* ]]; then
               PRERELEASE_FLAG="--prerelease"
             fi
-            gh release create "${{ github.ref_name }}" --draft --generate-notes $PRERELEASE_FLAG --title "RV Reservation System ${{ github.ref_name }}"
+            gh release create "$RELEASE_TAG" --draft --generate-notes $PRERELEASE_FLAG --title "RV Reservation System $RELEASE_TAG"
           fi
 
   build-tauri:
@@ -57,9 +78,13 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/setup-node@v4
         with:
@@ -85,10 +110,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: ${{ github.ref_type == 'tag' && format('RV Reservation System {0}', github.ref_name) || '' }}
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: RV Reservation System ${{ env.RELEASE_TAG }}
           releaseDraft: true
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-rc') }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 

@@ -33,12 +33,17 @@ npm run check        # Run TypeScript type checking
 ### CI Build
 Trigger a build via GitHub Actions:
 - **Beta tag push**: `git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1`
-- **Stable tag push**: `git tag v1.0.0 && git push origin v1.0.0`
-- **Manual**: Actions > "Build Desktop App" > Run workflow
+- **RC tag push**: `git tag v1.0.0-rc.1 && git push origin v1.0.0-rc.1`
+- **Stable release**: Actions > "Build Desktop App" > Run workflow, enter the existing stable tag, and type the exact consent phrase shown below.
 
-Build artifacts are uploaded as GitHub Actions artifacts and (for tag pushes) attached to a draft GitHub Release.
+Build artifacts are uploaded as GitHub Actions artifacts and attached to a draft GitHub Release.
 
-Stable release tags are blocked unless a matching published beta prerelease exists first. For example, `v1.0.0` requires a non-draft `v1.0.0-beta.N` GitHub prerelease with both macOS and Windows artifacts attached. The workflow runs `node scripts/release-guard.mjs` before creating or building a stable release.
+Stable release tag pushes do not trigger the release workflow. Stable releases are blocked unless both of these conditions are true:
+
+- A matching published beta prerelease exists first. For example, `v1.0.0` requires a non-draft `v1.0.0-beta.N` GitHub prerelease with both macOS and Windows artifacts attached.
+- The manual workflow input `stable_release_consent` exactly matches `I consent to publish stable release v1.0.0`, with the target stable tag substituted.
+
+The workflow runs `node scripts/release-guard.mjs` before creating or building any release. Unsupported release tag formats are rejected.
 
 ### Local Build
 ```bash
@@ -85,9 +90,10 @@ All three should be updated together before tagging a release.
 2. Tag the merge commit as a beta: `git tag vX.Y.Z-beta.1 && git push origin vX.Y.Z-beta.1`.
 3. Wait for the desktop workflow to attach macOS and Windows artifacts to the draft prerelease.
 4. Publish the prerelease and test the artifacts on macOS and Windows.
-5. After testing passes, tag the same validated commit as stable: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+5. After testing passes, tag the same validated commit as stable: `git tag vX.Y.Z && git push origin vX.Y.Z`. This tag push is intentionally inert for the release workflow.
+6. In GitHub Actions, run "Build Desktop App" manually with `release_tag` set to `vX.Y.Z` and `stable_release_consent` set exactly to `I consent to publish stable release vX.Y.Z`.
 
-The stable tag guard checks GitHub Releases, not local tags. A qualifying beta must be published, marked as a prerelease, and include at least one macOS artifact (`.dmg` or `.app.tar.gz`) plus one Windows artifact (`.msi`, `.exe`, or `.nsis.zip`).
+The stable tag guard checks GitHub Releases, not local tags. A qualifying beta must be published, marked as a prerelease, and include at least one macOS artifact (`.dmg` or `.app.tar.gz`) plus one Windows artifact (`.msi`, `.exe`, or `.nsis.zip`). The consent guard is exact and tag-specific, so consent for one stable version cannot accidentally authorize another.
 
 ## Verification Checklist
 
