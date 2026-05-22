@@ -2,24 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { createUpdateChecker } from '$lib/app/update-checker';
 import type { DesktopCapabilities, UpdateInfo } from '$lib/application/ports';
+import { createDesktopCapabilitiesMock } from './desktop-capabilities.fixture';
 
-function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapabilities {
-	return {
-		isDesktop: true,
-		getAppDataDir: async () => null,
-		getVersion: async () => null,
-		saveFile: async () => false,
-		openFile: async () => null,
-		writeFileToPath: async () => {},
-		readFileFromPath: async () => '',
-		pickDirectory: async () => null,
-		checkForUpdate: async () => null,
-		checkBetaUpdate: async () => null,
-		downloadUpdate: async () => false,
-		installUpdateAndRestart: async () => false,
-		relaunch: async () => {},
-		...overrides
-	};
+function makeDesktop(overrides: Partial<DesktopCapabilities> = {}) {
+	return createDesktopCapabilitiesMock(overrides).desktop;
 }
 
 const fakeUpdate: UpdateInfo = {

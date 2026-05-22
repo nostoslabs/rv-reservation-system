@@ -1,6 +1,6 @@
 import type { DesktopCapabilities } from '$lib/application/ports';
 import { generateBackupFilename } from '$lib/domain/backup';
-import { writeVerifiedBackupToDirectory } from '$lib/app/verified-backup';
+import { formatBackupError, writeVerifiedBackupToDirectory } from '$lib/app/verified-backup';
 
 export const JSON_BACKUP_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
 
@@ -13,10 +13,6 @@ export interface ForcedBackupDeps {
 	getBackupContent: () => string;
 	getAutoBackupDirectory: () => string | null | undefined;
 	onSuccess?: (timestamp: string) => Promise<void>;
-}
-
-function formatBackupError(error: unknown): string {
-	return `Backup failed: ${error instanceof Error ? error.message : String(error)}`;
 }
 
 export async function createForcedBackup(deps: ForcedBackupDeps): Promise<ForcedBackupResult> {

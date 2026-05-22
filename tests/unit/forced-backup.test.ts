@@ -1,25 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createForcedBackup, JSON_BACKUP_FILTERS } from '$lib/app/forced-backup';
-import type { DesktopCapabilities } from '$lib/application/ports';
-
-function makeDesktop(overrides: Partial<DesktopCapabilities> = {}): DesktopCapabilities {
-	return {
-		isDesktop: true,
-		getAppDataDir: async () => null,
-		getVersion: async () => null,
-		saveFile: async () => false,
-		openFile: async () => null,
-		writeFileToPath: async () => {},
-		readFileFromPath: async () => '',
-		pickDirectory: async () => null,
-		checkForUpdate: async () => null,
-		checkBetaUpdate: async () => null,
-		downloadUpdate: async () => false,
-		installUpdateAndRestart: async () => false,
-		relaunch: async () => {},
-		...overrides
-	};
-}
+import { createDesktopCapabilitiesMock } from './desktop-capabilities.fixture';
 
 describe('createForcedBackup', () => {
 	it('writes to the configured backup directory and records success', async () => {
@@ -27,12 +8,12 @@ describe('createForcedBackup', () => {
 		const readFileFromPath = vi.fn(async () => '{"ok":true}');
 		const onSuccess = vi.fn(async () => {});
 
-		const result = await createForcedBackup({
-			desktop: makeDesktop({ writeFileToPath, readFileFromPath }),
-			getBackupContent: () => '{"ok":true}',
-			getAutoBackupDirectory: () => '/backups',
-			onSuccess
-		});
+			const result = await createForcedBackup({
+				desktop: createDesktopCapabilitiesMock({ writeFileToPath, readFileFromPath }).desktop,
+				getBackupContent: () => '{"ok":true}',
+				getAutoBackupDirectory: () => '/backups',
+				onSuccess
+			});
 
 		expect(result.ok).toBe(true);
 		expect(writeFileToPath).toHaveBeenCalledOnce();
@@ -46,11 +27,11 @@ describe('createForcedBackup', () => {
 	it('opens a save dialog when no backup directory is configured', async () => {
 		const saveFile = vi.fn(async (_filename: string, _content: string, _filters?: { name: string; extensions: string[] }[]) => true);
 
-		const result = await createForcedBackup({
-			desktop: makeDesktop({ saveFile }),
-			getBackupContent: () => '{"ok":true}',
-			getAutoBackupDirectory: () => null
-		});
+			const result = await createForcedBackup({
+				desktop: createDesktopCapabilitiesMock({ saveFile }).desktop,
+				getBackupContent: () => '{"ok":true}',
+				getAutoBackupDirectory: () => null
+			});
 
 		expect(result.ok).toBe(true);
 		expect(saveFile).toHaveBeenCalledOnce();
@@ -61,11 +42,11 @@ describe('createForcedBackup', () => {
 	});
 
 	it('blocks when the user cancels the save dialog', async () => {
-		const result = await createForcedBackup({
-			desktop: makeDesktop({ saveFile: async () => false }),
-			getBackupContent: () => '{"ok":true}',
-			getAutoBackupDirectory: () => null
-		});
+			const result = await createForcedBackup({
+				desktop: createDesktopCapabilitiesMock({ saveFile: async () => false }).desktop,
+				getBackupContent: () => '{"ok":true}',
+				getAutoBackupDirectory: () => null
+			});
 
 		expect(result).toEqual({
 			ok: false,
@@ -74,15 +55,15 @@ describe('createForcedBackup', () => {
 	});
 
 	it('blocks when writing the backup fails', async () => {
-		const result = await createForcedBackup({
-			desktop: makeDesktop({
-				writeFileToPath: async () => {
-					throw new Error('disk full');
-				}
-			}),
-			getBackupContent: () => '{"ok":true}',
-			getAutoBackupDirectory: () => '/backups'
-		});
+			const result = await createForcedBackup({
+				desktop: createDesktopCapabilitiesMock({
+					writeFileToPath: async () => {
+						throw new Error('disk full');
+					}
+				}).desktop,
+				getBackupContent: () => '{"ok":true}',
+				getAutoBackupDirectory: () => '/backups'
+			});
 
 		expect(result).toEqual({
 			ok: false,
@@ -93,14 +74,14 @@ describe('createForcedBackup', () => {
 	it('does not record success when backup verification fails', async () => {
 		const onSuccess = vi.fn(async () => {});
 
-		const result = await createForcedBackup({
-			desktop: makeDesktop({
-				readFileFromPath: async () => '{"ok":false}'
-			}),
-			getBackupContent: () => '{"ok":true}',
-			getAutoBackupDirectory: () => '/backups',
-			onSuccess
-		});
+			const result = await createForcedBackup({
+				desktop: createDesktopCapabilitiesMock({
+					readFileFromPath: async () => '{"ok":false}'
+				}).desktop,
+				getBackupContent: () => '{"ok":true}',
+				getAutoBackupDirectory: () => '/backups',
+				onSuccess
+			});
 
 		expect(result).toEqual({
 			ok: false,

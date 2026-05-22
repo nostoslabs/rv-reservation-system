@@ -2,7 +2,7 @@ import type { DesktopCapabilities } from '$lib/application/ports';
 import { generateBackupFilename } from '$lib/domain/backup';
 
 export type VerifiedBackupResult =
-	| { ok: true; filePath: string; timestamp: string }
+	| { ok: true; timestamp: string }
 	| { ok: false; error: string };
 
 export interface VerifiedBackupDeps {
@@ -17,7 +17,7 @@ function joinBackupPath(directoryPath: string, filename: string): string {
 	return `${directoryPath}${separator}${filename}`;
 }
 
-function formatBackupError(error: unknown): string {
+export function formatBackupError(error: unknown): string {
 	return `Backup failed: ${error instanceof Error ? error.message : String(error)}`;
 }
 
@@ -37,7 +37,6 @@ export async function writeVerifiedBackupToDirectory(deps: VerifiedBackupDeps): 
 
 		return {
 			ok: true,
-			filePath,
 			timestamp: (deps.now?.() ?? new Date()).toISOString()
 		};
 	} catch (error) {

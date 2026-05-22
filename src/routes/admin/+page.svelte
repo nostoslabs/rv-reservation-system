@@ -6,14 +6,15 @@
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
-  import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { restoreBackup, type RestoreStores } from '$lib/application/use-cases/restore-backup';
+  import { createCurrentBackupContent } from '$lib/app/backup-content';
   import { getAppServices } from '$lib/app/composition';
   import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
   import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
   import { readable } from 'svelte/store';
-  import { backupStatus, clearBackupStatus, recordBackupError } from '$lib/app/auto-backup';
-  import { writeVerifiedBackupToDirectory } from '$lib/app/verified-backup';
+  import { backupStatus, runManualBackupNow } from '$lib/app/auto-backup';
+  import { JSON_BACKUP_FILTERS } from '$lib/app/forced-backup';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -184,31 +185,15 @@
     }
   }
 
-  const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
-
-  function getBackupContent(): string {
-    const state = get(rvReservationStore);
-    const settings = get(siteSettingsStore);
-    const customers = customerStore.getAll();
-    const backup = createBackup(
-      state.reservations,
-      state.parkingLocations,
-      settings,
-      customers
-    );
-
-    return JSON.stringify(backup, null, 2);
-  }
-
   async function handleExportBackup(): Promise<void> {
     clearMessages();
 
     const filename = generateBackupFilename();
-    const content = getBackupContent();
+    const content = createCurrentBackupContent();
 
     try {
       const { desktop } = getAppServices();
-      const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
+      const saved = await desktop.saveFile(filename, content, JSON_BACKUP_FILTERS);
       if (saved) {
         successMessage = 'Backup exported successfully.';
       }
@@ -229,31 +214,19 @@
     manualBackupRunning = true;
     try {
       const { desktop } = getAppServices();
-      const result = await writeVerifiedBackupToDirectory({
+      const result = await runManualBackupNow({
         desktop,
         directoryPath,
-        getBackupContent
+        getBackupContent: createCurrentBackupContent,
+        onSuccess: (timestamp) => siteSettingsStore.recordAutoBackup(timestamp)
       });
 
       if (!result.ok) {
         errorMessage = result.error;
-        recordBackupError(result.error);
         return;
       }
 
-      const recorded = await siteSettingsStore.recordAutoBackup(result.timestamp);
-      if (!recorded.ok) {
-        clearBackupStatus();
-        errorMessage = recorded.errors?.[0] ?? 'Backup was created, but the timestamp could not be saved.';
-        return;
-      }
-
-      clearBackupStatus();
       successMessage = 'Backup created successfully.';
-    } catch (err) {
-      const message = `Backup failed: ${err instanceof Error ? err.message : 'unknown error'}`;
-      errorMessage = message;
-      recordBackupError(message);
     } finally {
       manualBackupRunning = false;
     }
@@ -265,7 +238,7 @@
 
     try {
       const { desktop } = getAppServices();
-      const text = await desktop.openFile(JSON_FILTERS);
+      const text = await desktop.openFile(JSON_BACKUP_FILTERS);
       if (!text) return;
 
       let parsed: unknown;

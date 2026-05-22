@@ -43,7 +43,10 @@ function isTauri(): boolean {
 
 function createBrowserDesktopCapabilities(): DesktopCapabilities {
 	const fallback = createWebFallbackDesktopCapabilities();
-	const testOverride = typeof window !== 'undefined' ? window.__RV_TEST_DESKTOP_CAPABILITIES__ : undefined;
+	const testOverride =
+		import.meta.env.MODE === 'test' && typeof window !== 'undefined'
+			? window.__RV_TEST_DESKTOP_CAPABILITIES__
+			: undefined;
 	if (!testOverride) return fallback;
 
 	return {
