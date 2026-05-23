@@ -41,13 +41,14 @@ test.describe('Compact View Toggle', () => {
 		const normalHeight = (await cell.boundingBox())!.height;
 
 		await compactToggle(page).click();
-		await page.waitForTimeout(200);
-
-		await cell.scrollIntoViewIfNeeded();
-		const compactHeight = (await cell.boundingBox())!.height;
-
-		expect(compactHeight).toBeLessThan(normalHeight);
 		await expect(compactToggle(page)).toHaveAttribute('aria-pressed', 'true');
+
+		await expect
+			.poll(async () => {
+				await cell.scrollIntoViewIfNeeded();
+				return (await cell.boundingBox())?.height ?? normalHeight;
+			})
+			.toBeLessThan(normalHeight);
 	});
 
 	test('compact mode persists across page reload', async ({ page }) => {
