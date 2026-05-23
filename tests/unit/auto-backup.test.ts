@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isBackupDue, runManualBackupNow, startAutoBackupTimer, type AutoBackupDeps } from '$lib/app/auto-backup';
+import {
+	isBackupDue,
+	runBackupOnExit,
+	runManualBackupNow,
+	startAutoBackupTimer,
+	type AutoBackupDeps
+} from '$lib/app/auto-backup';
 import type { AutoBackupConfig } from '$lib/types';
 import { createDesktopCapabilitiesMock } from './desktop-capabilities.fixture';
 
@@ -58,6 +64,67 @@ describe('runManualBackupNow', () => {
 		});
 
 		expect(result).toEqual({ ok: false, error: 'Settings write failed' });
+	});
+});
+
+describe('runBackupOnExit', () => {
+	it('does nothing when no backup directory is configured', async () => {
+		const desktopMock = createDesktopCapabilitiesMock();
+
+		await expect(
+			runBackupOnExit({
+				desktop: desktopMock.desktop,
+				getConfig: () => ({ intervalMinutes: 30, directoryPath: null, lastBackupAt: null }),
+				getBackupContent: () => '{"test": true}',
+				onSuccess: async () => ({ ok: true })
+			})
+		).resolves.toBeUndefined();
+
+		expect(desktopMock.written).toHaveLength(0);
+	});
+
+	it('writes a verified backup when a backup directory is configured', async () => {
+		const desktopMock = createDesktopCapabilitiesMock();
+		const onSuccess = vi.fn(async () => ({ ok: true }));
+
+		await runBackupOnExit({
+			desktop: desktopMock.desktop,
+			getConfig: () => ({ intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null }),
+			getBackupContent: () => '{"test": true}',
+			onSuccess
+		});
+
+		expect(desktopMock.written).toHaveLength(1);
+		expect(desktopMock.written[0]).toMatch(/^\/backups\/rv-backup-.*\.json$/);
+		expect(onSuccess).toHaveBeenCalledOnce();
+	});
+
+	it('swallows backup failures so close can continue', async () => {
+		await expect(
+			runBackupOnExit({
+				desktop: createDesktopCapabilitiesMock({
+					writeFileToPath: async () => {
+						throw new Error('disk full');
+					}
+				}).desktop,
+				getConfig: () => ({ intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null }),
+				getBackupContent: () => '{"test": true}',
+				onSuccess: async () => ({ ok: true })
+			})
+		).resolves.toBeUndefined();
+	});
+
+	it('swallows config load failures so close can continue', async () => {
+		await expect(
+			runBackupOnExit({
+				desktop: createDesktopCapabilitiesMock().desktop,
+				getConfig: () => {
+					throw new Error('settings read failed');
+				},
+				getBackupContent: () => '{"test": true}',
+				onSuccess: async () => ({ ok: true })
+			})
+		).resolves.toBeUndefined();
 	});
 });
 

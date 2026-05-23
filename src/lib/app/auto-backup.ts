@@ -46,6 +46,13 @@ export interface ManualBackupDeps {
 	onSuccess: (timestamp: string) => Promise<{ ok: boolean; errors?: string[] }>;
 }
 
+export interface BackupOnExitDeps {
+	desktop: DesktopCapabilities;
+	getConfig: () => AutoBackupConfig;
+	getBackupContent: () => string;
+	onSuccess: (timestamp: string) => Promise<{ ok: boolean; errors?: string[] }>;
+}
+
 export function isBackupDue(config: AutoBackupConfig): boolean {
 	if (config.intervalMinutes <= 0 || !config.directoryPath) return false;
 	if (!config.lastBackupAt) return true;
@@ -81,6 +88,34 @@ export async function runManualBackupNow(deps: ManualBackupDeps): Promise<Manual
 		const message = formatBackupError(error);
 		recordBackupError(message);
 		return { ok: false, error: message };
+	}
+}
+
+export async function runBackupOnExit(deps: BackupOnExitDeps): Promise<void> {
+	try {
+		const config = deps.getConfig();
+		if (!config.directoryPath) return;
+
+		const result = await writeVerifiedBackupToDirectory({
+			desktop: deps.desktop,
+			directoryPath: config.directoryPath,
+			getBackupContent: deps.getBackupContent
+		});
+
+		if (!result.ok) {
+			recordBackupError(result.error);
+			return;
+		}
+
+		const recorded = await deps.onSuccess(result.timestamp);
+		if (!recorded.ok) {
+			recordBackupError(recorded.errors?.[0] ?? 'Exit backup timestamp could not be saved.');
+			return;
+		}
+
+		clearBackupStatus();
+	} catch (error) {
+		recordBackupError(formatBackupError(error));
 	}
 }
 
