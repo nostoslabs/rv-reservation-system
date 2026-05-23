@@ -10,7 +10,7 @@
     formatTimestamp,
     getTodayIsoLocal
   } from '$lib/date';
-  import { computeDailySummary } from '$lib/domain/reservations/daily-summary';
+  import { computeDailySummary, countCurrentAndFutureReservations } from '$lib/domain/reservations';
   import { buildCellId, buildOccupancyMap, rangesOverlap } from '$lib/reservations';
   import { enumerateDates } from '$lib/date';
   import {
@@ -34,9 +34,9 @@
   const DAYS_BEFORE_TODAY = 45;
   const TOTAL_DATE_COLUMNS = 540;
 
-  const todayIso = getTodayIsoLocal();
-  const gridStartDate = addDays(todayIso, -DAYS_BEFORE_TODAY);
-  const dateColumns = Array.from({ length: TOTAL_DATE_COLUMNS }, (_, index) => addDays(gridStartDate, index));
+  let todayIso = getTodayIsoLocal();
+  $: gridStartDate = addDays(todayIso, -DAYS_BEFORE_TODAY);
+  $: dateColumns = Array.from({ length: TOTAL_DATE_COLUMNS }, (_, index) => addDays(gridStartDate, index));
 
   let gridScroller: HTMLDivElement | null = null;
   let nowMs = Date.now();
@@ -86,6 +86,7 @@
   let modalDraft: ReservationFormValues = {
     name: '',
     rvType: '',
+    eta: '',
     phoneNumber: '',
     notes: '',
     startDate: todayIso,
@@ -116,6 +117,7 @@
       index: res.index,
       name: res.name,
       rvType: res.rvType,
+      eta: res.eta,
       phoneNumber: res.phoneNumber,
       notes: res.notes,
       startDate: res.startDate,
@@ -136,12 +138,26 @@
     contextMenu = null;
   }
 
+  async function handleContextMenuCopyDetails(): Promise<void> {
+    if (!contextMenu) return;
+    const text = getReservationDetailsText(contextMenu.reservation);
+    contextMenu = null;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Reservation details copied');
+    } catch {
+      showToast('Unable to copy reservation details');
+    }
+  }
+
   function openReservationFromSearch(reservation: Reservation): void {
     modalMode = 'edit';
     modalDraft = {
       index: reservation.index,
       name: reservation.name,
       rvType: reservation.rvType,
+      eta: reservation.eta,
       phoneNumber: reservation.phoneNumber,
       notes: reservation.notes,
       startDate: reservation.startDate,
@@ -149,6 +165,7 @@
       parkingLocation: reservation.parkingLocation,
       color: reservation.color,
       status: reservation.status,
+      createdAt: reservation.createdAt,
       customerId: reservation.customerId
     };
     modalErrors = [];
@@ -304,6 +321,10 @@
     ])
   ) as Record<string, number>;
   $: saveStatus = getSaveStatus($rvReservationStore.lastSavedAt, nowMs);
+  $: activeReservationCount = countCurrentAndFutureReservations(
+    $rvReservationStore.reservations,
+    todayIso
+  );
   $: dailySummary = computeDailySummary(
     $rvReservationStore.reservations,
     $rvReservationStore.parkingLocations,
@@ -357,6 +378,7 @@
     modalDraft = {
       name: '',
       rvType: '',
+      eta: '',
       phoneNumber: '',
       notes: '',
       startDate: todayIso,
@@ -382,6 +404,7 @@
         index: reservation.index,
         name: reservation.name,
         rvType: reservation.rvType,
+        eta: reservation.eta,
         phoneNumber: reservation.phoneNumber,
         notes: reservation.notes,
         startDate: reservation.startDate,
@@ -389,6 +412,7 @@
         parkingLocation: reservation.parkingLocation,
         color: reservation.color,
         status: reservation.status,
+        createdAt: reservation.createdAt,
         customerId: reservation.customerId
       };
     } else {
@@ -396,6 +420,7 @@
       modalDraft = {
         name: '',
         rvType: '',
+        eta: '',
         phoneNumber: '',
         notes: '',
         startDate: dateIso,
@@ -453,6 +478,7 @@
     modalDraft = {
       name,
       rvType,
+      eta: '',
       phoneNumber,
       notes,
       startDate: todayIso,
@@ -470,11 +496,23 @@
       return `Click to add reservation at ${location} on ${formatScheduleHeader(dateIso)}`;
     }
 
+    return getReservationDetailsText(reservation);
+  }
+
+  function getReservationDetailsText(reservation: Reservation): string {
     const lines = [
       `${reservation.name} (${formatReservationDetail(reservation.startDate)} \u2192 ${formatReservationDetail(reservation.endDate)})`,
       `Status: ${STATUS_LABELS[reservation.status]}`,
       `Site: ${reservation.parkingLocation}`
     ];
+
+    if (reservation.rvType) {
+      lines.push(`RV Type: ${reservation.rvType}`);
+    }
+
+    if (reservation.eta) {
+      lines.push(`ETA: ${reservation.eta}`);
+    }
 
     if (reservation.phoneNumber) {
       lines.push(`Phone: ${reservation.phoneNumber}`);
@@ -535,6 +573,7 @@
 
     const displayTicker = window.setInterval(() => {
       nowMs = Date.now();
+      todayIso = getTodayIsoLocal();
     }, 60_000);
 
     return () => {
@@ -607,7 +646,7 @@
     <div class="toolbar-right">
       <ReservationSearch reservations={$rvReservationStore.reservations} on:select={handleSearchSelect} />
       <button type="button" class="new-reservation-btn" data-testid="new-reservation-btn" on:click={openNewReservationModal}>+ New Reservation</button>
-      <span class="badge">{ $rvReservationStore.reservations.length } res</span>
+      <span class="badge" data-testid="reservation-count-badge">{activeReservationCount} res</span>
       <span class="badge">{ $rvReservationStore.parkingLocations.length } sites</span>
       <span class="badge save-badge" aria-live="polite">{saveStatus}</span>
       <a href="/customers" class="settings-link" title="Customers" aria-label="Customers" data-testid="customers-link">
@@ -775,6 +814,16 @@
       role="menu"
     >
       <div class="context-menu-header">{contextMenu.reservation.name}</div>
+      <button
+        type="button"
+        class="context-menu-item"
+        role="menuitem"
+        on:click={handleContextMenuCopyDetails}
+      >
+        <span class="context-menu-icon" aria-hidden="true">⧉</span>
+        <span>Copy details</span>
+      </button>
+      <div class="context-menu-separator" role="separator"></div>
       {#each RESERVATION_STATUSES as statusValue}
         <button
           type="button"
@@ -1452,6 +1501,12 @@
   .context-menu-item.active {
     background: #e0ebf9;
     font-weight: 600;
+  }
+
+  .context-menu-separator {
+    height: 1px;
+    background: #eef2f7;
+    margin: 0.2rem 0;
   }
 
   .context-menu-swatch {

@@ -46,8 +46,8 @@ describe('reorder', () => {
 		const data = baseData({
 			reservations: [{
 				index: 1, firstCellId: 'A-01|2026-03-01', name: 'Test',
-				rvType: '', phoneNumber: '', notes: '', startDate: '2026-03-01', endDate: '2026-03-02',
-				parkingLocation: 'A-01', color: 'blue', status: 'reserved'
+				rvType: '', eta: '', phoneNumber: '', notes: '', startDate: '2026-03-01', endDate: '2026-03-02',
+				parkingLocation: 'A-01', color: 'blue', status: 'reserved', createdAt: '2026-02-01T00:00:00.000Z'
 			}]
 		});
 		const result = useCases.reorder(['B-01', 'A-02', 'A-01'], data);

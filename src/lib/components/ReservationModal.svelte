@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, afterUpdate } from 'svelte';
-  import { addDays, compareIsoDates, diffDays } from '$lib/date';
+  import { addDays, compareIsoDates, diffDays, formatReservationDetail } from '$lib/date';
   import { MAX_RESERVATION_NOTES_LENGTH } from '$lib/reservations';
   import { STATUS_LABELS, getStatusSwatchStyle } from '$lib/domain/reservations/status';
   import { RESERVATION_STATUSES, type Reservation, type ReservationFormValues, type ReservationStatus } from '$lib/types';
@@ -17,6 +17,7 @@
   export let draft: ReservationFormValues = {
     name: '',
     rvType: '',
+    eta: '',
     phoneNumber: '',
     notes: '',
     startDate: '',
@@ -36,7 +37,7 @@
     bookagain: ReservationFormValues;
   }>();
 
-  const emptyExtras = { phoneNumber: '', rvType: '', notes: '' };
+  const emptyExtras = { phoneNumber: '', rvType: '', eta: '', notes: '' };
   let form: ReservationFormValues = { ...emptyExtras, ...draft };
   let confirmingDelete = false;
   let autocompleteRef: AutocompleteInput;
@@ -149,6 +150,7 @@
     dispatch('bookagain', {
       name: form.name,
       rvType: form.rvType,
+      eta: '',
       phoneNumber: form.phoneNumber,
       notes: form.notes,
       parkingLocation: form.parkingLocation,
@@ -158,6 +160,11 @@
       endDate: '',
       customerId: form.customerId
     });
+  }
+
+  function formatCreatedAt(value?: string): string {
+    if (!value) return '';
+    return formatReservationDetail(value.slice(0, 10));
   }
 </script>
 
@@ -171,6 +178,9 @@
           <h2 id="reservation-modal-title">{mode === 'create' ? 'New Reservation' : 'Edit Reservation'}</h2>
           {#if mode === 'edit' && typeof form.index === 'number'}
             <p class="meta">Reservation #{form.index}</p>
+          {/if}
+          {#if mode === 'edit' && form.createdAt}
+            <p class="meta" data-testid="reservation-created-at">Created {formatCreatedAt(form.createdAt)}</p>
           {/if}
         </div>
         <button
@@ -240,6 +250,11 @@
             <label>
               <span>RV Type</span>
               <input bind:value={form.rvType} type="text" placeholder="e.g. Fifth Wheel, Class A" maxlength="60" data-testid="rv-type-input" />
+            </label>
+
+            <label>
+              <span>ETA</span>
+              <input bind:value={form.eta} type="text" placeholder="e.g. 2 PM" maxlength="60" data-testid="reservation-eta-input" />
             </label>
 
             <label>

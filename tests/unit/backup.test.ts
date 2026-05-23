@@ -8,6 +8,7 @@ function makeFakeReservation(overrides: Partial<Reservation> = {}): Reservation 
 		firstCellId: 'A-01_2025-06-01',
 		name: 'Test Guest',
 		rvType: '',
+		eta: '',
 		phoneNumber: '555-1234',
 		notes: '',
 		startDate: '2025-06-01',
@@ -15,6 +16,7 @@ function makeFakeReservation(overrides: Partial<Reservation> = {}): Reservation 
 		parkingLocation: 'A-01',
 		color: 'blue',
 		status: 'reserved',
+		createdAt: '2025-05-01T00:00:00.000Z',
 		...overrides
 	};
 }

@@ -14,6 +14,7 @@ export {
 	getStatusLabel,
 	isReservationColor,
 	isReservationStatus,
+	normalizeEta,
 	normalizeName,
 	normalizePhoneNumber,
 	normalizeReservationNotes,

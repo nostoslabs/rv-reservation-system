@@ -96,6 +96,7 @@ describe('MergeCustomersUseCases', () => {
 					firstCellId: 'c1',
 					name: 'John Smith',
 					rvType: '',
+					eta: '',
 					phoneNumber: '555-1234',
 					notes: '',
 					startDate: '2025-07-01',
@@ -103,6 +104,7 @@ describe('MergeCustomersUseCases', () => {
 					parkingLocation: 'A1',
 					color: 'blue',
 					status: 'reserved',
+					createdAt: '2025-06-01T00:00:00.000Z',
 					customerId: 'a'
 				}
 			]);
@@ -137,13 +139,15 @@ describe('MergeCustomersUseCases', () => {
 					firstCellId: 'c1',
 					name: 'John Smith',
 					rvType: '',
+					eta: '',
 					phoneNumber: '555-1234',
 					notes: '',
 					startDate: '2025-07-01',
 					endDate: '2025-07-05',
 					parkingLocation: 'A1',
 					color: 'blue',
-					status: 'reserved'
+					status: 'reserved',
+					createdAt: '2025-06-01T00:00:00.000Z'
 					// no customerId
 				}
 			]);
@@ -168,6 +172,7 @@ describe('MergeCustomersUseCases', () => {
 					firstCellId: 'c1',
 					name: 'Other Person',
 					rvType: '',
+					eta: '',
 					phoneNumber: '999-9999',
 					notes: '',
 					startDate: '2025-07-01',
@@ -175,6 +180,7 @@ describe('MergeCustomersUseCases', () => {
 					parkingLocation: 'A1',
 					color: 'blue',
 					status: 'reserved',
+					createdAt: '2025-06-01T00:00:00.000Z',
 					customerId: 'other-id'
 				}
 			]);
@@ -265,6 +271,7 @@ describe('MergeCustomersUseCases', () => {
 					firstCellId: 'c1',
 					name: 'Alice',
 					rvType: '',
+					eta: '',
 					phoneNumber: '111',
 					notes: '',
 					startDate: '2025-07-01',
@@ -272,6 +279,7 @@ describe('MergeCustomersUseCases', () => {
 					parkingLocation: 'A1',
 					color: 'blue',
 					status: 'reserved',
+					createdAt: '2025-06-01T00:00:00.000Z',
 					customerId: 'a1'
 				}
 			]);

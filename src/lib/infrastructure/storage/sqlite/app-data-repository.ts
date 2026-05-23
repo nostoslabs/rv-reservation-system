@@ -11,6 +11,7 @@ interface ReservationRow {
 	id: number;
 	name: string;
 	rv_type: string;
+	eta: string;
 	phone_number: string;
 	notes: string;
 	start_date: string;
@@ -18,6 +19,7 @@ interface ReservationRow {
 	parking_location: string;
 	color: string;
 	status: string | null;
+	created_at: string | null;
 	customer_id: string | null;
 }
 
@@ -52,13 +54,15 @@ function rowToReservation(row: ReservationRow): Reservation {
 		firstCellId: buildFirstCellId(row.parking_location, row.start_date),
 		name: row.name,
 		rvType: row.rv_type ?? '',
+		eta: row.eta ?? '',
 		phoneNumber: row.phone_number,
 		notes: row.notes,
 		startDate: row.start_date,
 		endDate: row.end_date,
 		parkingLocation: row.parking_location,
 		color: row.color as ReservationColor,
-		status
+		status,
+		createdAt: row.created_at || row.start_date
 	};
 
 	if (row.customer_id) {
@@ -122,8 +126,22 @@ async function saveToDb(db: Database, data: PersistedAppData): Promise<number> {
 		// Re-insert reservations (parking_locations rows exist now)
 		for (const r of data.reservations) {
 			await db.execute(
-				'INSERT INTO reservations (id, name, rv_type, phone_number, notes, start_date, end_date, parking_location, color, status, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-				[r.index, r.name, r.rvType, r.phoneNumber, r.notes, r.startDate, r.endDate, r.parkingLocation, r.color, r.status, r.customerId ?? null]
+				'INSERT INTO reservations (id, name, rv_type, eta, phone_number, notes, start_date, end_date, parking_location, color, status, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				[
+					r.index,
+					r.name,
+					r.rvType,
+					r.eta,
+					r.phoneNumber,
+					r.notes,
+					r.startDate,
+					r.endDate,
+					r.parkingLocation,
+					r.color,
+					r.status,
+					r.createdAt,
+					r.customerId ?? null
+				]
 			);
 		}
 

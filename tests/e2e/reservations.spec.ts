@@ -142,6 +142,83 @@ test.describe('Reservation CRUD', () => {
 		await expect(modal(page).locator('.error-box')).toBeVisible();
 		await expect(modal(page).locator('.error-box')).toContainText('Overlap');
 	});
+
+	test('ETA, RV type, tooltip, and created date persist on reservations', async ({ page }) => {
+		const today = getTodayIso();
+		const endDate = offsetDate(3);
+
+		await page.getByTestId('new-reservation-btn').click();
+		await expect(modal(page)).toBeVisible();
+
+		await modal(page).locator('input[placeholder="Guest name"]').fill('ETA Guest');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+		await modal(page).getByTestId('rv-type-input').fill('Class A');
+		await modal(page).getByTestId('reservation-eta-input').fill('2:30 PM');
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		const occupied = page.locator('.grid-cell.occupied').first();
+		await occupied.scrollIntoViewIfNeeded();
+		await expect(occupied).toHaveAttribute('title', /RV Type: Class A/);
+		await expect(occupied).toHaveAttribute('title', /ETA: 2:30 PM/);
+
+		await occupied.click();
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).getByTestId('rv-type-input')).toHaveValue('Class A');
+		await expect(modal(page).getByTestId('reservation-eta-input')).toHaveValue('2:30 PM');
+		await expect(modal(page).getByTestId('reservation-created-at')).toContainText('Created');
+	});
+
+	test('reservation count excludes fully checked-out past stays', async ({ page }) => {
+		const pastStart = offsetDate(-10);
+		const pastEnd = offsetDate(-8);
+		const futureStart = offsetDate(2);
+		const futureEnd = offsetDate(4);
+
+		await createReservation(page, { name: 'Past Guest', startDate: pastStart, endDate: pastEnd });
+		await expect(page.getByTestId('reservation-count-badge')).toHaveText('0 res');
+
+		await createReservation(page, { name: 'Future Guest', startDate: futureStart, endDate: futureEnd });
+		await expect(page.getByTestId('reservation-count-badge')).toHaveText('1 res');
+	});
+
+	test('right-click context menu can copy reservation details', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				value: {
+					writeText: async (text: string) => {
+						(window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__ = text;
+					}
+				},
+				configurable: true
+			});
+		});
+		await resetApp(page);
+
+		const today = getTodayIso();
+		const endDate = offsetDate(3);
+		await page.getByTestId('new-reservation-btn').click();
+		await modal(page).locator('input[placeholder="Guest name"]').fill('Copy Guest');
+		await modal(page).locator('input[type="date"]').first().fill(today);
+		await modal(page).locator('input[type="date"]').nth(1).fill(endDate);
+		await modal(page).getByTestId('rv-type-input').fill('Travel Trailer');
+		await modal(page).getByTestId('reservation-eta-input').fill('4 PM');
+		await modal(page).locator('button[type="submit"]').click();
+		await expect(modal(page)).not.toBeVisible();
+
+		const occupied = page.locator('.grid-cell.occupied').first();
+		await occupied.click({ button: 'right' });
+		await expect(page.locator('.context-menu')).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Copy details' }).click();
+
+		const copied = await page.evaluate(
+			() => (window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__
+		);
+		expect(copied).toContain('Copy Guest');
+		expect(copied).toContain('RV Type: Travel Trailer');
+		expect(copied).toContain('ETA: 4 PM');
+	});
 });
 
 test.describe('Modal accessibility and UX', () => {

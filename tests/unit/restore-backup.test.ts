@@ -25,13 +25,15 @@ function makeAppData(overrides: Partial<PersistedAppData> = {}): PersistedAppDat
 			firstCellId: 'A-01::2025-06-01',
 			name: 'Original Guest',
 			rvType: '',
+			eta: '',
 			phoneNumber: '555-1234',
 			notes: '',
 			startDate: '2025-06-01',
 			endDate: '2025-06-05',
 			parkingLocation: 'A-01',
 			color: 'blue',
-			status: 'reserved'
+			status: 'reserved',
+			createdAt: '2025-05-01T00:00:00.000Z'
 		}],
 		parkingLocations: ['A-01', 'B-01'],
 		nextReservationIndex: 2,
@@ -56,13 +58,15 @@ function makeInput(overrides: Partial<RestoreInput> = {}): RestoreInput {
 			firstCellId: 'C-01::2025-07-01',
 			name: 'Backup Guest',
 			rvType: '',
+			eta: '',
 			phoneNumber: '555-9999',
 			notes: '',
 			startDate: '2025-07-01',
 			endDate: '2025-07-05',
 			parkingLocation: 'C-01',
 			color: 'green',
-			status: 'reserved'
+			status: 'reserved',
+			createdAt: '2025-06-01T00:00:00.000Z'
 		}],
 		parkingLocations: ['C-01'],
 		nextReservationIndex: 11,

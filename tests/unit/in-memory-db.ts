@@ -104,6 +104,10 @@ export function createInMemoryDb(): Database & {
 		if (eqMatch) {
 			return { match: row[eqMatch[1]] === params[paramOffset], consumed: 1 };
 		}
+		const literalEqMatch = whereClause.match(/^(\w+)\s*=\s*'([^']*)'$/);
+		if (literalEqMatch) {
+			return { match: row[literalEqMatch[1]] === literalEqMatch[2], consumed: 0 };
+		}
 		// Fallback: treat as always matching (for MAX queries etc.)
 		return { match: true, consumed: 0 };
 	}
@@ -206,8 +210,11 @@ export function createInMemoryDb(): Database & {
 				if (!rows) throw new Error(`Table ${upd.table} does not exist`);
 				let paramIdx = 0;
 				const setOps = upd.sets.map((s) => {
-					const [col] = s.split('=').map((p) => p.trim());
-					return { col, paramIndex: paramIdx++ };
+					const [col, expression] = s.split('=').map((p) => p.trim());
+					if (expression === '?') {
+						return { col, paramIndex: paramIdx++, sourceColumn: null };
+					}
+					return { col, paramIndex: null, sourceColumn: expression };
 				});
 				const whereParamOffset = paramIdx;
 				for (const row of rows) {
@@ -216,7 +223,8 @@ export function createInMemoryDb(): Database & {
 						if (!match) continue;
 					}
 					for (const op of setOps) {
-						row[op.col] = params[op.paramIndex];
+						row[op.col] =
+							op.paramIndex === null ? row[op.sourceColumn as string] : params[op.paramIndex];
 					}
 				}
 				return;

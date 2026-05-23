@@ -1,8 +1,11 @@
 export { computeDailySummary } from './daily-summary';
 export type { DailySummary } from './daily-summary';
 
+export { countCurrentAndFutureReservations } from './active-count';
+
 export {
 	MAX_RESERVATION_NOTES_LENGTH,
+	normalizeEta,
 	normalizeName,
 	normalizePhoneNumber,
 	normalizeReservationNotes,

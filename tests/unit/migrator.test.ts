@@ -8,13 +8,17 @@ describe('runMigrations', () => {
 		const db = createInMemoryDb();
 		const version = await runMigrations(db, allMigrations);
 
-		expect(version).toBe(5);
+		expect(version).toBe(6);
 		expect(db.tables.has('schema_migrations')).toBe(true);
 		expect(db.tables.has('parking_locations')).toBe(true);
 		expect(db.tables.has('reservations')).toBe(true);
 		expect(db.tables.has('app_metadata')).toBe(true);
 		expect(db.tables.has('admin_settings')).toBe(true);
 		expect(db.tables.has('customers')).toBe(true);
+		const reservationColumns = await db.select<{ name: string }>('PRAGMA table_info(reservations)');
+		expect(reservationColumns.map((column) => column.name)).toEqual(
+			expect.arrayContaining(['rv_type', 'eta', 'created_at', 'customer_id'])
+		);
 	});
 
 	it('records the migration version in schema_migrations', async () => {
@@ -22,12 +26,8 @@ describe('runMigrations', () => {
 		await runMigrations(db, allMigrations);
 
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(5);
-		expect(rows[0].version).toBe(1);
-		expect(rows[1].version).toBe(2);
-		expect(rows[2].version).toBe(3);
-		expect(rows[3].version).toBe(4);
-		expect(rows[4].version).toBe(5);
+		expect(rows).toHaveLength(6);
+		expect(rows.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6]);
 	});
 
 	it('is idempotent — re-running does not re-apply migrations', async () => {
@@ -35,9 +35,9 @@ describe('runMigrations', () => {
 		await runMigrations(db, allMigrations);
 		const version2 = await runMigrations(db, allMigrations);
 
-		expect(version2).toBe(5);
+		expect(version2).toBe(6);
 		const rows = await db.select<{ version: number }>('SELECT * FROM schema_migrations');
-		expect(rows).toHaveLength(5);
+		expect(rows).toHaveLength(6);
 	});
 
 	it('applies only new migrations when database is partially migrated', async () => {
