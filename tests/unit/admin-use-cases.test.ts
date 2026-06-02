@@ -58,6 +58,28 @@ describe('AdminSettingsUseCases', () => {
 		}
 	});
 
+	it('records and clears auto-backup failures', () => {
+		const repo = createFakeRepo();
+		const useCases = createAdminSettingsUseCases(repo);
+		const failed = useCases.recordAutoBackupFailure(
+			'Backup failed: disk full',
+			'2026-06-02T12:00:00.000Z',
+			repo.load()
+		).settings;
+
+		expect(failed.autoBackup?.lastError).toBe('Backup failed: disk full');
+		expect(failed.autoBackup?.lastErrorAt).toBe('2026-06-02T12:00:00.000Z');
+
+		const recovered = useCases.recordAutoBackupTimestamp(
+			'2026-06-02T12:05:00.000Z',
+			failed
+		).settings;
+
+		expect(recovered.autoBackup?.lastBackupAt).toBe('2026-06-02T12:05:00.000Z');
+		expect(recovered.autoBackup?.lastError).toBeNull();
+		expect(recovered.autoBackup?.lastErrorAt).toBeNull();
+	});
+
 	describe('site colors', () => {
 		it('setSiteColor adds a color to settings', () => {
 			const repo = createFakeRepo();

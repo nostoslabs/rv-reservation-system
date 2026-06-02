@@ -15,6 +15,69 @@ async function resetApp(page: Page) {
 	await page.waitForTimeout(300);
 }
 
+async function installDesktopBackupMock(page: Page) {
+	await page.addInitScript(() => {
+		type BackupWrite = { path: string; content: string };
+		type BackupTestWindow = Window & {
+			__RV_TEST_DESKTOP_CAPABILITIES__?: unknown;
+			__RV_BACKUP_WRITES__?: BackupWrite[];
+			__RV_BACKUP_MISMATCH__?: boolean;
+		};
+
+		const testWindow = window as BackupTestWindow;
+		const files = new Map<string, string>();
+		testWindow.__RV_BACKUP_WRITES__ = [];
+		testWindow.__RV_BACKUP_MISMATCH__ = false;
+		testWindow.__RV_TEST_DESKTOP_CAPABILITIES__ = {
+			isDesktop: true,
+			getVersion: async () => 'e2e-test',
+			pickDirectory: async () => '/mock-backups',
+			writeFileToPath: async (filePath: string, content: string) => {
+				testWindow.__RV_BACKUP_WRITES__?.push({ path: filePath, content });
+				files.set(filePath, content);
+			},
+			readFileFromPath: async (filePath: string) => {
+				const content = files.get(filePath) ?? '';
+				if (testWindow.__RV_BACKUP_MISMATCH__ && filePath.includes('rv-backup-')) {
+					return `${content}\ncorrupt`;
+				}
+				return content;
+			}
+		};
+	});
+}
+
+async function installDesktopUpdateMock(page: Page) {
+	await page.addInitScript(() => {
+		type UpdateTestWindow = Window & {
+			__RV_TEST_DESKTOP_CAPABILITIES__?: unknown;
+			__RV_UPDATE_INSTALLS__?: number;
+		};
+
+		const testWindow = window as UpdateTestWindow;
+		testWindow.__RV_UPDATE_INSTALLS__ = 0;
+		testWindow.__RV_TEST_DESKTOP_CAPABILITIES__ = {
+			isDesktop: true,
+			getVersion: async () => '1.20.0',
+			checkForUpdate: async () => ({
+				version: '1.20.1',
+				currentVersion: '1.20.0',
+				date: '2026-06-02T12:00:00.000Z',
+				body: 'Safety update'
+			}),
+			downloadUpdate: async (onProgress?: (progress: { downloadedLength: number; contentLength: number }) => void) => {
+				onProgress?.({ downloadedLength: 100, contentLength: 100 });
+				return true;
+			},
+			saveFile: async () => false,
+			installUpdateAndRestart: async () => {
+				testWindow.__RV_UPDATE_INSTALLS__ = (testWindow.__RV_UPDATE_INSTALLS__ ?? 0) + 1;
+				return true;
+			}
+		};
+	});
+}
+
 test.describe('Settings page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
@@ -132,6 +195,110 @@ test.describe('Backup & Restore section on settings page', () => {
 	test('backup panel has correct heading', async ({ page }) => {
 		await page.goto('/admin');
 		await expect(page.locator('h2:has-text("Backup & Restore")')).toBeVisible();
+	});
+});
+
+test.describe('Automatic backup manual trigger', () => {
+	test.beforeEach(async ({ page }) => {
+		await installDesktopBackupMock(page);
+		await clearStorage(page);
+	});
+
+	test('backup now is disabled until a backup folder is configured', async ({ page }) => {
+		await page.goto('/admin');
+
+		await expect(page.locator('[data-testid="auto-backup-panel"]')).toBeVisible();
+		await expect(page.locator('[data-testid="auto-backup-now-btn"]')).toBeDisabled();
+		await expect(page.locator('[data-testid="auto-backup-last"]')).toContainText('Last backup: Never');
+	});
+
+	test('backup now writes verified backup JSON to the configured folder', async ({ page }) => {
+		await page.goto('/admin');
+
+		await page.locator('[data-testid="auto-backup-pick-dir"]').click();
+		await expect(page.locator('[data-testid="auto-backup-directory"]')).toHaveValue('/mock-backups');
+
+		await page.locator('[data-testid="auto-backup-now-btn"]').click();
+
+		await expect(page.locator('.message.success')).toContainText('Backup created successfully');
+		await expect(page.locator('[data-testid="auto-backup-last"]')).not.toContainText('Never');
+
+		const writes = await page.evaluate(() => {
+			const testWindow = window as Window & { __RV_BACKUP_WRITES__?: { path: string; content: string }[] };
+			return (testWindow.__RV_BACKUP_WRITES__ ?? []).filter((write) => /\/rv-backup-\d/.test(write.path));
+		});
+
+		expect(writes).toHaveLength(1);
+		expect(writes[0].path).toMatch(/^\/mock-backups\/rv-backup-\d{4}-\d{2}-\d{2}-\d{6}\.json$/);
+		const backup = JSON.parse(writes[0].content);
+		expect(backup.schema.version).toBe(1);
+		expect(backup.schema.appName).toBe('rv-reservation-system');
+		expect(Array.isArray(backup.data.reservations)).toBe(true);
+		expect(Array.isArray(backup.data.parkingLocations)).toBe(true);
+		expect(Array.isArray(backup.data.customers)).toBe(true);
+	});
+
+	test('backup now reports an error when read-back verification fails', async ({ page }) => {
+		await page.goto('/admin');
+
+		await page.locator('[data-testid="auto-backup-pick-dir"]').click();
+		await page.evaluate(() => {
+			const testWindow = window as Window & { __RV_BACKUP_MISMATCH__?: boolean };
+			testWindow.__RV_BACKUP_MISMATCH__ = true;
+		});
+
+		await page.locator('[data-testid="auto-backup-now-btn"]').click();
+
+		await expect(page.locator('.message.error')).toContainText('Backup verification failed');
+		await expect(page.locator('[data-testid="auto-backup-error"]')).toContainText('Backup verification failed');
+		await expect(page.locator('[data-testid="auto-backup-last"]')).toContainText('Last backup: Never');
+	});
+
+	test('shows persisted backup failure after reopening settings', async ({ page }) => {
+		await page.goto('/');
+		await page.evaluate(() => {
+			window.localStorage.setItem('rv-reservation-demo:settings:v1', JSON.stringify({
+				siteName: 'RV Reservation Schedule',
+				compactView: false,
+				autoBackup: {
+					intervalMinutes: 0,
+					directoryPath: '/mock-backups',
+					lastBackupAt: null,
+					lastError: 'Backup failed: disk full',
+					lastErrorAt: '2026-06-02T12:00:00.000Z'
+				}
+			}));
+		});
+
+		await page.goto('/admin');
+
+		await expect(page.locator('[data-testid="auto-backup-error"]')).toContainText('Backup failed: disk full');
+	});
+});
+
+test.describe('Desktop update flow', () => {
+	test.beforeEach(async ({ page }) => {
+		await installDesktopUpdateMock(page);
+		await clearStorage(page);
+	});
+
+	test('shows update ready state and blocks install when forced backup is not saved', async ({ page }) => {
+		await page.goto('/admin');
+
+		await expect(page.locator('[data-testid="updates-panel"]')).toBeVisible();
+		await expect(page.locator('[data-testid="update-available"]')).toContainText('v1.20.1');
+
+		await page.locator('[data-testid="update-download-btn"]').click();
+		await expect(page.locator('[data-testid="update-ready"]')).toContainText('Update ready. Restart to apply.');
+
+		await page.locator('[data-testid="update-apply-btn"]').click();
+		await expect(page.locator('[data-testid="update-error"]')).toContainText('Update blocked because backup was not saved.');
+
+		const installAttempts = await page.evaluate(() => {
+			const testWindow = window as Window & { __RV_UPDATE_INSTALLS__?: number };
+			return testWindow.__RV_UPDATE_INSTALLS__ ?? 0;
+		});
+		expect(installAttempts).toBe(0);
 	});
 });
 

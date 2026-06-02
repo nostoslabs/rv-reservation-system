@@ -136,8 +136,9 @@ Design choices must support both desktop and future web:
 - Bump the version as the **last commit** on the feature branch before merging — not in a separate PR.
 - All three files must match: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
 - After merge to `main`, tag a beta first (`git tag vX.Y.Z-beta.1 && git push origin vX.Y.Z-beta.1`) to trigger the desktop prerelease workflow for Windows/macOS testing.
-- Do not tag a stable `vX.Y.Z` release until a matching published `vX.Y.Z-beta.N` prerelease exists with macOS and Windows artifacts. The release workflow enforces this through `node scripts/release-guard.mjs`.
-- After beta testing passes, tag the same validated merge commit with `vX.Y.Z` (`git tag vX.Y.Z && git push origin vX.Y.Z`) to trigger the stable release workflow.
+- Do not tag a stable `vX.Y.Z` release until a matching published `vX.Y.Z-beta.N` prerelease exists with macOS and Windows artifacts.
+- After beta testing passes, tag the same validated merge commit with `vX.Y.Z` (`git tag vX.Y.Z && git push origin vX.Y.Z`). Stable tag pushes are intentionally inert for the release workflow.
+- Stable releases require manual workflow dispatch plus exact tag-specific consent: `I consent to publish stable release vX.Y.Z`. The release workflow enforces this through `node scripts/release-guard.mjs`.
 - Use semantic versioning: `feat` = minor bump, `fix` = patch bump.
 
 ## Definition of Done (Per Issue)

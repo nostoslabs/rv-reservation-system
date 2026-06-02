@@ -1,4 +1,6 @@
 import type { DesktopCapabilities, StorageRepositories } from '$lib/application/ports';
+import { createBackup } from '$lib/domain/backup';
+import { runBackupOnExit } from '$lib/app/auto-backup';
 import {
 	createReservationUseCases,
 	createParkingLocationUseCases,
@@ -15,6 +17,12 @@ import { createWebFallbackDesktopCapabilities } from '$lib/infrastructure/deskto
 import { createLocalStorageAppDataRepository } from '$lib/infrastructure/storage/localstorage/app-data-repository';
 import { createLocalStorageSiteSettingsRepository } from '$lib/infrastructure/storage/localstorage/site-settings-repository';
 import { createLocalStorageCustomerRepository } from '$lib/infrastructure/storage/localstorage/customer-repository';
+
+declare global {
+	interface Window {
+		__RV_TEST_DESKTOP_CAPABILITIES__?: Partial<DesktopCapabilities> & { isDesktop?: boolean };
+	}
+}
 
 export interface AppServices {
 	desktop: DesktopCapabilities;
@@ -35,6 +43,21 @@ function isTauri(): boolean {
 	return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+function createBrowserDesktopCapabilities(): DesktopCapabilities {
+	const fallback = createWebFallbackDesktopCapabilities();
+	const testOverride =
+		import.meta.env.MODE === 'test' && typeof window !== 'undefined'
+			? window.__RV_TEST_DESKTOP_CAPABILITIES__
+			: undefined;
+	if (!testOverride) return fallback;
+
+	return {
+		...fallback,
+		...testOverride,
+		isDesktop: testOverride.isDesktop ?? true
+	};
+}
+
 function createLocalStorageServices(): AppServices {
 	flushFn = null;
 	const appDataRepo = createLocalStorageAppDataRepository();
@@ -48,7 +71,7 @@ function createLocalStorageServices(): AppServices {
 	};
 
 	return {
-		desktop: createWebFallbackDesktopCapabilities(),
+		desktop: createBrowserDesktopCapabilities(),
 		repositories,
 		reservationUseCases: createReservationUseCases(appDataRepo),
 		parkingLocationUseCases: createParkingLocationUseCases(appDataRepo),
@@ -168,6 +191,60 @@ export async function flushPendingWrites(): Promise<void> {
 	if (flushFn) await flushFn();
 }
 
+async function runConfiguredBackupOnExit(): Promise<void> {
+	if (!instance) return;
+
+	const services = instance;
+	await runBackupOnExit({
+		desktop: services.desktop,
+		getConfig: () =>
+			services.repositories.siteSettings.load().autoBackup ?? {
+				intervalMinutes: 0,
+				directoryPath: null,
+				lastBackupAt: null
+			},
+		getBackupContent: () => {
+			const appData = services.repositories.appData.load();
+			const settings = services.repositories.siteSettings.load();
+			const customers = services.repositories.customers.getAll();
+			return JSON.stringify(
+				createBackup(appData.reservations, appData.parkingLocations, settings, customers),
+				null,
+				2
+			);
+		},
+		onSuccess: async (timestamp) => {
+			const settings = services.repositories.siteSettings.load();
+			const autoBackup = settings.autoBackup;
+			if (!autoBackup?.directoryPath) return { ok: true };
+
+			services.repositories.siteSettings.save({
+				...settings,
+				autoBackup: {
+					...autoBackup,
+					lastBackupAt: timestamp
+				}
+			});
+			return { ok: true };
+		},
+		onFailure: async (error) => {
+			const settings = services.repositories.siteSettings.load();
+			const autoBackup = settings.autoBackup;
+			if (!autoBackup?.directoryPath) return { ok: true };
+
+			services.repositories.siteSettings.save({
+				...settings,
+				autoBackup: {
+					...autoBackup,
+					lastError: error,
+					lastErrorAt: new Date().toISOString()
+				}
+			});
+			return { ok: true };
+		}
+	});
+}
+
 export async function registerPersistenceLifecycleHandlers(): Promise<() => void> {
 	if (typeof window === 'undefined') {
 		return () => {};
@@ -206,6 +283,8 @@ export async function registerPersistenceLifecycleHandlers(): Promise<() => void
 				event.preventDefault();
 
 				try {
+					await flushPendingWrites();
+					await runConfiguredBackupOnExit();
 					await flushPendingWrites();
 				} finally {
 					if (closeCleanup) {

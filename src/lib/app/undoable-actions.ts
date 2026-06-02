@@ -16,6 +16,7 @@ export async function deleteReservationWithUndo(index: number): Promise<Mutation
 		index: reservation.index,
 		name: reservation.name,
 		rvType: reservation.rvType,
+		eta: reservation.eta,
 		phoneNumber: reservation.phoneNumber,
 		notes: reservation.notes,
 		startDate: reservation.startDate,
@@ -23,6 +24,7 @@ export async function deleteReservationWithUndo(index: number): Promise<Mutation
 		parkingLocation: reservation.parkingLocation,
 		color: reservation.color,
 		status: reservation.status,
+		createdAt: reservation.createdAt,
 		customerId: reservation.customerId
 	};
 
@@ -51,6 +53,7 @@ export async function saveReservationWithUndo(formInput: ReservationFormValues):
 		index: existing.index,
 		name: existing.name,
 		rvType: existing.rvType,
+		eta: existing.eta,
 		phoneNumber: existing.phoneNumber,
 		notes: existing.notes,
 		startDate: existing.startDate,
@@ -58,6 +61,7 @@ export async function saveReservationWithUndo(formInput: ReservationFormValues):
 		parkingLocation: existing.parkingLocation,
 		color: existing.color,
 		status: existing.status,
+		createdAt: existing.createdAt,
 		customerId: existing.customerId
 	};
 

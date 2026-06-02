@@ -187,4 +187,18 @@ describe('storage migration (sanitizeReservation)', () => {
 		expect(result).not.toBeNull();
 		expect(result!.status).toBe('reserved');
 	});
+
+	it('defaults missing creation timestamp to the reservation start date', () => {
+		const result = sanitizeReservation(validBase);
+
+		expect(result).not.toBeNull();
+		expect(result!.createdAt).toBe('2026-03-01');
+	});
+
+	it('preserves ETA from stored reservations', () => {
+		const result = sanitizeReservation({ ...validBase, eta: '2:30 PM' });
+
+		expect(result).not.toBeNull();
+		expect(result!.eta).toBe('2:30 PM');
+	});
 });

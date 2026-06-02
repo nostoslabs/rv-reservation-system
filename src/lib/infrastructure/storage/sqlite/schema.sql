@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS parking_locations (
 CREATE TABLE IF NOT EXISTS reservations (
   id                INTEGER PRIMARY KEY,  -- matches Reservation.index
   name              TEXT    NOT NULL,
+  rv_type           TEXT    NOT NULL DEFAULT '',
+  eta               TEXT    NOT NULL DEFAULT '',
   phone_number      TEXT    NOT NULL DEFAULT '',
   notes             TEXT    NOT NULL DEFAULT '',
   start_date        TEXT    NOT NULL,      -- YYYY-MM-DD
@@ -25,6 +27,8 @@ CREATE TABLE IF NOT EXISTS reservations (
   parking_location  TEXT    NOT NULL REFERENCES parking_locations(name),
   color             TEXT    NOT NULL DEFAULT 'blue',
   status            TEXT    NOT NULL DEFAULT 'reserved',
+  created_at        TEXT    NOT NULL DEFAULT '',
+  customer_id       TEXT,
   CHECK (start_date < end_date),
   CHECK (color IN ('red','green','blue','yellow','pink','orange','purple'))
 );

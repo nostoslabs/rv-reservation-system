@@ -41,13 +41,14 @@ test.describe('Compact View Toggle', () => {
 		const normalHeight = (await cell.boundingBox())!.height;
 
 		await compactToggle(page).click();
-		await page.waitForTimeout(200);
-
-		await cell.scrollIntoViewIfNeeded();
-		const compactHeight = (await cell.boundingBox())!.height;
-
-		expect(compactHeight).toBeLessThan(normalHeight);
 		await expect(compactToggle(page)).toHaveAttribute('aria-pressed', 'true');
+
+		await expect
+			.poll(async () => {
+				await cell.scrollIntoViewIfNeeded();
+				return (await cell.boundingBox())?.height ?? normalHeight;
+			})
+			.toBeLessThan(normalHeight);
 	});
 
 	test('compact mode persists across page reload', async ({ page }) => {
@@ -61,10 +62,13 @@ test.describe('Compact View Toggle', () => {
 
 		await expect(compactToggle(page)).toHaveAttribute('aria-pressed', 'true');
 
-		const cell = page.locator('.grid-cell').first();
-		await cell.scrollIntoViewIfNeeded();
-		const height = (await cell.boundingBox())!.height;
-		expect(height).toBeLessThanOrEqual(30);
+		const cell = page.locator('tbody td.grid-cell').filter({ hasText: '+' }).first();
+		await expect
+			.poll(async () => {
+				await cell.scrollIntoViewIfNeeded();
+				return (await cell.boundingBox())?.height ?? 999;
+			})
+			.toBeLessThanOrEqual(30);
 	});
 
 	test('today column stays visible after toggling to compact', async ({ page }) => {

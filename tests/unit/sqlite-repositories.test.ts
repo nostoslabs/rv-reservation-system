@@ -23,6 +23,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 		firstCellId: 'A-01::2025-03-01',
 		name: 'Test Guest',
 		rvType: '',
+		eta: '',
 		phoneNumber: '555-1234',
 		notes: 'Some notes',
 		startDate: '2025-03-01',
@@ -30,6 +31,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 		parkingLocation: 'A-01',
 		color: 'blue',
 		status: 'reserved',
+		createdAt: '2025-02-01T00:00:00.000Z',
 		...overrides
 	};
 }
@@ -150,6 +152,8 @@ describe('SQLite AppDataRepository', () => {
 
 		expect(loaded.reservations).toHaveLength(2);
 		expect(loaded.reservations[0].name).toBe('Test Guest');
+		expect(loaded.reservations[0].createdAt).toBe('2025-02-01T00:00:00.000Z');
+		expect(loaded.reservations[0].eta).toBe('');
 		expect(loaded.reservations[1].name).toBe('Another Guest');
 		expect(loaded.parkingLocations).toEqual(['A-01', 'B-01']);
 		expect(loaded.nextReservationIndex).toBe(3);
@@ -288,7 +292,17 @@ describe('SQLite SiteSettingsRepository', () => {
 		const repo = createSqliteSiteSettingsRepository(db, createTestQueue());
 		await repo.init();
 
-		repo.save({ siteName: 'My Park', compactView: true });
+		repo.save({
+			siteName: 'My Park',
+			compactView: true,
+			autoBackup: {
+				intervalMinutes: 30,
+				directoryPath: '/backups',
+				lastBackupAt: '2026-06-02T12:00:00.000Z',
+				lastError: 'Backup failed: disk full',
+				lastErrorAt: '2026-06-02T12:05:00.000Z'
+			}
+		});
 		await new Promise((r) => setTimeout(r, 10));
 
 		const repo2 = createSqliteSiteSettingsRepository(db, createTestQueue());
@@ -297,6 +311,13 @@ describe('SQLite SiteSettingsRepository', () => {
 
 		expect(loaded.siteName).toBe('My Park');
 		expect(loaded.compactView).toBe(true);
+		expect(loaded.autoBackup).toEqual({
+			intervalMinutes: 30,
+			directoryPath: '/backups',
+			lastBackupAt: '2026-06-02T12:00:00.000Z',
+			lastError: 'Backup failed: disk full',
+			lastErrorAt: '2026-06-02T12:05:00.000Z'
+		});
 	});
 
 	it('sanitizes settings on save', async () => {

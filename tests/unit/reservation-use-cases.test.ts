@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { createReservationUseCases } from '$lib/application/use-cases/reservation-use-cases';
 import { buildFirstCellId } from '$lib/domain/reservations';
 import type { AppDataRepository } from '$lib/application/ports';
@@ -28,6 +28,7 @@ function makeForm(overrides: Partial<ReservationFormValues> = {}): ReservationFo
 	return {
 		name: 'Test Guest',
 		rvType: '',
+		eta: '',
 		phoneNumber: '555-1234',
 		notes: '',
 		startDate: '2025-06-01',
@@ -40,6 +41,58 @@ function makeForm(overrides: Partial<ReservationFormValues> = {}): ReservationFo
 }
 
 describe('ReservationUseCases', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	describe('reservation details', () => {
+		it('records ETA and creation timestamp on new reservations', () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-05-20T15:30:00.000Z'));
+			const useCases = createReservationUseCases(createFakeRepo());
+
+			const result = useCases.save(makeForm({ eta: '2 PM' }), makeAppData());
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.data!.reservations[0].eta).toBe('2 PM');
+				expect(result.data!.reservations[0].createdAt).toBe('2026-05-20T15:30:00.000Z');
+			}
+		});
+
+		it('preserves creation timestamp when editing a reservation', () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-06-01T12:00:00.000Z'));
+			const useCases = createReservationUseCases(createFakeRepo());
+			const data = makeAppData({
+				reservations: [{
+					index: 1,
+					firstCellId: buildFirstCellId('A-01', '2025-06-01'),
+					name: 'Test Guest',
+					rvType: 'Class A',
+					eta: '1 PM',
+					phoneNumber: '555-1234',
+					notes: '',
+					startDate: '2025-06-01',
+					endDate: '2025-06-03',
+					parkingLocation: 'A-01',
+					color: 'blue',
+					status: 'reserved',
+					createdAt: '2025-01-15T08:00:00.000Z'
+				}],
+				nextReservationIndex: 2
+			});
+
+			const result = useCases.save(makeForm({ index: 1, eta: '3 PM' }), data);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.data!.reservations[0].eta).toBe('3 PM');
+				expect(result.data!.reservations[0].createdAt).toBe('2025-01-15T08:00:00.000Z');
+			}
+		});
+	});
+
 	describe('customerId round-trip', () => {
 		it('persists customerId on new reservation', () => {
 			const useCases = createReservationUseCases(createFakeRepo());
@@ -61,6 +114,7 @@ describe('ReservationUseCases', () => {
 					firstCellId: buildFirstCellId('A-01', '2025-06-01'),
 					name: 'Test Guest',
 					rvType: '',
+					eta: '',
 					phoneNumber: '555-1234',
 					notes: '',
 					startDate: '2025-06-01',
@@ -68,6 +122,7 @@ describe('ReservationUseCases', () => {
 					parkingLocation: 'A-01',
 					color: 'blue',
 					status: 'reserved',
+					createdAt: '2025-01-01T00:00:00.000Z',
 					customerId: 'cust-123'
 				}],
 				nextReservationIndex: 2
@@ -104,13 +159,15 @@ describe('ReservationUseCases', () => {
 					firstCellId: buildFirstCellId('A-01', '2025-06-10'),
 					name: 'Move Guest',
 					rvType: '',
+					eta: '',
 					phoneNumber: '',
 					notes: '',
 					startDate: '2025-06-10',
 					endDate: '2025-06-13',
 					parkingLocation: 'A-01',
 					color: 'blue',
-					status: 'reserved'
+					status: 'reserved',
+					createdAt: '2025-01-01T00:00:00.000Z'
 				}],
 				nextReservationIndex: 2,
 				...overrides
@@ -163,26 +220,30 @@ describe('ReservationUseCases', () => {
 						firstCellId: buildFirstCellId('A-01', '2025-06-10'),
 						name: 'Move Guest',
 						rvType: '',
+						eta: '',
 						phoneNumber: '',
 						notes: '',
 						startDate: '2025-06-10',
 						endDate: '2025-06-13',
 						parkingLocation: 'A-01',
 						color: 'blue',
-						status: 'reserved'
+						status: 'reserved',
+						createdAt: '2025-01-01T00:00:00.000Z'
 					},
 					{
 						index: 2,
 						firstCellId: buildFirstCellId('A-01', '2025-06-15'),
 						name: 'Blocking Guest',
 						rvType: '',
+						eta: '',
 						phoneNumber: '',
 						notes: '',
 						startDate: '2025-06-15',
 						endDate: '2025-06-18',
 						parkingLocation: 'A-01',
 						color: 'green',
-						status: 'reserved'
+						status: 'reserved',
+						createdAt: '2025-01-02T00:00:00.000Z'
 					}
 				],
 				nextReservationIndex: 3

@@ -75,7 +75,7 @@
 
 {#if open}
   <div class="modal-backdrop" role="presentation" on:click={handleOverlayClick}>
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="customer-modal-title">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="customer-modal-title">
       <header class="modal-header">
         <h2 id="customer-modal-title">{mode === 'create' ? 'New Customer' : 'Edit Customer'}</h2>
         <button
@@ -177,7 +177,7 @@
           </div>
         </footer>
       </form>
-    </section>
+    </div>
   </div>
 {/if}
 

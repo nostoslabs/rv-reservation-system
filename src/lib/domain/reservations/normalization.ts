@@ -8,6 +8,10 @@ export function normalizePhoneNumber(value: string): string {
 	return value.trim().replace(/\s+/g, ' ');
 }
 
+export function normalizeEta(value: string): string {
+	return value.trim().replace(/\s+/g, ' ');
+}
+
 export function normalizeReservationNotes(value: string): string {
 	return value.replace(/\r\n?/g, '\n').trim();
 }

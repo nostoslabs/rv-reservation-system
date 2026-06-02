@@ -4,6 +4,7 @@ import { addDays, diffDays } from '$lib/date';
 import {
 	buildFirstCellId,
 	checkOverlap,
+	normalizeEta,
 	normalizeName,
 	normalizePhoneNumber,
 	normalizeReservationNotes,
@@ -34,6 +35,7 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 			const form: ReservationFormValues = {
 				...formInput,
 				name: normalizeName(formInput.name),
+				eta: normalizeEta(formInput.eta ?? ''),
 				phoneNumber: normalizePhoneNumber(formInput.phoneNumber ?? ''),
 				notes: normalizeReservationNotes(formInput.notes ?? '')
 			};
@@ -58,6 +60,7 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 				firstCellId: buildFirstCellId(form.parkingLocation, form.startDate),
 				name: form.name,
 				rvType: (form.rvType ?? '').trim(),
+				eta: form.eta ?? '',
 				phoneNumber: form.phoneNumber,
 				notes: form.notes,
 				startDate: form.startDate,
@@ -65,6 +68,7 @@ export function createReservationUseCases(_repo: AppDataRepository): Reservation
 				parkingLocation: form.parkingLocation,
 				color: form.color,
 				status: form.status,
+				createdAt: existing?.createdAt ?? form.createdAt ?? new Date().toISOString(),
 				customerId: form.customerId
 			};
 

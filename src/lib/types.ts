@@ -19,6 +19,7 @@ export interface Reservation {
   firstCellId: string;
   name: string;
   rvType: string;
+  eta: string;
   phoneNumber: string;
   notes: string;
   startDate: string;
@@ -26,6 +27,7 @@ export interface Reservation {
   parkingLocation: string;
   color: ReservationColor;
   status: ReservationStatus;
+  createdAt: string;
   customerId?: string;
 }
 
@@ -45,6 +47,7 @@ export interface ReservationFormValues {
   index?: number;
   name: string;
   rvType: string;
+  eta?: string;
   phoneNumber: string;
   notes: string;
   startDate: string;
@@ -52,6 +55,7 @@ export interface ReservationFormValues {
   parkingLocation: string;
   color: ReservationColor;
   status: ReservationStatus;
+  createdAt?: string;
   customerId?: string;
 }
 
@@ -62,6 +66,8 @@ export interface AutoBackupConfig {
   intervalMinutes: AutoBackupIntervalMinutes;
   directoryPath: string | null;
   lastBackupAt: string | null;
+  lastError?: string | null;
+  lastErrorAt?: string | null;
 }
 
 export interface SiteSettings {

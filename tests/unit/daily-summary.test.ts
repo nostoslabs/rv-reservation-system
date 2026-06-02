@@ -8,6 +8,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 		firstCellId: 'A::2026-03-07',
 		name: 'Test Guest',
 		rvType: '',
+		eta: '',
 		phoneNumber: '555-1234',
 		notes: '',
 		startDate: '2026-03-07',
@@ -15,6 +16,7 @@ function makeReservation(overrides: Partial<Reservation> = {}): Reservation {
 		parkingLocation: 'A',
 		color: 'blue',
 		status: 'reserved',
+		createdAt: '2026-02-01T00:00:00.000Z',
 		...overrides
 	};
 }

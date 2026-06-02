@@ -23,6 +23,11 @@ export interface AdminSettingsUseCases {
 		timestamp: string,
 		currentSettings: SiteSettings
 	): { ok: true; settings: SiteSettings };
+	recordAutoBackupFailure(
+		error: string,
+		timestamp: string,
+		currentSettings: SiteSettings
+	): { ok: true; settings: SiteSettings };
 	setBetaUpdates(
 		enabled: boolean,
 		currentSettings: SiteSettings
@@ -109,7 +114,24 @@ export function createAdminSettingsUseCases(
 			timestamp: string,
 			currentSettings: SiteSettings
 		): { ok: true; settings: SiteSettings } {
-			const merged = mergeAutoBackup(currentSettings, { lastBackupAt: timestamp });
+			const merged = mergeAutoBackup(currentSettings, {
+				lastBackupAt: timestamp,
+				lastError: null,
+				lastErrorAt: null
+			});
+			const saved = repo.save(merged);
+			return { ok: true, settings: saved };
+		},
+
+		recordAutoBackupFailure(
+			error: string,
+			timestamp: string,
+			currentSettings: SiteSettings
+		): { ok: true; settings: SiteSettings } {
+			const merged = mergeAutoBackup(currentSettings, {
+				lastError: error,
+				lastErrorAt: timestamp
+			});
 			const saved = repo.save(merged);
 			return { ok: true, settings: saved };
 		},

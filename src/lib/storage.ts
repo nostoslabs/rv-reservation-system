@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { isIsoDateString } from '$lib/date';
-import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
+import { DEFAULT_RESERVATION_STATUS, isReservationColor, isReservationStatus, normalizeEta, normalizePhoneNumber, sanitizeReservationNotes } from '$lib/reservations';
 import type { AutoBackupIntervalMinutes, PersistedAppData, Reservation, ReservationStatus, SiteSettings } from '$lib/types';
 import { AUTO_BACKUP_INTERVALS } from '$lib/types';
 
@@ -75,12 +75,18 @@ export function sanitizeReservation(value: unknown): Reservation | null {
   const customerId = typeof raw.customerId === 'string' && UUID_RE.test(raw.customerId) ? raw.customerId : undefined;
 
   const rvType = typeof raw.rvType === 'string' ? raw.rvType.trim() : '';
+  const eta = typeof raw.eta === 'string' ? normalizeEta(raw.eta) : '';
+  const createdAt =
+    typeof raw.createdAt === 'string' && raw.createdAt.trim()
+      ? raw.createdAt.trim()
+      : raw.startDate;
 
   return {
     index: raw.index,
     firstCellId: raw.firstCellId,
     name: raw.name.trim(),
     rvType,
+    eta,
     phoneNumber,
     notes,
     startDate: raw.startDate,
@@ -88,6 +94,7 @@ export function sanitizeReservation(value: unknown): Reservation | null {
     parkingLocation: raw.parkingLocation.trim(),
     color: raw.color,
     status,
+    createdAt,
     customerId
   };
 }
@@ -184,7 +191,9 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
     result.autoBackup = {
       intervalMinutes,
       directoryPath: typeof ab.directoryPath === 'string' ? ab.directoryPath : null,
-      lastBackupAt: typeof ab.lastBackupAt === 'string' ? ab.lastBackupAt : null
+      lastBackupAt: typeof ab.lastBackupAt === 'string' ? ab.lastBackupAt : null,
+      lastError: typeof ab.lastError === 'string' ? ab.lastError : null,
+      lastErrorAt: typeof ab.lastErrorAt === 'string' ? ab.lastErrorAt : null
     };
   }
 

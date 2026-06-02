@@ -6,13 +6,15 @@
   import { customerStore } from '$lib/customer-state';
   import ParkingLocationsPanel from '$lib/components/ParkingLocationsPanel.svelte';
   import { rvReservationStore } from '$lib/state';
-  import { createBackup, generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
+  import { generateBackupFilename, normalizeBackupForRestore, validateBackup, type AppBackup } from '$lib/domain/backup';
   import { restoreBackup, type RestoreStores } from '$lib/application/use-cases/restore-backup';
+  import { createCurrentBackupContent } from '$lib/app/backup-content';
   import { getAppServices } from '$lib/app/composition';
   import { AUTO_BACKUP_INTERVALS, type AutoBackupIntervalMinutes } from '$lib/types';
   import type { UpdateChecker, UpdateState } from '$lib/app/update-checker';
   import { readable } from 'svelte/store';
-  import { backupStatus } from '$lib/app/auto-backup';
+  import { backupStatus, runManualBackupNow } from '$lib/app/auto-backup';
+  import { JSON_BACKUP_FILTERS } from '$lib/app/forced-backup';
 
   const SITE_NAME_MAX_LENGTH = 80;
 
@@ -54,11 +56,14 @@
 
   // Backup import state
   let backupImporting = false;
+  let manualBackupRunning = false;
 
   let locationPanelError = '';
 
   // Beta updates confirmation
   let showBetaConfirm = false;
+
+  $: displayedBackupError = $backupStatus.lastError ?? $siteSettingsStore.autoBackup?.lastError ?? null;
 
   $: reservationCountsByLocation = $rvReservationStore.reservations.reduce<Record<string, number>>(
     (counts, r) => {
@@ -182,28 +187,15 @@
     }
   }
 
-  const JSON_FILTERS = [{ name: 'JSON', extensions: ['json'] }];
-
   async function handleExportBackup(): Promise<void> {
     clearMessages();
 
-    const state = get(rvReservationStore);
-    const settings = get(siteSettingsStore);
-    const customers = customerStore.getAll();
-
-    const backup = createBackup(
-      state.reservations,
-      state.parkingLocations,
-      settings,
-      customers
-    );
-
     const filename = generateBackupFilename();
-    const content = JSON.stringify(backup, null, 2);
+    const content = createCurrentBackupContent();
 
     try {
       const { desktop } = getAppServices();
-      const saved = await desktop.saveFile(filename, content, JSON_FILTERS);
+      const saved = await desktop.saveFile(filename, content, JSON_BACKUP_FILTERS);
       if (saved) {
         successMessage = 'Backup exported successfully.';
       }
@@ -213,13 +205,42 @@
     }
   }
 
+  async function handleBackupNow(): Promise<void> {
+    clearMessages();
+    const directoryPath = $siteSettingsStore.autoBackup?.directoryPath;
+    if (!directoryPath) {
+      errorMessage = 'Choose a backup folder before running Backup Now.';
+      return;
+    }
+
+    manualBackupRunning = true;
+    try {
+      const { desktop } = getAppServices();
+      const result = await runManualBackupNow({
+        desktop,
+        directoryPath,
+        getBackupContent: createCurrentBackupContent,
+        onSuccess: (timestamp) => siteSettingsStore.recordAutoBackup(timestamp)
+      });
+
+      if (!result.ok) {
+        errorMessage = result.error;
+        return;
+      }
+
+      successMessage = 'Backup created successfully.';
+    } finally {
+      manualBackupRunning = false;
+    }
+  }
+
   async function handleBackupImport(): Promise<void> {
     backupImporting = true;
     clearMessages();
 
     try {
       const { desktop } = getAppServices();
-      const text = await desktop.openFile(JSON_FILTERS);
+      const text = await desktop.openFile(JSON_BACKUP_FILTERS);
       if (!text) return;
 
       let parsed: unknown;
@@ -500,13 +521,23 @@
         </label>
 
         <div class="meta" data-testid="auto-backup-last">
-          Last auto-backup: {formatLastBackup($siteSettingsStore.autoBackup?.lastBackupAt)}
+          Last backup: {formatLastBackup($siteSettingsStore.autoBackup?.lastBackupAt)}
         </div>
 
-        {#if $backupStatus.lastError}
+        <button
+          type="button"
+          class="primary"
+          disabled={!$siteSettingsStore.autoBackup?.directoryPath || manualBackupRunning}
+          on:click={handleBackupNow}
+          data-testid="auto-backup-now-btn"
+        >
+          {manualBackupRunning ? 'Backing up...' : 'Backup Now'}
+        </button>
+
+        {#if displayedBackupError}
           <div class="backup-error" role="alert" data-testid="auto-backup-error">
             <strong>Backup failed</strong>
-            <span>{$backupStatus.lastError}</span>
+            <span>{displayedBackupError}</span>
             {#if $backupStatus.consecutiveFailures > 1}
               <span class="failure-count">({$backupStatus.consecutiveFailures} consecutive failures)</span>
             {/if}
@@ -532,6 +563,11 @@
             <button type="button" class="primary" on:click={() => updateChecker.installUpdateAndRestart()} data-testid="update-apply-btn">
               Restart &amp; Apply Update
             </button>
+            {#if $updateState.error}
+              <div class="update-status error" data-testid="update-error">
+                {$updateState.error}
+              </div>
+            {/if}
           {:else if $updateState.downloading}
             <div class="update-status" data-testid="update-downloading">
               Downloading update... {$updateState.downloadProgress}%

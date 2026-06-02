@@ -5,7 +5,9 @@ import { browser } from '$app/environment';
 export const ssr = false;
 export const prerender = true;
 
-injectAnalytics({ mode: 'auto' });
+if (import.meta.env.MODE !== 'test') {
+	injectAnalytics({ mode: 'auto' });
+}
 
 export async function load() {
 	if (browser) {

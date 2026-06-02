@@ -89,7 +89,7 @@
 
 {#if open && resolution}
   <div class="modal-backdrop" role="presentation" on:click={handleOverlayClick}>
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="merge-modal-title" data-testid="merge-preview-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="merge-modal-title" data-testid="merge-preview-modal">
       <header class="modal-header">
         <h2 id="merge-modal-title">Merge {customers.length} Customers</h2>
         <button
@@ -143,7 +143,7 @@
         <button type="button" on:click={handleCancel} data-testid="merge-cancel-btn">Cancel</button>
         <button type="button" class="primary" on:click={handleConfirm} data-testid="merge-confirm-btn">Merge</button>
       </footer>
-    </section>
+    </div>
   </div>
 {/if}
 

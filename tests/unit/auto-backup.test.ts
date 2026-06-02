@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isBackupDue, startAutoBackupTimer, type AutoBackupDeps } from '$lib/app/auto-backup';
+import {
+	isBackupDue,
+	runBackupOnExit,
+	runManualBackupNow,
+	startAutoBackupTimer,
+	type AutoBackupDeps
+} from '$lib/app/auto-backup';
 import type { AutoBackupConfig } from '$lib/types';
+import { createDesktopCapabilitiesMock } from './desktop-capabilities.fixture';
 
 describe('isBackupDue', () => {
 	it('returns false when interval is 0 (off)', () => {
@@ -31,6 +38,101 @@ describe('isBackupDue', () => {
 	});
 });
 
+describe('runManualBackupNow', () => {
+	it('writes a verified backup and records the timestamp', async () => {
+		const desktopMock = createDesktopCapabilitiesMock();
+		const onSuccess = vi.fn(async () => ({ ok: true }));
+
+		const result = await runManualBackupNow({
+			desktop: desktopMock.desktop,
+			directoryPath: '/backups',
+			getBackupContent: () => '{"test": true}',
+			onSuccess
+		});
+
+		expect(result).toEqual({ ok: true });
+		expect(desktopMock.written[0]).toMatch(/^\/backups\/rv-backup-.*\.json$/);
+		expect(onSuccess).toHaveBeenCalledOnce();
+	});
+
+	it('returns a timestamp persistence error without recording backup failure status', async () => {
+		const result = await runManualBackupNow({
+			desktop: createDesktopCapabilitiesMock().desktop,
+			directoryPath: '/backups',
+			getBackupContent: () => '{"test": true}',
+			onSuccess: async () => ({ ok: false, errors: ['Settings write failed'] })
+		});
+
+		expect(result).toEqual({ ok: false, error: 'Settings write failed' });
+	});
+});
+
+describe('runBackupOnExit', () => {
+	it('does nothing when no backup directory is configured', async () => {
+		const desktopMock = createDesktopCapabilitiesMock();
+
+		await expect(
+			runBackupOnExit({
+				desktop: desktopMock.desktop,
+				getConfig: () => ({ intervalMinutes: 30, directoryPath: null, lastBackupAt: null }),
+				getBackupContent: () => '{"test": true}',
+				onSuccess: async () => ({ ok: true })
+			})
+		).resolves.toBeUndefined();
+
+		expect(desktopMock.written).toHaveLength(0);
+	});
+
+	it('writes a verified backup when a backup directory is configured', async () => {
+		const desktopMock = createDesktopCapabilitiesMock();
+		const onSuccess = vi.fn(async () => ({ ok: true }));
+
+		await runBackupOnExit({
+			desktop: desktopMock.desktop,
+			getConfig: () => ({ intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null }),
+			getBackupContent: () => '{"test": true}',
+			onSuccess
+		});
+
+		expect(desktopMock.written).toHaveLength(1);
+		expect(desktopMock.written[0]).toMatch(/^\/backups\/rv-backup-.*\.json$/);
+		expect(onSuccess).toHaveBeenCalledOnce();
+	});
+
+	it('swallows backup failures so close can continue', async () => {
+		const onFailure = vi.fn(async () => ({ ok: true }));
+
+		await expect(
+			runBackupOnExit({
+				desktop: createDesktopCapabilitiesMock({
+					writeFileToPath: async () => {
+						throw new Error('disk full');
+					}
+				}).desktop,
+				getConfig: () => ({ intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null }),
+				getBackupContent: () => '{"test": true}',
+				onSuccess: async () => ({ ok: true }),
+				onFailure
+			})
+		).resolves.toBeUndefined();
+
+		expect(onFailure).toHaveBeenCalledWith('Backup failed: disk full');
+	});
+
+	it('swallows config load failures so close can continue', async () => {
+		await expect(
+			runBackupOnExit({
+				desktop: createDesktopCapabilitiesMock().desktop,
+				getConfig: () => {
+					throw new Error('settings read failed');
+				},
+				getBackupContent: () => '{"test": true}',
+				onSuccess: async () => ({ ok: true })
+			})
+		).resolves.toBeUndefined();
+	});
+});
+
 describe('startAutoBackupTimer', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -41,27 +143,14 @@ describe('startAutoBackupTimer', () => {
 	});
 
 	function makeDeps(config: AutoBackupConfig, overrides?: Partial<AutoBackupDeps>): AutoBackupDeps & { written: string[]; errors: unknown[] } {
-		const written: string[] = [];
+		const desktopMock = createDesktopCapabilitiesMock();
 		const errors: unknown[] = [];
 		return {
-			written,
+			written: desktopMock.written,
 			errors,
 			getConfig: () => config,
 			getBackupContent: () => '{"test": true}',
-			desktop: {
-				isDesktop: true,
-				getAppDataDir: async () => null,
-				getVersion: async () => null,
-				saveFile: async () => false,
-				openFile: async () => null,
-				writeFileToPath: async (path: string) => { written.push(path); },
-				pickDirectory: async () => null,
-				checkForUpdate: async () => null,
-				checkBetaUpdate: async () => null,
-				downloadUpdate: async () => false,
-				installUpdateAndRestart: async () => false,
-				relaunch: async () => {}
-			},
+			desktop: desktopMock.desktop,
 			onSuccess: async () => {},
 			onError: (err) => errors.push(err),
 			...overrides
@@ -97,30 +186,39 @@ describe('startAutoBackupTimer', () => {
 		stop();
 	});
 
-	it('calls onError when writeFileToPath throws', async () => {
-		const config: AutoBackupConfig = { intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null };
-		const deps = makeDeps(config, {
-			desktop: {
-				isDesktop: true,
-				getAppDataDir: async () => null,
-				getVersion: async () => null,
-				saveFile: async () => false,
-				openFile: async () => null,
-				writeFileToPath: async () => { throw new Error('disk full'); },
-				pickDirectory: async () => null,
-				checkForUpdate: async () => null,
-				checkBetaUpdate: async () => null,
-				downloadUpdate: async () => false,
-				installUpdateAndRestart: async () => false,
-				relaunch: async () => {}
-			}
-		});
-		const stop = startAutoBackupTimer(deps);
+		it('calls onError when writeFileToPath throws', async () => {
+			const config: AutoBackupConfig = { intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null };
+			const deps = makeDeps(config, {
+				desktop: createDesktopCapabilitiesMock({
+					writeFileToPath: async () => { throw new Error('disk full'); }
+				}).desktop
+			});
+			const stop = startAutoBackupTimer(deps);
 
 		await vi.advanceTimersByTimeAsync(0);
 
 		expect(deps.errors.length).toBe(1);
-		expect((deps.errors[0] as Error).message).toBe('disk full');
+		expect((deps.errors[0] as Error).message).toBe('Backup failed: disk full');
+		stop();
+	});
+
+		it('calls onError and skips success when read-back verification fails', async () => {
+			const config: AutoBackupConfig = { intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null };
+			let successTimestamp: string | null = null;
+			const deps = makeDeps(config, {
+				desktop: createDesktopCapabilitiesMock({
+					writeFileToPath: async () => {},
+					readFileFromPath: async () => '{"test": false}'
+				}).desktop,
+				onSuccess: async (ts) => { successTimestamp = ts; }
+			});
+			const stop = startAutoBackupTimer(deps);
+
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(successTimestamp).toBeNull();
+		expect(deps.errors.length).toBe(1);
+		expect((deps.errors[0] as Error).message).toBe('Backup verification failed: written file contents did not match generated backup.');
 		stop();
 	});
 

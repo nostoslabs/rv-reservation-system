@@ -4,6 +4,7 @@ const STABLE_TAG_PATTERN = /^v\d+\.\d+\.\d+$/;
 const PRERELEASE_TAG_PATTERN = /^v\d+\.\d+\.\d+-(?:beta|rc)\.\d+$/;
 const MAC_ARTIFACT_PATTERN = /\.(?:dmg|app\.tar\.gz)$/i;
 const WINDOWS_ARTIFACT_PATTERN = /\.(?:msi|exe|nsis\.zip)$/i;
+const STABLE_RELEASE_CONSENT_ENV = 'RELEASE_GUARD_STABLE_RELEASE_CONSENT';
 
 function parseArgs(argv) {
   const tagIndex = argv.indexOf('--tag');
@@ -24,6 +25,26 @@ function isStableTag(tag) {
 
 function isPrereleaseTag(tag) {
   return PRERELEASE_TAG_PATTERN.test(tag);
+}
+
+function expectedStableReleaseConsent(tag) {
+  return `I consent to publish stable release ${tag}`;
+}
+
+function requireStableReleaseConsent(tag) {
+  const expectedConsent = expectedStableReleaseConsent(tag);
+  const suppliedConsent = process.env[STABLE_RELEASE_CONSENT_ENV] ?? '';
+
+  if (suppliedConsent !== expectedConsent) {
+    throw new Error(
+      [
+        `Explicit consent is required before publishing stable release ${tag}.`,
+        `Set ${STABLE_RELEASE_CONSENT_ENV} exactly to: ${expectedConsent}`
+      ].join(' ')
+    );
+  }
+
+  console.log(`Stable release consent verified for ${tag}.`);
 }
 
 function hasMacArtifact(release) {
@@ -99,9 +120,12 @@ async function main() {
   }
 
   if (!isStableTag(tag)) {
-    console.log(`Tag ${tag} is not a stable release tag; skipping beta release guard.`);
-    return;
+    throw new Error(
+      `Unsupported release tag ${tag}. Use vX.Y.Z for stable releases or vX.Y.Z-beta.N / vX.Y.Z-rc.N for prereleases.`
+    );
   }
+
+  requireStableReleaseConsent(tag);
 
   const releases = await loadReleases();
   const betaRelease = findQualifyingBetaRelease(releases, tag);
