@@ -99,19 +99,28 @@
   // Go To Date state
   let goToDateValue = '';
 
+  type GridContextMenu =
+    | { kind: 'reservation'; reservation: Reservation; x: number; y: number }
+    | { kind: 'empty'; parkingLocation: string; dateIso: string; x: number; y: number };
+
   // Context menu state
-  let contextMenu: { reservation: Reservation; x: number; y: number } | null = null;
+  let contextMenu: GridContextMenu | null = null;
+  let copiedReservation: Reservation | null = null;
 
   function handleCellContextMenu(location: string, dateIso: string, event: MouseEvent): void {
     const reservation = occupancyMap.get(buildCellId(location, dateIso));
-    if (!reservation) return;
+    if (!reservation && !copiedReservation) return;
     event.preventDefault();
     clearDragState();
-    contextMenu = { reservation, x: event.clientX, y: event.clientY };
+    if (reservation) {
+      contextMenu = { kind: 'reservation', reservation, x: event.clientX, y: event.clientY };
+      return;
+    }
+    contextMenu = { kind: 'empty', parkingLocation: location, dateIso, x: event.clientX, y: event.clientY };
   }
 
   async function handleContextMenuStatusChange(status: ReservationStatus): Promise<void> {
-    if (!contextMenu) return;
+    if (!contextMenu || contextMenu.kind !== 'reservation') return;
     const res = contextMenu.reservation;
     contextMenu = null;
     const result = await saveReservationWithUndo({
@@ -140,16 +149,51 @@
   }
 
   async function handleContextMenuCopyDetails(): Promise<void> {
-    if (!contextMenu) return;
-    const text = getReservationDetailsText(contextMenu.reservation);
+    if (!contextMenu || contextMenu.kind !== 'reservation') return;
+    const reservation = contextMenu.reservation;
+    const text = getReservationDetailsText(reservation);
+    copiedReservation = { ...reservation };
     contextMenu = null;
 
     try {
       await navigator.clipboard.writeText(text);
-      showToast('Reservation details copied');
+      showToast('Reservation copied');
     } catch {
-      showToast('Unable to copy reservation details');
+      showToast('Reservation copied for grid paste');
     }
+  }
+
+  async function handleContextMenuPasteReservation(): Promise<void> {
+    if (!contextMenu || contextMenu.kind !== 'empty' || !copiedReservation) return;
+    const target = contextMenu;
+    const source = copiedReservation;
+    const nights = Math.max(1, diffDays(source.startDate, source.endDate));
+    contextMenu = null;
+
+    const result = await saveReservationWithUndo({
+      name: source.name,
+      rvType: source.rvType,
+      eta: source.eta,
+      phoneNumber: source.phoneNumber,
+      notes: source.notes,
+      startDate: target.dateIso,
+      endDate: addDays(target.dateIso, nights),
+      parkingLocation: target.parkingLocation,
+      color: source.color,
+      status: source.status,
+      customerId: source.customerId
+    });
+
+    if (!result.ok) {
+      showToast(result.errors?.[0] ?? 'Unable to paste reservation');
+      return;
+    }
+
+    if (source.name.trim()) {
+      await customerStore.findOrCreateFromReservation(source.name, source.phoneNumber, source.rvType);
+    }
+
+    showToast('Reservation pasted');
   }
 
   function openReservationFromSearch(reservation: Reservation): void {
@@ -821,30 +865,43 @@
       style="left: {contextMenu.x}px; top: {contextMenu.y}px"
       role="menu"
     >
-      <div class="context-menu-header">{contextMenu.reservation.name}</div>
-      <button
-        type="button"
-        class="context-menu-item"
-        role="menuitem"
-        on:click={handleContextMenuCopyDetails}
-      >
-        <span class="context-menu-icon" aria-hidden="true">⧉</span>
-        <span>Copy details</span>
-      </button>
-      <div class="context-menu-separator" role="separator"></div>
-      {#each RESERVATION_STATUSES as statusValue}
+      {#if contextMenu.kind === 'reservation'}
+        <div class="context-menu-header">{contextMenu.reservation.name}</div>
         <button
           type="button"
           class="context-menu-item"
-          class:active={contextMenu.reservation.status === statusValue}
           role="menuitem"
-          on:click={() => handleContextMenuStatusChange(statusValue)}
+          on:click={handleContextMenuCopyDetails}
         >
-          <span class="context-menu-swatch" style={getStatusSwatchStyle(statusValue)}></span>
-          <span class="context-menu-icon">{STATUS_ICONS[statusValue]}</span>
-          <span>{STATUS_LABELS[statusValue]}</span>
+          <span class="context-menu-icon" aria-hidden="true">⧉</span>
+          <span>Copy details</span>
         </button>
-      {/each}
+        <div class="context-menu-separator" role="separator"></div>
+        {#each RESERVATION_STATUSES as statusValue}
+          <button
+            type="button"
+            class="context-menu-item"
+            class:active={contextMenu.reservation.status === statusValue}
+            role="menuitem"
+            on:click={() => handleContextMenuStatusChange(statusValue)}
+          >
+            <span class="context-menu-swatch" style={getStatusSwatchStyle(statusValue)}></span>
+            <span class="context-menu-icon">{STATUS_ICONS[statusValue]}</span>
+            <span>{STATUS_LABELS[statusValue]}</span>
+          </button>
+        {/each}
+      {:else if copiedReservation}
+        <div class="context-menu-header">{copiedReservation.name}</div>
+        <button
+          type="button"
+          class="context-menu-item"
+          role="menuitem"
+          on:click={handleContextMenuPasteReservation}
+        >
+          <span class="context-menu-icon" aria-hidden="true">+</span>
+          <span>Paste reservation here</span>
+        </button>
+      {/if}
     </div>
   </div>
 {/if}

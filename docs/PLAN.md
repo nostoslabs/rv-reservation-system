@@ -2,12 +2,12 @@
 
 ## Current Status - 2026-06-02
 - The offline-first Tauri + SQLite migration epics below are complete and are kept as historical project context.
-- Current active branch: `feat/manual-auto-backup`.
-- Current active PR: [#148](https://github.com/nostoslabs/rv-reservation-system/pull/148) `feat: add manual verified auto backup`.
-- Current branch version: `1.20.0` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
-- Release status: no `v1.20.0-beta.1` tag or GitHub prerelease exists yet. The latest listed prerelease is `v1.19.4-beta.1`.
-- PR #148 CI status checked on 2026-06-02: `check-build-test` and `version-bump-check` were passing on the latest reported GitHub run.
-- Local verification checked on 2026-06-02: `npm run check`, `npm run test:unit`, `npm run build`, `npm run code-health:changed`, `npm run code-health:full`, and `npm run test:e2e` all passed. `npm run check` reports 0 warnings. `npm run build` still reports Rollup `Unknown output options: codeSplitting` warnings from the toolchain.
+- Current published beta: [`v1.20.1-beta.1`](https://github.com/nostoslabs/rv-reservation-system/releases/tag/v1.20.1-beta.1), which includes PR #149's right-click copy non-mutating fix.
+- Current active branch: `feat/reservation-context-paste`.
+- Current active work: complete #141 by adding in-grid reservation paste from an occupied-cell copy into an empty cell.
+- Current branch target version: `1.21.0` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` before merge.
+- Local verification checked on 2026-06-02 for the active branch: `npm run check`, `npm run test:unit`, `npm run build`, `npm run code-health:changed`, `npm run code-health:full`, and full `npm run test:e2e` all passed. Visual verification screenshot: `screenshots/issue-141-paste-context-menu.png`.
+- Known toolchain warning remains: `npm run build` reports Rollup `Unknown output options: codeSplitting`.
 
 ## Open Issue Verification - 2026-06-02
 | Issue | Verified status | Notes |
@@ -17,15 +17,13 @@
 | #138 Reservation count shows current and future only | Implemented on PR #148 | Uses active-reservation count with e2e coverage for excluding past stays. |
 | #139 Auto-backup on app exit | Implemented on PR #148 | Close handler flushes SQLite writes, runs configured verified backup, then flushes again. Unit coverage confirms failures do not block close. |
 | #140 Record and display reservation creation date | Implemented on PR #148 | Adds `createdAt`, SQLite migration/backfill, read-only edit display, and persistence tests. |
-| #141 Right-click copy and paste support | Partially implemented on PR #148 | Reservation grid context menu includes `Copy details` with e2e coverage. Standard native input copy/paste is presumed by Tauri/webview behavior, but not explicitly tested. |
+| #141 Right-click copy and paste support | Implemented on active branch; pending merge/release | Reservation grid context menu copies details to the clipboard and stores an internal reservation copy. Empty cells show `Paste reservation here`; paste preserves duration/details, creates a new reservation at the target site/date, and rejects overlaps with e2e coverage. |
 | #142 Desktop update restart flow and pre-update backup | Implemented; issue closed | Download-ready state, forced pre-install backup, and blocked-backup UI error are covered by unit and e2e tests. |
 | #133 Recurring code-health audit | Baseline implemented; intentionally recurring | `docs/coding_standards.md`, guardrail scripts, Knip, and audit punch list exist. Keep open only if used as the recurring checkpoint. |
 | #145 Apply code-health audit findings | Pending/partial | Some narrow debt is fixed, but large route extraction and shim audit remain. |
 
 ## Current Pending Work
-- Finish and merge PR #148, and update its PR body so it closes or references #136, #138, #139, #140, and #142.
-- Create `v1.20.0-beta.1` only after PR #148 is merged and release verification is complete.
-- Decide whether #141 is complete enough after grid `Copy details`, or add explicit right-click input copy/paste coverage before closing it.
+- Open and merge `feat/reservation-context-paste`, close #141, and create a `v1.21.0-beta.1` prerelease for testing.
 - Continue #145 as the main real implementation backlog from the code-health audit.
 
 ## Objective

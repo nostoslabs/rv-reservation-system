@@ -268,6 +268,88 @@ test.describe('Reservation CRUD', () => {
 		await expect(modal(page)).toBeVisible();
 		await expect(modal(page).locator('input[placeholder="Guest name"]')).toHaveValue('Nonmoving Copy');
 	});
+
+	test('right-click paste creates a copied reservation in an empty cell', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				value: {
+					writeText: async (text: string) => {
+						(window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__ = text;
+					}
+				},
+				configurable: true
+			});
+		});
+		await resetApp(page);
+
+		const sourceStart = offsetDate(1);
+		const sourceEnd = offsetDate(4);
+		const targetStart = offsetDate(6);
+		const targetEnd = offsetDate(9);
+		await createReservation(page, { name: 'Paste Guest', startDate: sourceStart, endDate: sourceEnd });
+
+		const sourceCell = await cellAtDate(page, sourceStart);
+		await sourceCell.click({ button: 'right' });
+		await expect(page.locator('.context-menu')).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Copy details' }).click();
+
+		const copied = await page.evaluate(
+			() => (window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__
+		);
+		expect(copied).toContain('Paste Guest');
+
+		const targetCell = await cellAtDate(page, targetStart);
+		await expect(targetCell).toHaveClass(/empty/);
+		await targetCell.click({ button: 'right' });
+		await expect(page.locator('.context-menu')).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Paste reservation here' }).click();
+
+		await expect(page.getByRole('status')).toContainText('Reservation pasted');
+		await expect((await cellAtDate(page, sourceStart)).locator('.reservation-label')).toContainText('Paste Guest');
+		await expect((await cellAtDate(page, targetStart)).locator('.reservation-label')).toContainText('Paste Guest');
+
+		await clickCellAtDate(page, targetStart);
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('input[placeholder="Guest name"]')).toHaveValue('Paste Guest');
+		await expect(modal(page).locator('input[type="date"]').first()).toHaveValue(targetStart);
+		await expect(modal(page).locator('input[type="date"]').nth(1)).toHaveValue(targetEnd);
+	});
+
+	test('right-click paste rejects overlaps and leaves the grid unchanged', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				value: {
+					writeText: async (text: string) => {
+						(window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__ = text;
+					}
+				},
+				configurable: true
+			});
+		});
+		await resetApp(page);
+
+		const sourceStart = offsetDate(1);
+		const sourceEnd = offsetDate(3);
+		const targetStart = offsetDate(4);
+		const blockingStart = offsetDate(5);
+		const blockingEnd = offsetDate(8);
+		await createReservation(page, { name: 'Overlap Source', startDate: sourceStart, endDate: sourceEnd });
+		await createReservation(page, { name: 'Blocking Guest', startDate: blockingStart, endDate: blockingEnd });
+
+		const sourceCell = await cellAtDate(page, sourceStart);
+		await sourceCell.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Copy details' }).click();
+
+		const targetCell = await cellAtDate(page, targetStart);
+		await expect(targetCell).toHaveClass(/empty/);
+		await targetCell.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Paste reservation here' }).click();
+
+		await expect(page.getByRole('status')).toContainText('Overlap');
+		await expect(await cellAtDate(page, targetStart)).toHaveClass(/empty/);
+		await expect((await cellAtDate(page, sourceStart)).locator('.reservation-label')).toContainText('Overlap Source');
+		await expect((await cellAtDate(page, blockingStart)).locator('.reservation-label')).toContainText('Blocking Guest');
+	});
 });
 
 test.describe('Modal accessibility and UX', () => {
