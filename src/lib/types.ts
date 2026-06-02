@@ -66,6 +66,8 @@ export interface AutoBackupConfig {
   intervalMinutes: AutoBackupIntervalMinutes;
   directoryPath: string | null;
   lastBackupAt: string | null;
+  lastError?: string | null;
+  lastErrorAt?: string | null;
 }
 
 export interface SiteSettings {

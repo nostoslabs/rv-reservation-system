@@ -100,6 +100,8 @@ describe('runBackupOnExit', () => {
 	});
 
 	it('swallows backup failures so close can continue', async () => {
+		const onFailure = vi.fn(async () => ({ ok: true }));
+
 		await expect(
 			runBackupOnExit({
 				desktop: createDesktopCapabilitiesMock({
@@ -109,9 +111,12 @@ describe('runBackupOnExit', () => {
 				}).desktop,
 				getConfig: () => ({ intervalMinutes: 30, directoryPath: '/backups', lastBackupAt: null }),
 				getBackupContent: () => '{"test": true}',
-				onSuccess: async () => ({ ok: true })
+				onSuccess: async () => ({ ok: true }),
+				onFailure
 			})
 		).resolves.toBeUndefined();
+
+		expect(onFailure).toHaveBeenCalledWith('Backup failed: disk full');
 	});
 
 	it('swallows config load failures so close can continue', async () => {

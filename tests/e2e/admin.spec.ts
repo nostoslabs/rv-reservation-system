@@ -47,6 +47,37 @@ async function installDesktopBackupMock(page: Page) {
 	});
 }
 
+async function installDesktopUpdateMock(page: Page) {
+	await page.addInitScript(() => {
+		type UpdateTestWindow = Window & {
+			__RV_TEST_DESKTOP_CAPABILITIES__?: unknown;
+			__RV_UPDATE_INSTALLS__?: number;
+		};
+
+		const testWindow = window as UpdateTestWindow;
+		testWindow.__RV_UPDATE_INSTALLS__ = 0;
+		testWindow.__RV_TEST_DESKTOP_CAPABILITIES__ = {
+			isDesktop: true,
+			getVersion: async () => '1.20.0',
+			checkForUpdate: async () => ({
+				version: '1.20.1',
+				currentVersion: '1.20.0',
+				date: '2026-06-02T12:00:00.000Z',
+				body: 'Safety update'
+			}),
+			downloadUpdate: async (onProgress?: (progress: { downloadedLength: number; contentLength: number }) => void) => {
+				onProgress?.({ downloadedLength: 100, contentLength: 100 });
+				return true;
+			},
+			saveFile: async () => false,
+			installUpdateAndRestart: async () => {
+				testWindow.__RV_UPDATE_INSTALLS__ = (testWindow.__RV_UPDATE_INSTALLS__ ?? 0) + 1;
+				return true;
+			}
+		};
+	});
+}
+
 test.describe('Settings page', () => {
 	test.beforeEach(async ({ page }) => {
 		await clearStorage(page);
@@ -221,6 +252,53 @@ test.describe('Automatic backup manual trigger', () => {
 		await expect(page.locator('.message.error')).toContainText('Backup verification failed');
 		await expect(page.locator('[data-testid="auto-backup-error"]')).toContainText('Backup verification failed');
 		await expect(page.locator('[data-testid="auto-backup-last"]')).toContainText('Last backup: Never');
+	});
+
+	test('shows persisted backup failure after reopening settings', async ({ page }) => {
+		await page.goto('/');
+		await page.evaluate(() => {
+			window.localStorage.setItem('rv-reservation-demo:settings:v1', JSON.stringify({
+				siteName: 'RV Reservation Schedule',
+				compactView: false,
+				autoBackup: {
+					intervalMinutes: 0,
+					directoryPath: '/mock-backups',
+					lastBackupAt: null,
+					lastError: 'Backup failed: disk full',
+					lastErrorAt: '2026-06-02T12:00:00.000Z'
+				}
+			}));
+		});
+
+		await page.goto('/admin');
+
+		await expect(page.locator('[data-testid="auto-backup-error"]')).toContainText('Backup failed: disk full');
+	});
+});
+
+test.describe('Desktop update flow', () => {
+	test.beforeEach(async ({ page }) => {
+		await installDesktopUpdateMock(page);
+		await clearStorage(page);
+	});
+
+	test('shows update ready state and blocks install when forced backup is not saved', async ({ page }) => {
+		await page.goto('/admin');
+
+		await expect(page.locator('[data-testid="updates-panel"]')).toBeVisible();
+		await expect(page.locator('[data-testid="update-available"]')).toContainText('v1.20.1');
+
+		await page.locator('[data-testid="update-download-btn"]').click();
+		await expect(page.locator('[data-testid="update-ready"]')).toContainText('Update ready. Restart to apply.');
+
+		await page.locator('[data-testid="update-apply-btn"]').click();
+		await expect(page.locator('[data-testid="update-error"]')).toContainText('Update blocked because backup was not saved.');
+
+		const installAttempts = await page.evaluate(() => {
+			const testWindow = window as Window & { __RV_UPDATE_INSTALLS__?: number };
+			return testWindow.__RV_UPDATE_INSTALLS__ ?? 0;
+		});
+		expect(installAttempts).toBe(0);
 	});
 });
 

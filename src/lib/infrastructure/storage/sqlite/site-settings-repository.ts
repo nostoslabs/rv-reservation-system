@@ -11,7 +11,7 @@ interface SettingRow {
 }
 
 function defaultAutoBackup(): AutoBackupConfig {
-	return { intervalMinutes: 0, directoryPath: null, lastBackupAt: null };
+	return { intervalMinutes: 0, directoryPath: null, lastBackupAt: null, lastError: null, lastErrorAt: null };
 }
 
 function defaultSettings(): SiteSettings {
@@ -65,7 +65,9 @@ async function loadFromDb(db: Database): Promise<SiteSettings> {
 		autoBackup: {
 			intervalMinutes,
 			directoryPath: map.get('auto_backup_directory') ?? null,
-			lastBackupAt: map.get('auto_backup_last_at') ?? null
+			lastBackupAt: map.get('auto_backup_last_at') ?? null,
+			lastError: map.get('auto_backup_last_error') ?? null,
+			lastErrorAt: map.get('auto_backup_last_error_at') ?? null
 		},
 		siteColors
 	});
@@ -105,6 +107,22 @@ async function saveToDb(db: Database, settings: SiteSettings): Promise<void> {
 		]);
 	} else {
 		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['auto_backup_last_at']);
+	}
+	if (ab.lastError != null) {
+		await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+			'auto_backup_last_error',
+			ab.lastError
+		]);
+	} else {
+		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['auto_backup_last_error']);
+	}
+	if (ab.lastErrorAt != null) {
+		await db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', [
+			'auto_backup_last_error_at',
+			ab.lastErrorAt
+		]);
+	} else {
+		await db.execute('DELETE FROM admin_settings WHERE key = ?', ['auto_backup_last_error_at']);
 	}
 
 	if (settings.siteColors && Object.keys(settings.siteColors).length > 0) {

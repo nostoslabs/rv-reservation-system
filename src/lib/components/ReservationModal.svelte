@@ -172,7 +172,7 @@
 
 {#if open}
   <div class="modal-backdrop" role="presentation" on:click={handleOverlayClick}>
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title">
       <header class="modal-header">
         <div class="modal-header-text">
           <h2 id="reservation-modal-title">{mode === 'create' ? 'New Reservation' : 'Edit Reservation'}</h2>
@@ -333,7 +333,7 @@
           </div>
         </footer>
       </form>
-    </section>
+    </div>
   </div>
 {/if}
 

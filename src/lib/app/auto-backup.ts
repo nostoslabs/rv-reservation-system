@@ -51,6 +51,7 @@ export interface BackupOnExitDeps {
 	getConfig: () => AutoBackupConfig;
 	getBackupContent: () => string;
 	onSuccess: (timestamp: string) => Promise<{ ok: boolean; errors?: string[] }>;
+	onFailure?: (error: string) => Promise<{ ok: boolean; errors?: string[] }>;
 }
 
 export function isBackupDue(config: AutoBackupConfig): boolean {
@@ -92,6 +93,15 @@ export async function runManualBackupNow(deps: ManualBackupDeps): Promise<Manual
 }
 
 export async function runBackupOnExit(deps: BackupOnExitDeps): Promise<void> {
+	async function recordExitFailure(error: string): Promise<void> {
+		recordBackupError(error);
+		try {
+			await deps.onFailure?.(error);
+		} catch {
+			// Closing must never depend on being able to persist the failure marker.
+		}
+	}
+
 	try {
 		const config = deps.getConfig();
 		if (!config.directoryPath) return;
@@ -103,19 +113,19 @@ export async function runBackupOnExit(deps: BackupOnExitDeps): Promise<void> {
 		});
 
 		if (!result.ok) {
-			recordBackupError(result.error);
+			await recordExitFailure(result.error);
 			return;
 		}
 
 		const recorded = await deps.onSuccess(result.timestamp);
 		if (!recorded.ok) {
-			recordBackupError(recorded.errors?.[0] ?? 'Exit backup timestamp could not be saved.');
+			await recordExitFailure(recorded.errors?.[0] ?? 'Exit backup timestamp could not be saved.');
 			return;
 		}
 
 		clearBackupStatus();
 	} catch (error) {
-		recordBackupError(formatBackupError(error));
+		await recordExitFailure(formatBackupError(error));
 	}
 }
 

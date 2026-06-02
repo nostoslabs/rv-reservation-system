@@ -82,6 +82,13 @@ function createSiteSettingsStore() {
 		return persistSettings(result.settings);
 	}
 
+	async function recordAutoBackupFailure(error: string): Promise<SiteSettingsMutationResult> {
+		const { adminSettingsUseCases } = getAppServices();
+		const current = get(internal);
+		const result = adminSettingsUseCases.recordAutoBackupFailure(error, new Date().toISOString(), current);
+		return persistSettings(result.settings);
+	}
+
 	async function setBetaUpdates(enabled: boolean): Promise<SiteSettingsMutationResult> {
 		const { adminSettingsUseCases } = getAppServices();
 		const current = get(internal);
@@ -118,6 +125,7 @@ function createSiteSettingsStore() {
 		setAutoBackupInterval,
 		setAutoBackupDirectory,
 		recordAutoBackup,
+		recordAutoBackupFailure,
 		setBetaUpdates,
 		setSiteColor,
 		renameSiteColor,

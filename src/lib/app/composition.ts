@@ -226,6 +226,21 @@ async function runConfiguredBackupOnExit(): Promise<void> {
 				}
 			});
 			return { ok: true };
+		},
+		onFailure: async (error) => {
+			const settings = services.repositories.siteSettings.load();
+			const autoBackup = settings.autoBackup;
+			if (!autoBackup?.directoryPath) return { ok: true };
+
+			services.repositories.siteSettings.save({
+				...settings,
+				autoBackup: {
+					...autoBackup,
+					lastError: error,
+					lastErrorAt: new Date().toISOString()
+				}
+			});
+			return { ok: true };
 		}
 	});
 }

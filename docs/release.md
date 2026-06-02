@@ -110,3 +110,15 @@ Before releasing, verify:
 - [ ] Admin page: set passcode, change site name
 - [ ] Data persists after closing and reopening the app
 - [ ] Parking location management works (add, rename, delete constraints)
+
+## Data-Safety Desktop Verification
+
+Run these checks on both macOS and Windows beta artifacts before publishing a stable release:
+
+- [ ] Configure an automatic backup folder, create/edit a reservation, close the app, and confirm a new `rv-backup-*.json` file was written.
+- [ ] Open the exit backup file and confirm it contains `schema`, `data.reservations`, `data.parkingLocations`, `data.siteSettings`, and `data.customers`.
+- [ ] Temporarily make the configured backup folder unwritable, close the app, reopen it, and confirm Settings shows the persisted backup failure.
+- [ ] Export a manual backup, restore it into a clean app profile, and confirm reservations, customers, site settings, and parking locations are restored.
+- [ ] Trigger an update download, confirm the app shows "Update ready. Restart to apply.", then cancel/fail the forced backup and confirm the update install is blocked and the app remains open.
+- [ ] Repeat the update apply path with a successful forced backup and confirm the installer/restart behavior matches the platform expectation.
+- [ ] After every restore/update scenario, reopen the app and confirm the reservation count and reservation grid match the expected data.

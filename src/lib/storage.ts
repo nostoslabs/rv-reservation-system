@@ -191,7 +191,9 @@ function sanitizeSiteSettings(value: unknown): SiteSettings {
     result.autoBackup = {
       intervalMinutes,
       directoryPath: typeof ab.directoryPath === 'string' ? ab.directoryPath : null,
-      lastBackupAt: typeof ab.lastBackupAt === 'string' ? ab.lastBackupAt : null
+      lastBackupAt: typeof ab.lastBackupAt === 'string' ? ab.lastBackupAt : null,
+      lastError: typeof ab.lastError === 'string' ? ab.lastError : null,
+      lastErrorAt: typeof ab.lastErrorAt === 'string' ? ab.lastErrorAt : null
     };
   }
 

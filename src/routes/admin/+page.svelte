@@ -63,6 +63,8 @@
   // Beta updates confirmation
   let showBetaConfirm = false;
 
+  $: displayedBackupError = $backupStatus.lastError ?? $siteSettingsStore.autoBackup?.lastError ?? null;
+
   $: reservationCountsByLocation = $rvReservationStore.reservations.reduce<Record<string, number>>(
     (counts, r) => {
       counts[r.parkingLocation] = (counts[r.parkingLocation] ?? 0) + 1;
@@ -532,10 +534,10 @@
           {manualBackupRunning ? 'Backing up...' : 'Backup Now'}
         </button>
 
-        {#if $backupStatus.lastError}
+        {#if displayedBackupError}
           <div class="backup-error" role="alert" data-testid="auto-backup-error">
             <strong>Backup failed</strong>
-            <span>{$backupStatus.lastError}</span>
+            <span>{displayedBackupError}</span>
             {#if $backupStatus.consecutiveFailures > 1}
               <span class="failure-count">({$backupStatus.consecutiveFailures} consecutive failures)</span>
             {/if}
@@ -561,6 +563,11 @@
             <button type="button" class="primary" on:click={() => updateChecker.installUpdateAndRestart()} data-testid="update-apply-btn">
               Restart &amp; Apply Update
             </button>
+            {#if $updateState.error}
+              <div class="update-status error" data-testid="update-error">
+                {$updateState.error}
+              </div>
+            {/if}
           {:else if $updateState.downloading}
             <div class="update-status" data-testid="update-downloading">
               Downloading update... {$updateState.downloadProgress}%
