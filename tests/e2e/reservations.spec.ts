@@ -24,7 +24,7 @@ function getTodayIso(): string {
 const modal = (page: Page) => page.locator('.modal[role="dialog"]');
 
 /** Click a grid cell by locating the date column via data-date attribute. */
-async function clickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
+async function cellAtDate(page: Page, dateIso: string, rowIndex = 0) {
 	const colIndex = await page.evaluate((date) => {
 		const headers = document.querySelectorAll('th.date-header[data-date]');
 		for (let i = 0; i < headers.length; i++) {
@@ -36,6 +36,12 @@ async function clickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
 
 	const cell = page.locator('tbody tr').nth(rowIndex).locator('td.grid-cell').nth(colIndex);
 	await cell.scrollIntoViewIfNeeded();
+	return cell;
+}
+
+/** Click a grid cell by locating the date column via data-date attribute. */
+async function clickCellAtDate(page: Page, dateIso: string, rowIndex = 0) {
+	const cell = await cellAtDate(page, dateIso, rowIndex);
 	await cell.click();
 }
 
@@ -218,6 +224,49 @@ test.describe('Reservation CRUD', () => {
 		expect(copied).toContain('Copy Guest');
 		expect(copied).toContain('RV Type: Travel Trailer');
 		expect(copied).toContain('ETA: 4 PM');
+	});
+
+	test('right-click copy leaves the reservation in its original cell', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				value: {
+					writeText: async (text: string) => {
+						(window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__ = text;
+					}
+				},
+				configurable: true
+			});
+		});
+		await resetApp(page);
+
+		const startDate = offsetDate(1);
+		const endDate = offsetDate(3);
+		await createReservation(page, { name: 'Nonmoving Copy', startDate, endDate });
+
+		const sourceCell = await cellAtDate(page, startDate);
+		const box = await sourceCell.boundingBox();
+		if (!box) throw new Error('Reservation source cell not found');
+		const centerX = box.x + box.width / 2;
+		const centerY = box.y + box.height / 2;
+
+		await page.mouse.move(centerX, centerY);
+		await page.mouse.down({ button: 'right' });
+		await page.mouse.move(centerX + box.width, centerY, { steps: 5 });
+		await page.mouse.up({ button: 'right' });
+
+		await expect(page.locator('.context-menu')).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Copy details' }).click();
+
+		const copied = await page.evaluate(
+			() => (window as Window & { __COPIED_RESERVATION__?: string }).__COPIED_RESERVATION__
+		);
+		expect(copied).toContain('Nonmoving Copy');
+		await expect(page.getByTestId('undo-toolbar-btn')).toBeHidden();
+
+		await page.waitForTimeout(250);
+		await clickCellAtDate(page, startDate);
+		await expect(modal(page)).toBeVisible();
+		await expect(modal(page).locator('input[placeholder="Guest name"]')).toHaveValue('Nonmoving Copy');
 	});
 });
 

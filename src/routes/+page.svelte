@@ -106,6 +106,7 @@
     const reservation = occupancyMap.get(buildCellId(location, dateIso));
     if (!reservation) return;
     event.preventDefault();
+    clearDragState();
     contextMenu = { reservation, x: event.clientX, y: event.clientY };
   }
 
@@ -205,7 +206,14 @@
   let dragHasOverlap = false;
   let dragEndedAt = 0;
 
+  function clearDragState(): void {
+    dragState = null;
+    dragPreviewCells = new Set();
+    dragHasOverlap = false;
+  }
+
   function handleCellPointerDown(location: string, dateIso: string, event: PointerEvent): void {
+    if (event.button !== 0) return;
     const reservation = occupancyMap.get(buildCellId(location, dateIso));
     if (!reservation) return;
 
@@ -221,6 +229,10 @@
 
   function handlePointerMove(event: PointerEvent): void {
     if (!dragState) return;
+    if (event.buttons !== 1) {
+      clearDragState();
+      return;
+    }
 
     const dx = event.clientX - dragState.originX;
     const dy = event.clientY - dragState.originY;
@@ -272,9 +284,7 @@
 
     const state = dragState;
     const wasStarted = state.started;
-    dragState = null;
-    dragPreviewCells = new Set();
-    dragHasOverlap = false;
+    clearDragState();
 
     // Release pointer capture
     (event.currentTarget as HTMLElement)?.releasePointerCapture?.(event.pointerId);
@@ -301,9 +311,7 @@
         return;
       }
       if (dragState?.started) {
-        dragState = null;
-        dragPreviewCells = new Set();
-        dragHasOverlap = false;
+        clearDragState();
         dragEndedAt = Date.now();
       }
     }
