@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 
 async function resetApp(page: Page) {
 	await page.goto('/');
@@ -23,6 +23,18 @@ function getTodayIso(): string {
 
 const modal = (page: Page) => page.locator('.modal[role="dialog"]');
 const compactToggle = (page: Page) => page.locator('[data-testid="compact-toggle"]');
+
+async function getVisibleHeight(locator: Locator): Promise<number> {
+	let height = 0;
+	await expect
+		.poll(async () => {
+			await locator.scrollIntoViewIfNeeded();
+			height = (await locator.boundingBox())?.height ?? 0;
+			return height;
+		})
+		.toBeGreaterThan(0);
+	return height;
+}
 
 test.describe('Compact View Toggle', () => {
 	test.beforeEach(async ({ page }) => {
@@ -114,9 +126,8 @@ test.describe('Compact View Toggle', () => {
 	});
 
 	test('toggling back to normal restores full size', async ({ page }) => {
-		const cell = page.locator('.grid-cell').first();
-		await cell.scrollIntoViewIfNeeded();
-		const normalHeight = (await cell.boundingBox())!.height;
+		const cell = page.locator('tbody td.grid-cell').first();
+		const normalHeight = await getVisibleHeight(cell);
 
 		// Toggle to compact
 		await compactToggle(page).click();
@@ -127,8 +138,7 @@ test.describe('Compact View Toggle', () => {
 		await page.waitForTimeout(200);
 
 		await expect(compactToggle(page)).toHaveAttribute('aria-pressed', 'false');
-		await cell.scrollIntoViewIfNeeded();
-		const restoredHeight = (await cell.boundingBox())!.height;
+		const restoredHeight = await getVisibleHeight(cell);
 		expect(restoredHeight).toBeCloseTo(normalHeight, 0);
 	});
 });
