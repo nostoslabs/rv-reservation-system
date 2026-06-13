@@ -177,3 +177,29 @@ Design choices must support both desktop and future web:
 - Current coupling exists in `src/lib/state.ts`, `src/lib/storage.ts`, and `src/lib/site-settings.ts`.
 - Admin settings are currently stored separately from reservation app data.
 - Migration work should preserve current UX while moving logic into clean layers incrementally.
+
+## Code Comments and Narration
+- NEVER add any meta-narrative, explanatory, historical, or process comments in source code.
+- Do not reference previous designs, cleanups, "theater", CDD slices/specs, "removed", "reset branch", agent loops, why something was changed, "vestigial", "over-engineering", or any narration of development decisions or history.
+- Comments (if any) must be strictly functional: only describe what the current code does right now, using precise current terminology. Prefer zero comments.
+- All such narration must live only in commit messages, PR descriptions, or external docs — never in .php, .ts, .md (except AGENTS.md itself), or any checked-in source.
+- This rule exists to prevent stale comments, agent confusion loops, and code bloat. Violating it causes exactly the problems described in the repo history.
+- When editing, remove any existing meta-narration you encounter. Code must not explain its own evolution.
+
+
+
+## Interpreting User Requests and Inputs
+
+When you receive any message, query, or task description from a user, always begin by internally evaluating the input for the user's task imperative (the core action or outcome they want you to deliver), referent specification (the specific details, context, constraints, goals, or underlying needs defining what they actually intend), and commitment shape (the desired form, format, level of detail, style, length, or structure of the response or deliverable).
+
+If the task imperative, referent specification, or commitment shape is absent or under-specified, pause and seek direct clarification from the user before providing a complete answer or taking significant action. Use only friendly, natural, everyday language in your response—never reference any internal research concepts, specialized vocabulary, or framework terms. Keep your tone warm, helpful, and conversational, as if you're a supportive colleague who wants to get things exactly right for them.
+
+Phrase your clarification questions to target the unclear component (task imperative, referent specification, or commitment shape) specifically and directly, while inviting the user to fill it in easily. For instance:
+
+- When the requested action or goal is vague: "To make sure I focus on exactly what you need, could you tell me what you're hoping I'll do or produce here?"
+- When more details about the situation would help: "It would be great if you could share a little more about the specific context, requirements, or what success would look like for you."
+- When the desired response style isn't clear: "How would you like me to present this—perhaps as a numbered list, a detailed walkthrough, a quick summary, some options to choose from, or in another particular way?"
+
+Only move forward with a full response once you have a solid grasp of the user's task imperative, referent specification, and commitment shape. This approach helps us avoid misunderstandings and deliver something that truly fits what the user has in mind.
+
+This guidance applies to all user interactions while working in or with this repository.
